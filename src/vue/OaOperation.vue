@@ -14,8 +14,16 @@ import { createDraft, mediaTypes, type OperationDraft } from './draft'
 import OaSamples from './OaSamples.vue'
 import OaSchema from './OaSchema.vue'
 import OaTryIt from './OaTryIt.vue'
+import { safeHref } from './safe'
 
-const props = defineProps<{ entry: OperationEntry }>()
+const props = withDefaults(
+  defineProps<{
+    entry: OperationEntry
+    /** False for the second and later copies of an operation listed under several tags. */
+    anchored?: boolean
+  }>(),
+  { anchored: true },
+)
 const ctx = useReference()
 const labels = ctx.labels
 const deref = <T,>(v: unknown): T | undefined => ctx.spec.value.resolver.deref(v as never) as T | undefined
@@ -82,7 +90,7 @@ const headersOf = (r: Response | undefined) =>
 </script>
 
 <template>
-  <section :id="anchor" ref="root" class="oa-op" :class="{ 'oa-op--deprecated': entry.deprecated, 'oa-op--pending': !draft }">
+  <section :id="anchored ? anchor : undefined" ref="root" class="oa-op" :class="{ 'oa-op--deprecated': entry.deprecated, 'oa-op--pending': !draft }">
     <header class="oa-op__head">
       <h3 class="oa-op__title">{{ op.summary || entry.path }}</h3>
       <div class="oa-op__line">
@@ -95,8 +103,8 @@ const headersOf = (r: Response | undefined) =>
     <div v-if="draft" class="oa-op__grid">
       <div class="oa-op__doc">
         <UidMarkdown v-if="op.description" class="oa-md" :source="op.description" />
-        <p v-if="op.externalDocs" class="oa-op__ext">
-          <a :href="op.externalDocs.url" target="_blank" rel="noopener noreferrer">{{ op.externalDocs.description || labels.externalDocs }}</a>
+        <p v-if="safeHref(op.externalDocs?.url)" class="oa-op__ext">
+          <a :href="safeHref(op.externalDocs?.url)" target="_blank" rel="noopener noreferrer">{{ op.externalDocs?.description || labels.externalDocs }}</a>
         </p>
 
         <div v-if="paramGroups.length" class="oa-block">

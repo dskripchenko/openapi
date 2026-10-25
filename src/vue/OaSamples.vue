@@ -13,9 +13,17 @@ const props = defineProps<{ draft: OperationDraft }>()
 const ctx = useReference()
 
 const options = computed(() =>
-  SNIPPET_TARGETS.filter((t) => ctx.snippetTargets.value.includes(t.id)).map((t) => ({ value: t.id, label: t.label })),
+  ctx.snippetTargets.value
+    .map((id) => SNIPPET_TARGETS.find((t) => t.id === id))
+    .filter((t) => t !== undefined)
+    .map((t) => ({ value: t.id, label: t.label })),
 )
-const info = computed(() => SNIPPET_TARGETS.find((t) => t.id === ctx.snippetTarget.value) ?? SNIPPET_TARGETS[0]!)
+/** The chosen language, or the first offered when the choice is not among them. */
+const info = computed(() => {
+  const offered = ctx.snippetTargets.value
+  const id = offered.includes(ctx.snippetTarget.value) ? ctx.snippetTarget.value : (offered[0] ?? 'curl')
+  return SNIPPET_TARGETS.find((t) => t.id === id) ?? SNIPPET_TARGETS[0]!
+})
 const code = computed(() => generateSnippet(info.value.id, props.draft.request))
 
 function choose(value: unknown): void {

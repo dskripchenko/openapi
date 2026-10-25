@@ -42,3 +42,12 @@ describe('validateDocument on undeclared tags', () => {
     expect(warnings[0]!.pointer).toBe('/paths/~1a/get/tags/0')
   })
 })
+
+describe('upgradeSchema30', () => {
+  it('returns the 3.1 form and leaves its input alone', async () => {
+    const { upgradeSchema30 } = await import('../src')
+    const input = { type: 'string', nullable: true }
+    expect(upgradeSchema30(input)).toEqual({ type: ['string', 'null'] })
+    expect(input).toEqual({ type: 'string', nullable: true })
+  })
+})

@@ -3,7 +3,6 @@
  * @dskripchenko/ui. Import the styles once: `@dskripchenko/openapi/style.css`.
  */
 export { default as OpenApiReference } from './OpenApiReference.vue'
-export { default as OaSchema } from './OaSchema.vue'
 export { default as OpenApiEditor } from './OpenApiEditor.vue'
 export { editorEn, editorRu, EDITOR_LOCALES, type EditorLabels } from './editor/labels'
 export { en, ru, LOCALES, type OpenApiLabels } from './labels'

@@ -165,6 +165,13 @@ onMounted(() => {
 })
 
 const schemas = computed(() => loaded.value?.document.components?.schemas ?? {})
+
+/** An operation under several tags is shown under each; only its first copy carries the anchor. */
+const firstGroupOf = computed(() => {
+  const first = new Map<string, string>()
+  for (const g of loaded.value?.groups ?? []) for (const e of g.operations) if (!first.has(e.id)) first.set(e.id, g.name)
+  return first
+})
 const tagIntro = (name: string) => loaded.value?.groups.find((g) => g.name === name)
 
 defineExpose({ go, spec: loaded })
@@ -227,7 +234,12 @@ defineExpose({ go, spec: loaded })
         <section v-for="g in loaded.groups" :key="g.name" class="oa-tag">
           <h2 :id="`tag/${g.name}`" class="oa-tag__title">{{ g.displayName }}</h2>
           <UidMarkdown v-if="tagIntro(g.name)?.description" class="oa-md" :source="tagIntro(g.name)!.description!" />
-          <OaOperation v-for="e in g.operations.filter((x) => !x.webhook)" :key="e.id" :entry="e" />
+          <OaOperation
+            v-for="e in g.operations.filter((x) => !x.webhook)"
+            :key="e.id"
+            :entry="e"
+            :anchored="firstGroupOf.get(e.id) === g.name"
+          />
         </section>
         <section v-if="loaded.operations.some((e) => e.webhook)" class="oa-tag">
           <h2 class="oa-tag__title">{{ labels.webhooks }}</h2>

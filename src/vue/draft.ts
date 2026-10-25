@@ -67,7 +67,8 @@ export function currentServer(ctx: ReferenceContext, entry?: OperationEntry): st
   const servers = entry?.operation.servers ?? entry?.pathItem.servers ?? ctx.spec.value.document.servers ?? []
   const { server } = ctx
   const chosen = server.index === -1 ? undefined : (servers[server.index] ?? servers[0])
-  let url = server.index === -1 ? server.custom : chosen ? serverUrl(chosen, server.variables) : ''
+  // No servers at all means "/", as the spec says: requests go to the page's origin.
+  let url = server.index === -1 ? server.custom : chosen ? serverUrl(chosen, server.variables) : '/'
   if (url && !/^[a-z][a-z\d+.-]*:/i.test(url) && ctx.baseUrl.value !== undefined) {
     url = joinUrl(ctx.baseUrl.value, url)
   }

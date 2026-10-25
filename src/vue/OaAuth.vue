@@ -7,7 +7,7 @@
 import { computed, reactive, ref } from 'vue'
 import { UidButton, UidInput, UidMarkdown } from '@dskripchenko/ui'
 import type { SecurityScheme } from '../core/types'
-import { fetchOAuthToken } from '../request'
+import { fetchOAuthToken, type SendFn } from '../request'
 import type { BasicCredentials } from '../request/security'
 import { useReference } from './context'
 
@@ -38,6 +38,22 @@ const flowOf = (s: SecurityScheme): Flow | null =>
 function oauthState(name: string) {
   return (oauth[name] ??= { clientId: '', clientSecret: '', username: '', password: '', error: '', busy: false })
 }
+/**
+ * A fetch that goes through the reference's `send`, so the token request takes
+ * the host's proxy like every try-it request (the token endpoint need not allow CORS).
+ */
+function fetchVia(send: SendFn): typeof fetch {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const headers: [string, string][] = []
+    new Headers(init?.headers).forEach((v, k) => headers.push([k, v]))
+    const text = typeof init?.body === 'string' ? init.body : init?.body instanceof URLSearchParams ? init.body.toString() : undefined
+    const mediaType = headers.find(([k]) => k.toLowerCase() === 'content-type')?.[1] ?? 'application/x-www-form-urlencoded'
+    const r = await send({ method: init?.method ?? 'GET', url: String(input), headers, body: text === undefined ? undefined : { mediaType, text } })
+    if (r.error) throw new Error(r.error)
+    return new Response(r.body, { status: r.status || 500, statusText: r.statusText, headers: r.headers })
+  }) as typeof fetch
+}
+
 async function getToken(name: string, s: SecurityScheme): Promise<void> {
   const flow = flowOf(s)
   if (!flow) return
@@ -53,6 +69,7 @@ async function getToken(name: string, s: SecurityScheme): Promise<void> {
       username: st.username,
       password: st.password,
       scopes: Object.keys(f.scopes ?? {}),
+      fetch: fetchVia(ctx.send.value),
     })
     ctx.credentials[name] = token.accessToken
   } catch (e) {

@@ -5,6 +5,7 @@ import { UidInput, UidMarkdown, UidSelect } from '@dskripchenko/ui'
 import type { Server } from '../core/types'
 import { useReference } from './context'
 import OaAuth from './OaAuth.vue'
+import { safeHref } from './safe'
 
 const ctx = useReference()
 const labels = ctx.labels
@@ -33,11 +34,11 @@ function choose(v: unknown): void {
     <p v-if="info.summary" class="oa-intro__summary">{{ info.summary }}</p>
     <UidMarkdown v-if="info.description" class="oa-md" :source="info.description" />
     <p v-if="info.contact || info.license || info.termsOfService" class="oa-intro__meta">
-      <a v-if="info.contact?.url" :href="info.contact.url" target="_blank" rel="noopener noreferrer">{{ info.contact.name || info.contact.url }}</a>
-      <a v-if="info.contact?.email" :href="`mailto:${info.contact.email}`">{{ info.contact.email }}</a>
-      <a v-if="info.license?.url" :href="info.license.url" target="_blank" rel="noopener noreferrer">{{ info.license.name }}</a>
+      <a v-if="safeHref(info.contact?.url)" :href="safeHref(info.contact?.url)" target="_blank" rel="noopener noreferrer">{{ info.contact?.name || info.contact?.url }}</a>
+      <a v-if="info.contact?.email" :href="safeHref(`mailto:${info.contact.email}`)">{{ info.contact.email }}</a>
+      <a v-if="safeHref(info.license?.url)" :href="safeHref(info.license?.url)" target="_blank" rel="noopener noreferrer">{{ info.license?.name }}</a>
       <span v-else-if="info.license">{{ info.license.name }}</span>
-      <a v-if="info.termsOfService" :href="info.termsOfService" target="_blank" rel="noopener noreferrer">Terms</a>
+      <a v-if="safeHref(info.termsOfService)" :href="safeHref(info.termsOfService)" target="_blank" rel="noopener noreferrer">{{ labels.terms }}</a>
     </p>
 
     <div class="oa-intro__panels">

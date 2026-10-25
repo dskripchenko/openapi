@@ -33,6 +33,7 @@ export {
   type OperationEntry,
   type OperationGroup,
   type TagGroupSet,
+  type GroupedOperations,
 } from './model'
 
 export {

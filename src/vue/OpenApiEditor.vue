@@ -16,7 +16,11 @@
 import { computed, provide, reactive, ref, watch } from 'vue'
 import { UidAlert, UidButton, UidInput, UidSelect } from '@dskripchenko/ui'
 import { UidLocaleProvider, en as uidEn, ru as uidRu } from '@dskripchenko/ui'
+import type { ResolverOptions } from '../model'
 import type { SendFn } from '../request'
+import type { SnippetTarget } from '../snippets'
+import type { DocumentIssue } from '../validate'
+import type { OpenApiLabels } from './labels'
 import { editorKey, type EditorContext } from './editor/context'
 import { EDITOR_LOCALES, editorEn, type EditorLabels } from './editor/labels'
 import { autoCommit, METHODS, renameKey, useEditorDoc, type Doc, type Selection } from './editor/state'
@@ -42,12 +46,34 @@ const props = withDefaults(
     labels?: Partial<EditorLabels>
     /** Passed to the preview's try-it. */
     send?: SendFn
+    /** The preview's strings (the reference's labels). */
+    referenceLabels?: Partial<OpenApiLabels>
+    /** The preview's sample languages. */
+    snippetTargets?: SnippetTarget[]
+    /** The preview's base for relative server URLs. */
+    baseUrl?: string
+    /** Loads external `$ref` documents in the preview. */
+    external?: ResolverOptions['external']
     /** Format for a document created from scratch. */
     newFormat?: 'yaml' | 'json'
   }>(),
-  { view: 'visual', locale: undefined, labels: () => ({}), send: undefined, newFormat: 'yaml' },
+  {
+    view: 'visual',
+    locale: undefined,
+    labels: () => ({}),
+    send: undefined,
+    referenceLabels: () => ({}),
+    snippetTargets: undefined,
+    baseUrl: undefined,
+    external: undefined,
+    newFormat: 'yaml',
+  },
 )
-const emit = defineEmits<{ 'update:modelValue': [text: string] }>()
+const emit = defineEmits<{
+  'update:modelValue': [text: string]
+  /** The problems found after each change: a parse error comes as one issue with severity 'error'. */
+  issues: [issues: DocumentIssue[]]
+}>()
 
 const editor = useEditorDoc(props.modelValue, (text) => emit('update:modelValue', text)) as ReturnType<typeof useEditorDoc> & {
   readonly lastEmitted: string
@@ -73,8 +99,24 @@ const ctx: EditorContext = {
 provide(editorKey, ctx)
 
 const view = ref<View>(props.view)
+watch(
+  () => props.view,
+  (v) => (view.value = v),
+)
 const isSwagger2 = computed(() => editor.family.value === 'swagger2')
 const canVisual = computed(() => !!editor.doc.value && !editor.parseError.value && !isSwagger2.value)
+watch(
+  [() => editor.issues.value, () => editor.parseError.value],
+  ([issues, parseError]) => {
+    emit(
+      'issues',
+      parseError
+        ? [{ pointer: '', message: parseError.message, severity: 'error', line: parseError.line, column: parseError.column }]
+        : issues,
+    )
+  },
+  { immediate: true },
+)
 const errorCount = computed(() => editor.issues.value.filter((i) => i.severity === 'error').length + (editor.parseError.value ? 1 : 0))
 
 /* ---------------------------------- source ---------------------------------- */
@@ -264,7 +306,17 @@ const schemaDraft = reactive<Record<string, string>>({})
 
       <div v-else-if="view === 'preview'" class="oa-editor__body oa-editor__preview">
         <UidAlert v-if="editor.parseError.value" variant="danger" :title="labels.parseError">{{ editor.parseError.value.message }}</UidAlert>
-        <OpenApiReference v-else-if="editor.doc.value" :spec="editor.text.value" :locale="locale" :send="send" :hash-navigation="false" />
+        <OpenApiReference
+          v-else-if="editor.doc.value"
+          :spec="editor.text.value"
+          :locale="locale"
+          :send="send"
+          :labels="referenceLabels"
+          :base-url="baseUrl"
+          :external="external"
+          v-bind="snippetTargets ? { snippetTargets } : {}"
+          :hash-navigation="false"
+        />
       </div>
 
       <div v-else class="oa-editor__body">

@@ -12,10 +12,10 @@ laravel-admin просмотрщик и конструктор специфик�
   - `@dskripchenko/openapi` — ядро, без Vue;
   - `@dskripchenko/openapi/vue` — компоненты, peer-зависимости `vue` и
     `@dskripchenko/ui`.
-- Сниппеты на 14 целях: curl, JavaScript (fetch), PHP (Guzzle), PHP (Laravel
+- Сниппеты на 13 целях: curl, JavaScript (fetch), PHP (Guzzle), PHP (Laravel
   Http), Python (requests), Go (net/http), Java (java.net.http), C#
   (HttpClient), Kotlin (OkHttp), Swift (URLSession), сырой HTTP, PowerShell
-  (Invoke-RestMethod). Плюс Node (axios) — его почти всегда просят.
+  (Invoke-RestMethod). Плюс Node (axios) — его почти всегда просят; итого 13.
 - Try-it отправляет запросы из браузера через `fetch`. Хост может передать
   свою функцию `send`; ядро laravel-admin даёт прокси-эндпоинт под правом
   доступа и с белым списком хостов.
