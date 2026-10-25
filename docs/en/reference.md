@@ -19,6 +19,10 @@ panels, then every operation with its parameters, request body, responses
 (as schema trees with examples), callbacks, request samples and a "Try it"
 panel, and at the end the schemas of `components.schemas`.
 
+Links from the spec — the contact, license and terms-of-service URLs of
+`info` and an operation's `externalDocs` — are shown only when they are
+`http(s)`, `mailto` or relative addresses; any other link is left out.
+
 Below 1100 px of width the samples and try-it move under the operation's
 description; below 760 px the navigation moves above the document.
 
@@ -81,6 +85,9 @@ Every operation has the anchor `#operation/{id}` and every schema of
 taken) gets a slug of its method and path, such as `get-pets-id` for
 `GET /pets/{id}`. Webhook operations get `webhook-{method}-{name}`.
 
+An operation with several tags is shown in the section of each tag; only
+its first copy carries the anchor, so a deep link lands on that one.
+
 When the page opens with one of these anchors in `location.hash`, the
 reference scrolls to it. With `hashNavigation` (the default) a click in the
 navigation replaces the hash, so the address can be copied and shared. Turn
@@ -138,7 +145,7 @@ type SendFn = (request: HttpRequest) => Promise<HttpResponse>
 
 interface HttpRequest {
   method: string                      // 'GET', 'POST', …
-  url: string                         // with the query string
+  url: string                         // absolute, with the query string
   headers: [string, string][]
   body?: {
     mediaType: string
@@ -192,9 +199,8 @@ const send: SendFn = async (request) => {
 <OpenApiReference :spec="text" :send="send" />
 ```
 
-The URL is absolute when the document has servers (a relative server URL is
-resolved against `baseUrl`); for a document without `servers` it is the bare
-path. On the backend, the endpoint reads the `HttpRequest`, checks that its URL
+The URL is always absolute: a relative server URL, and `/` for a document
+without `servers`, is resolved against `baseUrl`. On the backend, the endpoint reads the `HttpRequest`, checks that its URL
 points at a host you allow, performs it and answers with an `HttpResponse`.
 In Node 20+ the core's own `sendRequest` does the sending part:
 
@@ -218,8 +224,10 @@ the browser's forbidden-header list, so through it the `Cookie` and other
 headers the spec declares do reach the API. File fields arrive as
 `{ filename, contentType }` without data, since the panel has none to send.
 
-`send` that throws is treated like a network error. `send` is also passed on
-by [`OpenApiEditor`](editor.md) to its preview.
+`send` that throws is treated like a network error. The "Get token" requests
+of the [authentication panel](#fetching-an-oauth2-token) go through `send`
+too: a proxy has to let the token endpoint's host through as well. `send` is
+also passed on by [`OpenApiEditor`](editor.md) to its preview.
 
 ## Authentication
 
@@ -254,8 +262,10 @@ scheme's token field. With a client secret the client authenticates with
 HTTP Basic; without one, `client_id` goes into the form. When the scheme has
 both flows, `clientCredentials` is used.
 
-The token request is made with the page's `fetch`, not through `send`, so
-the token endpoint has to accept a cross-origin request from the page. For
+The token request goes through `send`, like try-it. With the default
+transport the token endpoint has to accept a cross-origin request from the
+page; with a [proxy](#sending-through-your-server) it goes through your
+server and needs no CORS. For
 the `implicit` and `authorizationCode` flows, obtain a token elsewhere and
 paste it into the token field. The same request is available outside the
 component as [`fetchOAuthToken`](core.md#oauth2-tokens).
@@ -269,7 +279,8 @@ that declares its own `servers` uses its own list, with the same position
 chosen.
 
 A relative server URL (`/v1`) is resolved against `baseUrl`, which defaults
-to the origin of the page. Set it when the reference is served from another
+to the origin of the page; a document without `servers` is called at `/` of
+`baseUrl`. Set it when the reference is served from another
 origin than the API:
 
 ```vue
@@ -278,8 +289,9 @@ origin than the API:
 
 ## Request samples
 
-The samples select offers the languages of `snippetTargets`, in the package's
-own order; `defaultSnippet` is the one shown first. To offer only a few:
+The samples select offers the languages of `snippetTargets`, in the order
+given; `defaultSnippet` is the one shown first, and when it is not in the
+list, the first of the list is. To offer only a few:
 
 ```vue
 <OpenApiReference
@@ -388,9 +400,10 @@ scroll to the same offset:
 The other variables — navigation width, gaps, method colours — are listed in
 [theming](theming.md).
 
-## OaSchema and the context
+## The context
 
-`OaSchema` (the schema tree) and `useReference`/`referenceKey` (the shared
-state: spec, labels, chosen server, credentials, transport) are exported for
-building custom parts inside the reference. They read the context that
+`useReference` and `referenceKey` give the state the parts of the reference
+share: the spec, the labels, the chosen server, the credentials and the
+transport (`ReferenceContext`, `ServerState`). They are exported for building
+custom parts inside the reference; they read the context that
 `OpenApiReference` provides and cannot be used outside it.

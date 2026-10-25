@@ -17,6 +17,9 @@ import { OpenApiReference } from '@dskripchenko/openapi/vue'
 请求体、响应（以带示例的 schema 树展示）、回调、请求示例和 "Try it" 面板，
 最后是 `components.schemas` 中的 schema。
 
+来自规范文档的链接——`info` 中的联系人、许可证和服务条款 URL，以及操作的
+`externalDocs`——只有在是 `http(s)`、`mailto` 或相对地址时才会显示；其他链接一律省略。
+
 宽度小于 1100 px 时，示例和 try-it 移到操作描述的下方；小于 760 px 时，
 导航移到文档上方。
 
@@ -77,6 +80,9 @@ const openPets = () => reference.value?.go('operation/listPets')
 已被占用）的操作会得到由方法和路径生成的 slug，例如 `GET /pets/{id}` 对应
 `get-pets-id`。webhook 操作得到 `webhook-{method}-{name}`。
 
+带多个标签的操作会显示在每个标签的分区中；只有第一份副本带有锚点，
+因此深层链接会落在这一份上。
+
 当页面打开时 `location.hash` 中带有这样的锚点，参考页会滚动到该处。启用
 `hashNavigation`（默认）时，在导航中点击会替换 hash，因此地址可以复制和分享。
 如果参考页嵌在一个用 hash 做自身路由的页面中，请关闭它：
@@ -124,7 +130,7 @@ type SendFn = (request: HttpRequest) => Promise<HttpResponse>
 
 interface HttpRequest {
   method: string                      // 'GET', 'POST', …
-  url: string                         // with the query string
+  url: string                         // absolute, with the query string
   headers: [string, string][]
   body?: {
     mediaType: string
@@ -178,8 +184,8 @@ const send: SendFn = async (request) => {
 <OpenApiReference :spec="text" :send="send" />
 ```
 
-当文档有 servers 时，URL 是绝对地址（相对的服务器 URL 会基于 `baseUrl` 解析）；
-对于没有 `servers` 的文档，它只是路径本身。在后端，端点读取 `HttpRequest`，
+URL 总是绝对地址：相对的服务器 URL，以及没有 `servers` 的文档所用的 `/`，
+都会基于 `baseUrl` 解析。在后端，端点读取 `HttpRequest`，
 检查其 URL 指向你允许的主机，执行请求，并以 `HttpResponse` 作答。在 Node 20+
 中，发送这一步可以直接交给核心自带的 `sendRequest`：
 
@@ -202,7 +208,8 @@ export async function proxy(request: HttpRequest): Promise<HttpResponse> {
 确实能到达 API。文件字段到达时是不带数据的 `{ filename, contentType }`，
 因为面板本来就没有数据可发送。
 
-抛出异常的 `send` 会被当作网络错误处理。[`OpenApiEditor`](editor.md)
+抛出异常的 `send` 会被当作网络错误处理。[认证面板](#获取-oauth2-令牌) 的 "Get token"
+请求同样经过 `send`：代理也必须放行令牌端点所在的主机。[`OpenApiEditor`](editor.md)
 也会把 `send` 传给它的预览。
 
 ## 认证
@@ -231,7 +238,8 @@ export async function proxy(request: HttpRequest): Promise<HttpResponse> {
 有 client secret 时，客户端使用 HTTP Basic 认证；没有时，`client_id` 放入表单。
 当方案同时具有两种流程时，使用 `clientCredentials`。
 
-令牌请求通过页面的 `fetch` 发出，而不是通过 `send`，因此令牌端点必须接受来自页面的跨域请求。
+令牌请求与 try-it 一样经过 `send`。使用默认传输方式时，令牌端点必须接受来自页面的跨域请求；
+使用 [代理](#通过你的服务器发送) 时，请求经由你的服务器发出，无需 CORS。
 对于 `implicit` 和 `authorizationCode` 流程，请在别处获取令牌，然后粘贴到令牌输入框中。
 同样的请求在组件之外以 [`fetchOAuthToken`](core.md#oauth2-令牌) 提供。
 
@@ -241,7 +249,8 @@ export async function proxy(request: HttpRequest): Promise<HttpResponse> {
 每个服务器变量各有一个输入项——变量有 `enum` 时为下拉选择——并预填其 `default`。
 声明了自己 `servers` 的操作或路径使用自己的列表，选中的位置相同。
 
-相对的服务器 URL（`/v1`）会基于 `baseUrl` 解析，`baseUrl` 默认为页面的 origin。
+相对的服务器 URL（`/v1`）会基于 `baseUrl` 解析，`baseUrl` 默认为页面的 origin；
+没有 `servers` 的文档以 `baseUrl` 的 `/` 作为调用地址。
 当参考页与 API 不在同一 origin 时，请设置它：
 
 ```vue
@@ -250,8 +259,8 @@ export async function proxy(request: HttpRequest): Promise<HttpResponse> {
 
 ## 请求示例
 
-示例选择器提供 `snippetTargets` 中的语言，顺序为本包自身的顺序；`defaultSnippet`
-是首先显示的那个。只提供其中几种：
+示例选择器按给定顺序提供 `snippetTargets` 中的语言；`defaultSnippet`
+是首先显示的那个，若它不在列表中，则显示列表中的第一个。只提供其中几种：
 
 ```vue
 <OpenApiReference
@@ -348,8 +357,8 @@ onMounted(async () => {
 
 其他变量——导航宽度、间距、方法颜色——列在 [主题](theming.md) 中。
 
-## OaSchema 与上下文
+## 上下文
 
-`OaSchema`（schema 树）和 `useReference`/`referenceKey`（共享状态：规范文档、
-字符串、所选服务器、凭据、传输方式）被导出，用于在参考页内部构建自定义部件。
-它们读取 `OpenApiReference` 提供的上下文，不能在其外部使用。
+`useReference` 和 `referenceKey` 提供参考页各部分共享的状态：规范文档、字符串、
+所选服务器、凭据和传输方式（`ReferenceContext`、`ServerState`）。它们被导出，
+用于在参考页内部构建自定义部件；它们读取 `OpenApiReference` 提供的上下文，不能在其外部使用。

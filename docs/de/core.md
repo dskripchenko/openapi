@@ -73,7 +73,8 @@ Tags kommen zuerst in ihrer Reihenfolge, dann Tags, die nur an Operationen
 vorkommen; eine Operation mit mehreren Tags steht in jeder ihrer Gruppen.
 
 `listOperations(document, resolver)` und `groupByTag(document, operations)`
-sind die beiden Schritte einzeln; `DEFAULT_TAG` ist `'default'`.
+sind die beiden Schritte einzeln; `groupByTag` gibt `GroupedOperations`
+zurück, `{ groups, tagGroups? }`. `DEFAULT_TAG` ist `'default'`.
 
 ## Parser
 
@@ -165,8 +166,8 @@ Aus **OpenAPI 3.0**:
 - das `example` eines Schemas bleibt zusätzlich erhalten.
 
 `upgradeSchema30(schema)` wendet die Schemaregeln 3.0 → 3.1 auf ein einzelnes
-Schema an und gibt das Ergebnis zurück. Es arbeitet auf dem übergebenen
-Objekt; übergeben Sie eine Kopie, um das Original zu behalten.
+Schema an und gibt das Ergebnis als Kopie zurück; die Eingabe bleibt
+unverändert.
 
 ## Referenzen
 

@@ -39,27 +39,21 @@
 
 ## 在哪里设置
 
-`--oa-sticky-top` 和 `--oa-source-height` 本身没有声明值，因此可以在组件之上的任何位置设置——
-`:root` 或某个容器上：
+这些变量本身没有声明值：上表中的每个默认值都是使用处的回退值。可以在组件上、
+任一祖先元素上或 `:root` 上设置它们：
 
 ```css
 :root {
   --oa-sticky-top: 64px;    /* the height of the site header */
 }
-```
 
-其他变量声明在组件自己的根元素上（`.oa-reference` 和 `.oa-editor` 类），
-正因如此，它们的默认值才会跟随主题。要修改它们，请在这些类上设置——设在 `:root`
-或容器上的值会在那里被覆盖：
-
-```css
-.docs .oa-reference {
+.docs {
   --oa-nav-width: 320px;
   --oa-get: #0284c7;
   --oa-get-bg: #e0f2fe;
 }
 
-[data-theme='dark'] .docs .oa-reference {
+[data-theme='dark'] .docs {
   --oa-get: #7dd3fc;
   --oa-get-bg: #0c4a6e;
 }

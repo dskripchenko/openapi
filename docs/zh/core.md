@@ -68,7 +68,8 @@ try {
 之后是只在操作上出现的标签；带多个标签的操作会出现在每个对应的分组中。
 
 `listOperations(document, resolver)` 和 `groupByTag(document, operations)`
-是可单独使用的这两个步骤；`DEFAULT_TAG` 为 `'default'`。
+是可单独使用的这两个步骤；`groupByTag` 返回 `GroupedOperations`，即
+`{ groups, tagGroups? }`。`DEFAULT_TAG` 为 `'default'`。
 
 ## 解析器
 
@@ -146,8 +147,8 @@ document.openapi                      // '3.1.0'
 - 布尔形式的 `exclusiveMinimum` / `exclusiveMaximum` 变为数值形式；
 - schema 的 `example` 也会保留。
 
-`upgradeSchema30(schema)` 对单个 schema 应用 3.0 → 3.1 的 schema 规则并返回结果。
-它在传入的对象上直接修改；如需保留原对象，请传入副本。
+`upgradeSchema30(schema)` 对单个 schema 应用 3.0 → 3.1 的 schema 规则并以副本形式返回结果；
+输入保持不变。
 
 ## 引用
 

@@ -21,15 +21,20 @@ const text = ref(initialYaml)
 | Prop | Type | Default | |
 |---|---|---|---|
 | `modelValue` | `string` | — | The document's text, YAML or JSON. Use `v-model`. |
-| `view` | `'visual' \| 'source' \| 'preview'` | `'visual'` | The view the editor opens with. |
+| `view` | `'visual' \| 'source' \| 'preview'` | `'visual'` | The view shown. The editor opens with it, and a new value switches to it; the user can still switch views in the bar. |
 | `locale` | `string` | — | `'en'` or `'ru'`; also sets the kit's locale inside, as in the [reference](reference.md#languages). |
 | `labels` | `Partial<EditorLabels>` | `{}` | Overrides of single editor strings. |
 | `send` | `SendFn` | `fetch` | Passed to the preview's try-it. See [the proxy](reference.md#sending-through-your-server). |
+| `referenceLabels` | `Partial<OpenApiLabels>` | `{}` | The preview's strings: the reference's `labels`. |
+| `snippetTargets` | `SnippetTarget[]` | all 13 | The preview's sample languages. |
+| `baseUrl` | `string` | the page origin | The preview's base for relative server URLs. |
+| `external` | `(url: string) => unknown \| undefined` | — | Loads external `$ref` documents in the preview, as in the [reference](reference.md#external-references). |
 | `newFormat` | `'yaml' \| 'json'` | `'yaml'` | The format of a document created from an empty text. |
 
 | Event | Payload | |
 |---|---|---|
 | `update:modelValue` | `string` | The new text, after every change in any view. |
+| `issues` | `DocumentIssue[]` | The problems of the document, at mount and whenever they change. Text that cannot be parsed comes as one issue with `severity: 'error'` and the parser's line and column. |
 
 The text is the only state the editor shares with the host: save it the way
 you save any other text. A new `modelValue` from outside replaces the
@@ -61,7 +66,8 @@ comments stay. Tab inserts two spaces. Very large texts (over about
 150,000 characters) are shown without highlighting so that typing stays fast.
 
 **Preview.** The document rendered by [`OpenApiReference`](reference.md),
-with the same `locale` and `send`; try-it works there. The preview does not
+with the editor's `locale`, `send`, `referenceLabels`, `snippetTargets`,
+`baseUrl` and `external`; try-it works there. The preview does not
 touch `location.hash`.
 
 ## What the forms cover
@@ -134,9 +140,29 @@ lines with errors are marked in the gutter. Text that cannot be parsed at all
 shows the parser's message and position instead; until the text reads again,
 the visual view and the preview show that message too.
 
-Problems are checked again after every parse and every form edit. While
-typing in a very large text (over 100,000 characters), the parse waits for a
-short pause.
+Problems are checked again after every parse and every form edit, and each
+new list is emitted as the `issues` event — for example, to block saving a
+document with errors:
+
+```vue
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import type { DocumentIssue } from '@dskripchenko/openapi'
+import { OpenApiEditor } from '@dskripchenko/openapi/vue'
+
+const text = ref(initialYaml)
+const issues = ref<DocumentIssue[]>([])
+const canSave = computed(() => !issues.value.some((i) => i.severity === 'error'))
+</script>
+
+<template>
+  <OpenApiEditor v-model="text" @issues="issues = $event" />
+  <button :disabled="!canSave">Save</button>
+</template>
+```
+
+While typing in a very large text (over 100,000 characters), the parse
+waits for a short pause.
 
 ## Labels
 
@@ -156,5 +182,9 @@ import { editorEn, type EditorLabels } from '@dskripchenko/openapi/vue'
 const editorDe: EditorLabels = { ...editorEn, visual: 'Formulare', source: 'Quelltext', preview: 'Vorschau' /* … */ }
 ```
 
-The preview is an `OpenApiReference` and takes its strings from `locale`
-only; `labels` of the editor do not reach it.
+The preview is an `OpenApiReference`: it takes its strings from `locale` and
+`referenceLabels`; the editor's `labels` do not reach it.
+
+```vue
+<OpenApiEditor v-model="text" locale="en" :reference-labels="{ tryIt: 'Run' }" />
+```

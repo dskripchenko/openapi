@@ -21,15 +21,20 @@ const text = ref(initialYaml)
 | Свойство | Тип | По умолчанию | |
 |---|---|---|---|
 | `modelValue` | `string` | — | Текст документа, YAML или JSON. Используйте `v-model`. |
-| `view` | `'visual' \| 'source' \| 'preview'` | `'visual'` | Режим, в котором редактор открывается. |
+| `view` | `'visual' \| 'source' \| 'preview'` | `'visual'` | Показанный режим. Редактор открывается в нём, а новое значение переключает на него; пользователь по-прежнему может переключать режимы на панели. |
 | `locale` | `string` | — | `'en'` или `'ru'`; также задаёт локаль кита внутри, как в [справочнике](reference.md#языки). |
 | `labels` | `Partial<EditorLabels>` | `{}` | Замены отдельных строк редактора. |
 | `send` | `SendFn` | `fetch` | Передаётся в try-it просмотра. См. [прокси](reference.md#отправка-через-свой-сервер). |
+| `referenceLabels` | `Partial<OpenApiLabels>` | `{}` | Строки просмотра: `labels` справочника. |
+| `snippetTargets` | `SnippetTarget[]` | все 13 | Языки примеров в просмотре. |
+| `baseUrl` | `string` | origin страницы | База для относительных URL серверов в просмотре. |
+| `external` | `(url: string) => unknown \| undefined` | — | Загружает внешние документы `$ref` в просмотре, как в [справочнике](reference.md#внешние-ссылки). |
 | `newFormat` | `'yaml' \| 'json'` | `'yaml'` | Формат документа, созданного из пустого текста. |
 
 | Событие | Данные | |
 |---|---|---|
 | `update:modelValue` | `string` | Новый текст после каждого изменения в любом режиме. |
+| `issues` | `DocumentIssue[]` | Проблемы документа — при монтировании и при каждом их изменении. Текст, который не разбирается, приходит одной проблемой с `severity: 'error'` и строкой и столбцом парсера. |
 
 Текст — единственное состояние, которое редактор делит с хостом: сохраняйте
 его так же, как любой другой текст. Новый `modelValue` снаружи заменяет
@@ -62,8 +67,8 @@ YAML / JSON, который переписывает весь документ �
 оставался быстрым.
 
 **Preview (просмотр).** Документ, отрисованный
-[`OpenApiReference`](reference.md), с теми же `locale` и `send`; try-it там
-работает. Просмотр не трогает `location.hash`.
+[`OpenApiReference`](reference.md), с `locale`, `send`, `referenceLabels`,
+`snippetTargets`, `baseUrl` и `external` редактора; try-it там работает. Просмотр не трогает `location.hash`.
 
 ## Что покрывают формы
 
@@ -135,7 +140,27 @@ problems». Она открывает режим исходника, где ка
 вместо этого показываются сообщение и позиция парсера; пока текст снова не
 читается, визуальный режим и просмотр показывают это же сообщение.
 
-Проблемы проверяются заново после каждого разбора и каждой правки в форме.
+Проблемы проверяются заново после каждого разбора и каждой правки в форме,
+и каждый новый список отправляется событием `issues` — например, чтобы
+запретить сохранение документа с ошибками:
+
+```vue
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import type { DocumentIssue } from '@dskripchenko/openapi'
+import { OpenApiEditor } from '@dskripchenko/openapi/vue'
+
+const text = ref(initialYaml)
+const issues = ref<DocumentIssue[]>([])
+const canSave = computed(() => !issues.value.some((i) => i.severity === 'error'))
+</script>
+
+<template>
+  <OpenApiEditor v-model="text" @issues="issues = $event" />
+  <button :disabled="!canSave">Save</button>
+</template>
+```
+
 При вводе в очень большой текст (больше 100 000 символов) разбор ждёт
 короткой паузы.
 
@@ -157,5 +182,9 @@ import { editorEn, type EditorLabels } from '@dskripchenko/openapi/vue'
 const editorDe: EditorLabels = { ...editorEn, visual: 'Formulare', source: 'Quelltext', preview: 'Vorschau' /* … */ }
 ```
 
-Просмотр — это `OpenApiReference`, и строки он берёт только из `locale`;
-`labels` редактора до него не доходят.
+Просмотр — это `OpenApiReference`: строки он берёт из `locale` и
+`referenceLabels`; `labels` редактора до него не доходят.
+
+```vue
+<OpenApiEditor v-model="text" locale="en" :reference-labels="{ tryIt: 'Run' }" />
+```

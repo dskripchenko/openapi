@@ -1,6 +1,6 @@
 {
   "name": "@dskripchenko/openapi",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "OpenAPI 2.0/3.0/3.1 in YAML or JSON with zero runtime dependencies — parse, validate, render with try-it and code samples, and edit visually (Vue components on @dskripchenko/ui)",
   "keywords": [
     "openapi",

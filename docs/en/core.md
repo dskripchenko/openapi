@@ -73,7 +73,8 @@ first in their order, then tags met only on operations; an operation with
 several tags is in each of their groups.
 
 `listOperations(document, resolver)` and `groupByTag(document, operations)`
-are the two steps on their own; `DEFAULT_TAG` is `'default'`.
+are the two steps on their own; `groupByTag` returns `GroupedOperations`,
+`{ groups, tagGroups? }`. `DEFAULT_TAG` is `'default'`.
 
 ## Parsers
 
@@ -160,8 +161,7 @@ From **OpenAPI 3.0**:
 - a schema's `example` is kept as well.
 
 `upgradeSchema30(schema)` applies the 3.0 → 3.1 schema rules to a single
-schema and returns the result. It works on the object it is given; pass a
-copy to keep the original.
+schema and returns the result as a copy; its input is left as it was.
 
 ## References
 

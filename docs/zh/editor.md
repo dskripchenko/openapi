@@ -20,15 +20,20 @@ const text = ref(initialYaml)
 | Prop | 类型 | 默认值 | |
 |---|---|---|---|
 | `modelValue` | `string` | — | 文档的文本，YAML 或 JSON。使用 `v-model`。 |
-| `view` | `'visual' \| 'source' \| 'preview'` | `'visual'` | 编辑器打开时的视图。 |
+| `view` | `'visual' \| 'source' \| 'preview'` | `'visual'` | 显示的视图。编辑器以它打开，传入新值会切换到该视图；用户仍可在工具栏中切换视图。 |
 | `locale` | `string` | — | `'en'` 或 `'ru'`；同时设置内部 kit 的语言，与 [参考页](reference.md#语言) 相同。 |
 | `labels` | `Partial<EditorLabels>` | `{}` | 覆盖单个编辑器字符串。 |
 | `send` | `SendFn` | `fetch` | 传给预览中的 try-it。见 [代理](reference.md#通过你的服务器发送)。 |
+| `referenceLabels` | `Partial<OpenApiLabels>` | `{}` | 预览的字符串：即参考页的 `labels`。 |
+| `snippetTargets` | `SnippetTarget[]` | 全部 13 个 | 预览中示例的语言。 |
+| `baseUrl` | `string` | 页面的 origin | 预览中解析相对服务器 URL 的基准。 |
+| `external` | `(url: string) => unknown \| undefined` | — | 在预览中加载外部 `$ref` 文档，与 [参考页](reference.md#外部引用) 中相同。 |
 | `newFormat` | `'yaml' \| 'json'` | `'yaml'` | 从空文本新建文档时使用的格式。 |
 
 | 事件 | 载荷 | |
 |---|---|---|
 | `update:modelValue` | `string` | 新的文本，在任一视图中每次修改之后触发。 |
+| `issues` | `DocumentIssue[]` | 文档的问题，挂载时以及每次变化时触发。无法解析的文本以一个 `severity: 'error'` 的问题给出，带有解析器给出的行和列。 |
 
 文本是编辑器与宿主共享的唯一状态：像保存其他任何文本一样保存它即可。
 从外部传入新的 `modelValue` 会替换正在编辑的文档。
@@ -54,7 +59,8 @@ const text = ref(initialYaml)
 非常大的文本（超过约 150,000 个字符）不做高亮显示，以保证输入流畅。
 
 **预览（Preview）。** 由 [`OpenApiReference`](reference.md) 渲染的文档，
-使用相同的 `locale` 和 `send`；其中 try-it 可用。预览不会改动 `location.hash`。
+使用编辑器的 `locale`、`send`、`referenceLabels`、`snippetTargets`、
+`baseUrl` 和 `external`；其中 try-it 可用。预览不会改动 `location.hash`。
 
 ## 表单覆盖的内容
 
@@ -107,7 +113,27 @@ Swagger 2.0 文档照常在源码和预览视图中打开。可视化视图显�
 点击某个问题会把光标放到该行，有错误的行会在行号栏中标出。完全无法解析的文本会显示
 解析器的消息和位置；在文本重新可读之前，可视化视图和预览也显示这条消息。
 
-每次解析和每次表单编辑后都会重新检查问题。在非常大的文本（超过 100,000 个字符）中输入时，
+每次解析和每次表单编辑后都会重新检查问题，每份新的问题列表都会通过 `issues` 事件发出——
+例如，用来阻止保存带有错误的文档：
+
+```vue
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import type { DocumentIssue } from '@dskripchenko/openapi'
+import { OpenApiEditor } from '@dskripchenko/openapi/vue'
+
+const text = ref(initialYaml)
+const issues = ref<DocumentIssue[]>([])
+const canSave = computed(() => !issues.value.some((i) => i.severity === 'error'))
+</script>
+
+<template>
+  <OpenApiEditor v-model="text" @issues="issues = $event" />
+  <button :disabled="!canSave">Save</button>
+</template>
+```
+
+在非常大的文本（超过 100,000 个字符）中输入时，
 解析会等到短暂停顿之后再进行。
 
 ## 字符串
@@ -127,4 +153,9 @@ import { editorEn, type EditorLabels } from '@dskripchenko/openapi/vue'
 const editorDe: EditorLabels = { ...editorEn, visual: 'Formulare', source: 'Quelltext', preview: 'Vorschau' /* … */ }
 ```
 
-预览是一个 `OpenApiReference`，只从 `locale` 获取字符串；编辑器的 `labels` 不会传到预览。
+预览是一个 `OpenApiReference`：它从 `locale` 和 `referenceLabels` 获取字符串；
+编辑器的 `labels` 不会传到预览。
+
+```vue
+<OpenApiEditor v-model="text" locale="en" :reference-labels="{ tryIt: 'Run' }" />
+```

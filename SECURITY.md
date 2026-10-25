@@ -14,6 +14,11 @@ them.
   kit's `UidMarkdown`, which escapes the source before producing any markup:
   raw HTML in a description is shown as text, and links and images accept
   only `http(s)`, `mailto`, relative and anchor targets.
+- **Links are filtered.** Links taken from the spec outside descriptions —
+  `info.contact.url`, `info.license.url`, `info.termsOfService` and an
+  operation's `externalDocs.url` — are rendered only for `http(s)`, `mailto`
+  and relative addresses; anything else (`javascript:`, `data:` …) is dropped.
+  Links that open in a new tab get `rel="noopener noreferrer"`.
 - **No markup from the spec.** Everything else from the spec — titles, names,
   paths, examples, samples — is inserted as text. The components do not use
   `v-html`; the editor's source view highlights the text with text nodes.

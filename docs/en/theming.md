@@ -44,28 +44,22 @@ A few things of the package's own are CSS custom properties.
 
 ## Where to set them
 
-`--oa-sticky-top` and `--oa-source-height` have no value of their own, so
-they can be set anywhere above the component — on `:root` or on a container:
+The variables have no values of their own: each default above is a fallback
+at the place it is used. Set them on the component, on any ancestor or on
+`:root`:
 
 ```css
 :root {
   --oa-sticky-top: 64px;    /* the height of the site header */
 }
-```
 
-The other variables are declared on the component's own root element (the
-`.oa-reference` and `.oa-editor` classes), which is what makes their defaults
-follow the theme. To change them, set them on those classes — a value on
-`:root` or on a container is overridden there:
-
-```css
-.docs .oa-reference {
+.docs {
   --oa-nav-width: 320px;
   --oa-get: #0284c7;
   --oa-get-bg: #e0f2fe;
 }
 
-[data-theme='dark'] .docs .oa-reference {
+[data-theme='dark'] .docs {
   --oa-get: #7dd3fc;
   --oa-get-bg: #0c4a6e;
 }

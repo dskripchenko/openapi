@@ -21,15 +21,20 @@ const text = ref(initialYaml)
 | Prop | Typ | Standard | |
 |---|---|---|---|
 | `modelValue` | `string` | — | Der Text des Dokuments, YAML oder JSON. Mit `v-model` verwenden. |
-| `view` | `'visual' \| 'source' \| 'preview'` | `'visual'` | Die Ansicht, mit der der Editor öffnet. |
+| `view` | `'visual' \| 'source' \| 'preview'` | `'visual'` | Die angezeigte Ansicht. Der Editor öffnet mit ihr, und ein neuer Wert wechselt zu ihr; der Benutzer kann die Ansicht weiterhin in der Leiste wechseln. |
 | `locale` | `string` | — | `'en'` oder `'ru'`; setzt auch die Locale des Kits im Inneren, wie bei der [Referenz](reference.md#sprachen). |
 | `labels` | `Partial<EditorLabels>` | `{}` | Überschreibt einzelne Texte des Editors. |
 | `send` | `SendFn` | `fetch` | Wird an das Try-it der Vorschau weitergegeben. Siehe [den Proxy](reference.md#senden-über-ihren-server). |
+| `referenceLabels` | `Partial<OpenApiLabels>` | `{}` | Die Texte der Vorschau: die `labels` der Referenz. |
+| `snippetTargets` | `SnippetTarget[]` | alle 13 | Die Sprachen der Beispiele in der Vorschau. |
+| `baseUrl` | `string` | der Origin der Seite | Die Basis der Vorschau für relative Server-URLs. |
+| `external` | `(url: string) => unknown \| undefined` | — | Lädt externe `$ref`-Dokumente in der Vorschau, wie bei der [Referenz](reference.md#externe-referenzen). |
 | `newFormat` | `'yaml' \| 'json'` | `'yaml'` | Das Format eines Dokuments, das aus einem leeren Text erstellt wird. |
 
 | Event | Payload | |
 |---|---|---|
 | `update:modelValue` | `string` | Der neue Text, nach jeder Änderung in jeder Ansicht. |
+| `issues` | `DocumentIssue[]` | Die Probleme des Dokuments, beim Einhängen und bei jeder Änderung. Text, der sich nicht parsen lässt, kommt als ein Problem mit `severity: 'error'` und der Zeile und Spalte des Parsers. |
 
 Der Text ist der einzige Zustand, den der Editor mit dem Host teilt:
 Speichern Sie ihn so, wie Sie jeden anderen Text speichern. Ein neuer
@@ -64,8 +69,9 @@ große Texte (über etwa 150.000 Zeichen) werden ohne Hervorhebung gezeigt,
 damit das Tippen flüssig bleibt.
 
 **Preview.** Das Dokument, gerendert von
-[`OpenApiReference`](reference.md), mit denselben `locale` und `send`; Try-it
-funktioniert dort. Die Vorschau rührt `location.hash` nicht an.
+[`OpenApiReference`](reference.md), mit `locale`, `send`, `referenceLabels`,
+`snippetTargets`, `baseUrl` und `external` des Editors; Try-it funktioniert
+dort. Die Vorschau rührt `location.hash` nicht an.
 
 ## Was die Formulare abdecken
 
@@ -142,7 +148,27 @@ der sich überhaupt nicht parsen lässt, zeigt stattdessen die Meldung und
 Position des Parsers; bis der Text wieder lesbar ist, zeigen auch die
 visuelle Ansicht und die Vorschau diese Meldung.
 
-Probleme werden nach jedem Parsen und jeder Formularänderung neu geprüft.
+Probleme werden nach jedem Parsen und jeder Formularänderung neu geprüft,
+und jede neue Liste wird als Event `issues` ausgegeben — etwa, um das
+Speichern eines Dokuments mit Fehlern zu sperren:
+
+```vue
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import type { DocumentIssue } from '@dskripchenko/openapi'
+import { OpenApiEditor } from '@dskripchenko/openapi/vue'
+
+const text = ref(initialYaml)
+const issues = ref<DocumentIssue[]>([])
+const canSave = computed(() => !issues.value.some((i) => i.severity === 'error'))
+</script>
+
+<template>
+  <OpenApiEditor v-model="text" @issues="issues = $event" />
+  <button :disabled="!canSave">Save</button>
+</template>
+```
+
 Beim Tippen in einem sehr großen Text (über 100.000 Zeichen) wartet das
 Parsen auf eine kurze Pause.
 
@@ -165,5 +191,9 @@ import { editorEn, type EditorLabels } from '@dskripchenko/openapi/vue'
 const editorDe: EditorLabels = { ...editorEn, visual: 'Formulare', source: 'Quelltext', preview: 'Vorschau' /* … */ }
 ```
 
-Die Vorschau ist eine `OpenApiReference` und nimmt ihre Texte nur aus
-`locale`; die `labels` des Editors erreichen sie nicht.
+Die Vorschau ist eine `OpenApiReference`: Sie nimmt ihre Texte aus `locale`
+und `referenceLabels`; die `labels` des Editors erreichen sie nicht.
+
+```vue
+<OpenApiEditor v-model="text" locale="en" :reference-labels="{ tryIt: 'Run' }" />
+```

@@ -44,29 +44,22 @@ Einige paketeigene Dinge sind CSS Custom Properties.
 
 ## Wo man sie setzt
 
-`--oa-sticky-top` und `--oa-source-height` haben keinen eigenen Wert und
-lassen sich daher überall oberhalb der Komponente setzen — auf `:root` oder
-einem Container:
+Die Variablen haben keine eigenen Werte: Jeder Standardwert oben ist ein
+Fallback an der Stelle, an der er verwendet wird. Setzen Sie sie auf der
+Komponente, auf einem beliebigen Vorfahren oder auf `:root`:
 
 ```css
 :root {
   --oa-sticky-top: 64px;    /* the height of the site header */
 }
-```
 
-Die übrigen Variablen werden am eigenen Wurzelelement der Komponente
-deklariert (den Klassen `.oa-reference` und `.oa-editor`); dadurch folgen
-ihre Standardwerte dem Theme. Um sie zu ändern, setzen Sie sie auf diesen
-Klassen — ein Wert auf `:root` oder einem Container wird dort überschrieben:
-
-```css
-.docs .oa-reference {
+.docs {
   --oa-nav-width: 320px;
   --oa-get: #0284c7;
   --oa-get-bg: #e0f2fe;
 }
 
-[data-theme='dark'] .docs .oa-reference {
+[data-theme='dark'] .docs {
   --oa-get: #7dd3fc;
   --oa-get-bg: #0c4a6e;
 }

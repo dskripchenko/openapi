@@ -20,6 +20,11 @@ Anmeldedaten, dann jede Operation mit ihren Parametern, dem Request-Body, den
 Antworten (als Schemabäume mit Beispielen), Callbacks, Anfragebeispielen und
 einem „Try it“-Panel, und am Ende die Schemas aus `components.schemas`.
 
+Links aus der Spezifikation — die URLs für Kontakt, Lizenz und
+Nutzungsbedingungen in `info` und die `externalDocs` einer Operation — werden
+nur gezeigt, wenn sie `http(s)`-, `mailto`- oder relative Adressen sind; jeder
+andere Link wird weggelassen.
+
 Unter 1100 px Breite rücken Beispiele und Try-it unter die Beschreibung der
 Operation; unter 760 px rückt die Navigation über das Dokument.
 
@@ -82,6 +87,9 @@ Jede Operation hat den Anker `#operation/{id}` und jedes Schema aus
 vergeben ist) bekommt einen Slug aus Methode und Pfad, etwa `get-pets-id` für
 `GET /pets/{id}`. Webhook-Operationen bekommen `webhook-{method}-{name}`.
 
+Eine Operation mit mehreren Tags wird im Abschnitt jedes Tags gezeigt; nur
+ihre erste Kopie trägt den Anker, ein Deep Link landet also dort.
+
 Öffnet sich die Seite mit einem dieser Anker in `location.hash`, scrollt die
 Referenz dorthin. Mit `hashNavigation` (der Standard) ersetzt ein Klick in
 der Navigation den Hash, sodass sich die Adresse kopieren und weitergeben
@@ -142,7 +150,7 @@ type SendFn = (request: HttpRequest) => Promise<HttpResponse>
 
 interface HttpRequest {
   method: string                      // 'GET', 'POST', …
-  url: string                         // with the query string
+  url: string                         // absolute, with the query string
   headers: [string, string][]
   body?: {
     mediaType: string
@@ -196,9 +204,8 @@ const send: SendFn = async (request) => {
 <OpenApiReference :spec="text" :send="send" />
 ```
 
-Die URL ist absolut, wenn das Dokument Server hat (eine relative Server-URL
-wird gegen `baseUrl` aufgelöst); bei einem Dokument ohne `servers` ist sie der
-bloße Pfad. Im Backend liest der Endpunkt den `HttpRequest`, prüft, dass seine
+Die URL ist immer absolut: Eine relative Server-URL, und `/` bei einem
+Dokument ohne `servers`, wird gegen `baseUrl` aufgelöst. Im Backend liest der Endpunkt den `HttpRequest`, prüft, dass seine
 URL auf einen von Ihnen erlaubten Host zeigt, führt ihn aus und antwortet mit
 einer `HttpResponse`. In Node 20+ übernimmt das `sendRequest` des Kerns das
 Senden:
@@ -225,7 +232,9 @@ also die API. Dateifelder kommen als `{ filename, contentType }` ohne Daten
 an, da das Panel keine zu senden hat.
 
 Ein `send`, das eine Ausnahme wirft, wird wie ein Netzwerkfehler behandelt.
-`send` wird außerdem von [`OpenApiEditor`](editor.md) an seine Vorschau
+Auch die „Get token“-Anfragen des
+[Anmelde-Panels](#ein-oauth2-token-abrufen) laufen über `send`: Ein Proxy muss
+also auch den Host des Token-Endpunkts durchlassen. `send` wird außerdem von [`OpenApiEditor`](editor.md) an seine Vorschau
 weitergegeben.
 
 ## Authentifizierung
@@ -262,8 +271,10 @@ Mit einem Client Secret authentifiziert sich der Client per HTTP Basic; ohne
 eines geht `client_id` ins Formular. Hat das Schema beide Flows, wird
 `clientCredentials` verwendet.
 
-Die Token-Anfrage läuft über das `fetch` der Seite, nicht über `send`; der
-Token-Endpunkt muss also eine Cross-Origin-Anfrage der Seite akzeptieren. Für
+Die Token-Anfrage läuft wie Try-it über `send`. Mit dem Standardtransport
+muss der Token-Endpunkt eine Cross-Origin-Anfrage der Seite akzeptieren; mit
+einem [Proxy](#senden-über-ihren-server) geht sie über Ihren Server und
+braucht kein CORS. Für
 die Flows `implicit` und `authorizationCode` besorgen Sie ein Token anderswo
 und fügen es in das Token-Feld ein. Dieselbe Anfrage steht außerhalb der
 Komponente als [`fetchOAuthToken`](core.md#oauth2-tokens) zur Verfügung.
@@ -277,7 +288,8 @@ oder ein Pfad mit eigenen `servers` verwendet die eigene Liste, mit derselben
 gewählten Position.
 
 Eine relative Server-URL (`/v1`) wird gegen `baseUrl` aufgelöst, standardmäßig
-den Origin der Seite. Setzen Sie es, wenn die Referenz von einem anderen
+den Origin der Seite; ein Dokument ohne `servers` wird unter `/` von `baseUrl`
+aufgerufen. Setzen Sie es, wenn die Referenz von einem anderen
 Origin als die API ausgeliefert wird:
 
 ```vue
@@ -287,8 +299,8 @@ Origin als die API ausgeliefert wird:
 ## Anfragebeispiele
 
 Die Auswahl der Beispiele bietet die Sprachen aus `snippetTargets` in der
-Reihenfolge des Pakets an; `defaultSnippet` wird zuerst gezeigt. Um nur einige
-anzubieten:
+angegebenen Reihenfolge an; `defaultSnippet` wird zuerst gezeigt, und ist es
+nicht in der Liste, das erste der Liste. Um nur einige anzubieten:
 
 ```vue
 <OpenApiReference
@@ -397,10 +409,11 @@ damit sie darunter stehen bleiben; Anker scrollen auf denselben Abstand:
 Die übrigen Variablen — Breite der Navigation, Abstände, Farben der
 Methoden — stehen unter [Theming](theming.md).
 
-## OaSchema und der Kontext
+## Der Kontext
 
-`OaSchema` (der Schemabaum) und `useReference`/`referenceKey` (der gemeinsame
-Zustand: Spezifikation, Texte, gewählter Server, Anmeldedaten, Transport)
-werden exportiert, um eigene Teile innerhalb der Referenz zu bauen. Sie lesen
-den Kontext, den `OpenApiReference` bereitstellt, und lassen sich außerhalb
+`useReference` und `referenceKey` liefern den Zustand, den die Teile der
+Referenz teilen: die Spezifikation, die Texte, den gewählten Server, die
+Anmeldedaten und den Transport (`ReferenceContext`, `ServerState`). Sie werden
+exportiert, um eigene Teile innerhalb der Referenz zu bauen; sie lesen den
+Kontext, den `OpenApiReference` bereitstellt, und lassen sich außerhalb
 davon nicht verwenden.
