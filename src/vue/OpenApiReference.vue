@@ -106,7 +106,10 @@ async function load(id: string): Promise<void> {
     return
   }
   const hit = cache.get(id)
-  if (hit && hit.input === source.spec) {
+  // A loader is matched by the spec's id: an inline `specs` array makes new
+  // functions on every render, and they must not fetch again.
+  const same = hit && (hit.input === source.spec || (typeof hit.input === 'function' && typeof source.spec === 'function'))
+  if (hit && same) {
     loaded.value = hit.spec
     loadError.value = null
     return

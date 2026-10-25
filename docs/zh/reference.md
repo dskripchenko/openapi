@@ -1,6 +1,7 @@
 # OpenApiReference
 
-为 Swagger 2.0、OpenAPI 3.0 或 OpenAPI 3.1 规范文档生成的 API 参考页。
+为 Swagger 2.0、OpenAPI 3.0 或 OpenAPI 3.1 规范文档生成的 API 参考页——
+也可以同时展示多份规范文档，并带切换器（见 [多份规范文档](#多份规范文档)）。
 
 ```vue
 <script setup lang="ts">
@@ -27,7 +28,9 @@ import { OpenApiReference } from '@dskripchenko/openapi/vue'
 
 | Prop | 类型 | 默认值 | |
 |---|---|---|---|
-| `spec` | `string \| object` | — | 规范文档：YAML 或 JSON 文本，或已解析的对象。必填。 |
+| `spec` | `SpecInput` | — | 规范文档：YAML 或 JSON 文本、已解析的对象，或返回二者之一的 promise 的函数。 |
+| `specs` | `SpecSource[]` | — | 在一个页面上放多份规范文档，替代 `spec`。见 [多份规范文档](#多份规范文档)。 |
+| `active` | `string` | 第一份规范文档 | 当前打开的规范文档的 id；使用 `v-model:active`。 |
 | `send` | `SendFn` | 页面的 `fetch` | 发送 try-it 请求。见 [代理](#通过你的服务器发送)。 |
 | `tryIt` | `boolean` | `true` | `false` 隐藏 try-it 面板；示例保留。 |
 | `locale` | `string` | — | `'en'` 或 `'ru'`。见 [语言](#语言)。 |
@@ -38,7 +41,8 @@ import { OpenApiReference } from '@dskripchenko/openapi/vue'
 | `external` | `(url: string) => unknown \| undefined` | — | 加载外部 `$ref` 文档。没有它则不加载任何外部文档。 |
 | `hashNavigation` | `boolean` | `true` | 从导航打开条目时写入 `location.hash`。 |
 
-`spec` 或 `external` 变化时，规范文档会重新加载。两者都按引用比较：
+如果是函数，规范文档会在首次显示时加载，期间显示加载指示器。`spec` 或 `external`
+变化时，规范文档会重新加载。两者都按引用比较：
 请传入新对象，而不要原地修改旧对象；并保持 `external` 函数稳定
 （在 `<script setup>` 中定义一次，而不是在模板里内联）。
 
@@ -46,8 +50,11 @@ import { OpenApiReference } from '@dskripchenko/openapi/vue'
 
 | 事件 | 载荷 | |
 |---|---|---|
-| `loaded` | `LoadedSpec` | 每次成功加载之后：归一化后的文档、其操作和分组（见 [`loadSpec`](core.md#加载规范文档)）。 |
-| `error` | `Error` | 规范文档无法读取：`YamlError`、`JsonError` 或 `OpenApiError`。页面在参考内容的位置显示该消息。 |
+| `loaded` | `LoadedSpec`、`id: string` | 每次成功加载之后：归一化后的文档、其操作和分组（见 [`loadSpec`](core.md#加载规范文档)），以及该规范文档的 id。 |
+| `error` | `Error`、`id: string` | 规范文档无法读取：`YamlError`、`JsonError` 或 `OpenApiError`，或加载函数自身抛出的错误。页面在参考内容的位置显示该消息。 |
+| `update:active` | `id: string` | 通过切换器、深层链接或 `open` 打开了另一份规范文档。 |
+
+只有单个 `spec` 时，id 为 `'spec'`。
 
 ## 暴露的成员
 
@@ -55,8 +62,10 @@ import { OpenApiReference } from '@dskripchenko/openapi/vue'
 
 | | |
 |---|---|
-| `go(anchor: string): Promise<void>` | 滚动到 `'operation/{id}'` 或 `'schema/{name}'`，在导航中标记它，并在启用 `hashNavigation` 时写入 hash。 |
-| `spec` | 当前的 `LoadedSpec`；规范文档无法读取时为 `null`。 |
+| `go(anchor: string): Promise<void>` | 在当前打开的规范文档中滚动到 `'operation/{id}'`、`'schema/{name}'` 或 `'tag/{name}'`，在导航中标记它，并在启用 `hashNavigation` 时写入 hash。 |
+| `open(id: string): Promise<void>` | 打开 `specs` 中的另一份规范文档，必要时加载它。 |
+| `spec` | 当前打开的规范文档的 `LoadedSpec`；加载期间或无法读取时为 `null`。 |
+| `active` | 当前打开的规范文档的 id。 |
 
 ```vue
 <script setup lang="ts">
@@ -83,13 +92,70 @@ const openPets = () => reference.value?.go('operation/listPets')
 带多个标签的操作会显示在每个标签的分区中；只有第一份副本带有锚点，
 因此深层链接会落在这一份上。
 
-当页面打开时 `location.hash` 中带有这样的锚点，参考页会滚动到该处。启用
+标签带有锚点 `#tag/{name}`。当页面打开时 `location.hash` 中带有这样的锚点，或之后
+hash 变为这样的锚点时，参考页都会滚动到该处。启用
 `hashNavigation`（默认）时，在导航中点击会替换 hash，因此地址可以复制和分享。
 如果参考页嵌在一个用 hash 做自身路由的页面中，请关闭它：
 
 ```vue
 <OpenApiReference :spec="text" :hash-navigation="false" />
 ```
+
+## 多份规范文档
+
+`specs` 把多份规范文档——多个 API，或同一 API 的多个版本——放在一个页面上：
+
+```ts
+interface SpecSource {
+  id: string          // used in deep links and v-model:active
+  name?: string       // shown in the switcher
+  spec: SpecInput     // string | object | (() => Promise<string | object>)
+}
+```
+
+这两个类型都从 `@dskripchenko/openapi/vue` 导出。规范文档多于一份时，导航顶部会出现
+一个可搜索的下拉框，用来在它们之间切换。它显示每份规范文档的 `name`；没有时显示
+已加载规范文档的标题；再没有时显示其 id。它的无障碍名称取自 `specs` 标签。
+
+以函数形式给出的规范文档会在首次打开时加载——期间显示加载指示器；加载失败时，
+切换器仍留在错误信息上方，以便选择另一份规范文档。已加载的规范文档按其 id
+保留，因此切回时是即时的；设置了 `external` 时，只要来源变化，保留的规范文档就会被丢弃。
+
+例如，后端按 API 版本提供的规范文档，每份只在读者打开时才获取：
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import { OpenApiReference, type SpecSource } from '@dskripchenko/openapi/vue'
+
+const specs: SpecSource[] = [
+  { id: 'v1', name: 'API v1', spec: () => fetch('/api/doc/v1').then((r) => r.json()) },
+  { id: 'admin', name: 'Admin API', spec: () => fetch('/api/doc/admin').then((r) => r.json()) },
+]
+const active = ref('v1')
+</script>
+
+<template>
+  <OpenApiReference v-model:active="active" :specs="specs" locale="en" />
+</template>
+```
+
+只要来源不变，保留的规范文档就会被复用。对加载函数而言，"不变"指"仍然是函数"：
+同一 id 下的新函数会复用已加载的结果，因此在模板里内联书写的 `specs` 数组不会在每次渲染时
+重新请求。文本和对象按引用比较：同一 id 下的新字符串或新对象是新的来源，会重新加载。
+
+切换时哪些保留、哪些重置：
+
+- 在认证面板中输入的凭据按规范文档分别保留，读者回到该规范文档时会恢复；
+- 服务器选择重置为所打开规范文档的第一个服务器；
+- 搜索框被清空；
+- 为示例选择的语言保持不变。
+
+有多份规范文档时，锚点带上规范文档的 id：`#{id}/operation/{opId}`、
+`#{id}/schema/{name}` 和 `#{id}/tag/{name}`，单独的 `#{id}` 则打开该规范文档。
+打开这样的地址——无论是页面加载时还是 hash 变化时——会先打开该规范文档，再打开对应分区。
+`go` 接受不带 id 的锚点，作用于当前打开的规范文档；`open(id)` 用于切换规范文档。
+只有一个元素的 `specs` 数组与 `spec` 的表现相同：没有切换器，锚点中也没有 id。
 
 ## Try it
 

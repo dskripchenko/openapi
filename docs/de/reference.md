@@ -1,7 +1,8 @@
 # OpenApiReference
 
 Eine API-Referenzseite für eine Spezifikation in Swagger 2.0, OpenAPI 3.0
-oder OpenAPI 3.1.
+oder OpenAPI 3.1 — oder für mehrere davon, mit einem Umschalter (siehe
+[mehrere Spezifikationen](#mehrere-spezifikationen)).
 
 ```vue
 <script setup lang="ts">
@@ -32,7 +33,9 @@ Operation; unter 760 px rückt die Navigation über das Dokument.
 
 | Prop | Typ | Standard | |
 |---|---|---|---|
-| `spec` | `string \| object` | — | Die Spezifikation: YAML- oder JSON-Text oder ein geparstes Objekt. Pflicht. |
+| `spec` | `SpecInput` | — | Die Spezifikation: YAML- oder JSON-Text, ein geparstes Objekt oder eine Funktion, die ein Promise auf eines davon liefert. |
+| `specs` | `SpecSource[]` | — | Mehrere Spezifikationen auf einer Seite, anstelle von `spec`. Siehe [mehrere Spezifikationen](#mehrere-spezifikationen). |
+| `active` | `string` | die erste Spezifikation | Die id der geöffneten Spezifikation; mit `v-model:active` verwenden. |
 | `send` | `SendFn` | `fetch` der Seite | Sendet Try-it-Anfragen. Siehe [den Proxy](#senden-über-ihren-server). |
 | `tryIt` | `boolean` | `true` | `false` blendet die Try-it-Panels aus; die Beispiele bleiben. |
 | `locale` | `string` | — | `'en'` oder `'ru'`. Siehe [Sprachen](#sprachen). |
@@ -43,8 +46,9 @@ Operation; unter 760 px rückt die Navigation über das Dokument.
 | `external` | `(url: string) => unknown \| undefined` | — | Lädt externe `$ref`-Dokumente. Ohne diese Funktion wird keines geladen. |
 | `hashNavigation` | `boolean` | `true` | `location.hash` schreiben, wenn ein Eintrag aus der Navigation geöffnet wird. |
 
-Die Spezifikation wird neu geladen, wenn sich `spec` oder `external` ändert.
-Beide werden nach Identität verglichen: Übergeben Sie ein neues Objekt, statt
+Bei einer Funktion wird die Spezifikation geladen, wenn sie zum ersten Mal
+gezeigt wird; währenddessen erscheint ein Spinner. Die Spezifikation wird neu
+geladen, wenn sich `spec` oder `external` ändert. Beide werden nach Identität verglichen: Übergeben Sie ein neues Objekt, statt
 das alte an Ort und Stelle zu ändern, und halten Sie die Funktion `external`
 stabil (einmal in `<script setup>` definieren, nicht inline im Template).
 
@@ -52,8 +56,11 @@ stabil (einmal in `<script setup>` definieren, nicht inline im Template).
 
 | Event | Payload | |
 |---|---|---|
-| `loaded` | `LoadedSpec` | Nach jedem erfolgreichen Laden: das normalisierte Dokument, seine Operationen und Gruppen (siehe [`loadSpec`](core.md#eine-spezifikation-laden)). |
-| `error` | `Error` | Die Spezifikation ließ sich nicht lesen: ein `YamlError`, `JsonError` oder `OpenApiError`. Die Seite zeigt die Meldung anstelle der Referenz. |
+| `loaded` | `LoadedSpec`, `id: string` | Nach jedem erfolgreichen Laden: das normalisierte Dokument, seine Operationen und Gruppen (siehe [`loadSpec`](core.md#eine-spezifikation-laden)) und die id der Spezifikation. |
+| `error` | `Error`, `id: string` | Die Spezifikation ließ sich nicht lesen: ein `YamlError`, `JsonError` oder `OpenApiError` oder der eigene Fehler der Ladefunktion. Die Seite zeigt die Meldung anstelle der Referenz. |
+| `update:active` | `id: string` | Eine andere Spezifikation wurde geöffnet — über den Umschalter, einen Deep Link oder `open`. |
+
+Bei einer einzelnen `spec` ist die id `'spec'`.
 
 ## Exponiert
 
@@ -61,8 +68,10 @@ stabil (einmal in `<script setup>` definieren, nicht inline im Template).
 
 | | |
 |---|---|
-| `go(anchor: string): Promise<void>` | Scrollt zu `'operation/{id}'` oder `'schema/{name}'`, markiert den Eintrag in der Navigation und schreibt mit `hashNavigation` den Hash. |
-| `spec` | Die aktuelle `LoadedSpec` oder `null`, wenn die Spezifikation sich nicht lesen ließ. |
+| `go(anchor: string): Promise<void>` | Scrollt in der geöffneten Spezifikation zu `'operation/{id}'`, `'schema/{name}'` oder `'tag/{name}'`, markiert den Eintrag in der Navigation und schreibt mit `hashNavigation` den Hash. |
+| `open(id: string): Promise<void>` | Öffnet eine andere Spezifikation aus `specs` und lädt sie bei Bedarf. |
+| `spec` | Die `LoadedSpec` der geöffneten Spezifikation oder `null`, solange sie lädt oder wenn sie sich nicht lesen ließ. |
+| `active` | Die id der geöffneten Spezifikation. |
 
 ```vue
 <script setup lang="ts">
@@ -90,8 +99,9 @@ vergeben ist) bekommt einen Slug aus Methode und Pfad, etwa `get-pets-id` für
 Eine Operation mit mehreren Tags wird im Abschnitt jedes Tags gezeigt; nur
 ihre erste Kopie trägt den Anker, ein Deep Link landet also dort.
 
-Öffnet sich die Seite mit einem dieser Anker in `location.hash`, scrollt die
-Referenz dorthin. Mit `hashNavigation` (der Standard) ersetzt ein Klick in
+Tags haben den Anker `#tag/{name}`. Öffnet sich die Seite mit einem dieser
+Anker in `location.hash` oder wechselt der Hash später zu einem davon, scrollt
+die Referenz dorthin. Mit `hashNavigation` (der Standard) ersetzt ein Klick in
 der Navigation den Hash, sodass sich die Adresse kopieren und weitergeben
 lässt. Schalten Sie es ab, wenn die Referenz in einer Seite sitzt, die den
 Hash für ihr eigenes Routing verwendet:
@@ -99,6 +109,79 @@ Hash für ihr eigenes Routing verwendet:
 ```vue
 <OpenApiReference :spec="text" :hash-navigation="false" />
 ```
+
+## Mehrere Spezifikationen
+
+`specs` bringt mehrere Spezifikationen — APIs oder Versionen einer API — auf
+eine Seite:
+
+```ts
+interface SpecSource {
+  id: string          // used in deep links and v-model:active
+  name?: string       // shown in the switcher
+  spec: SpecInput     // string | object | (() => Promise<string | object>)
+}
+```
+
+Beide Typen werden aus `@dskripchenko/openapi/vue` exportiert. Bei mehr als
+einer Spezifikation wechselt eine durchsuchbare Auswahl oben in der Navigation
+zwischen ihnen. Sie zeigt für jede Spezifikation ihren `name`, sonst den Titel
+einer schon geladenen Spezifikation, sonst ihre id; ihr zugänglicher Name ist
+das Label `specs`.
+
+Eine als Funktion übergebene Spezifikation wird geladen, wenn sie zum ersten
+Mal geöffnet wird — währenddessen erscheint ein Spinner, und schlägt das Laden
+fehl, bleibt der Umschalter über der Fehlermeldung, damit sich eine andere
+Spezifikation wählen lässt. Eine geladene Spezifikation bleibt unter ihrer
+id erhalten, sodass der Wechsel zurück sofort geht; ist `external` gesetzt,
+werden die behaltenen Spezifikationen verworfen, sobald sich die Quellen
+ändern.
+
+Zum Beispiel die Spezifikationen, die ein Backend pro API-Version ausliefert,
+jede erst geladen, wenn der Leser sie öffnet:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import { OpenApiReference, type SpecSource } from '@dskripchenko/openapi/vue'
+
+const specs: SpecSource[] = [
+  { id: 'v1', name: 'API v1', spec: () => fetch('/api/doc/v1').then((r) => r.json()) },
+  { id: 'admin', name: 'Admin API', spec: () => fetch('/api/doc/admin').then((r) => r.json()) },
+]
+const active = ref('v1')
+</script>
+
+<template>
+  <OpenApiReference v-model:active="active" :specs="specs" locale="en" />
+</template>
+```
+
+Eine behaltene Spezifikation wird wiederverwendet, solange ihre Quelle
+dieselbe bleibt. Bei einer Ladefunktion heißt das „weiterhin eine Funktion“:
+Eine neue Funktion unter derselben id erhält das schon geladene Ergebnis, ein
+inline im Template geschriebenes `specs`-Array lädt also nicht bei jedem
+Rendern neu. Text und Objekte werden nach Identität verglichen: Ein neuer
+String oder ein neues Objekt unter derselben id ist eine neue Quelle und wird
+erneut geladen.
+
+Was bei einem Wechsel bleibt und was zurückgesetzt wird:
+
+- die im Authentifizierungs-Panel eingegebenen Anmeldedaten werden pro
+  Spezifikation behalten und kehren zurück, wenn der Leser zu ihr zurückkehrt;
+- die Serverauswahl springt auf den ersten Server der geöffneten
+  Spezifikation zurück;
+- das Suchfeld wird geleert;
+- die für Beispiele gewählte Sprache bleibt.
+
+Bei mehreren Spezifikationen tragen die Anker die id der Spezifikation:
+`#{id}/operation/{opId}`, `#{id}/schema/{name}` und `#{id}/tag/{name}`, und
+`#{id}` allein öffnet die Spezifikation. Eine solche Adresse — beim Laden oder
+durch einen Hash-Wechsel — öffnet zuerst diese Spezifikation, dann den
+Abschnitt. `go` nimmt den Anker ohne die id und wirkt in der geöffneten
+Spezifikation; `open(id)` wechselt die Spezifikation. Ein `specs`-Array mit
+nur einem Eintrag verhält sich wie `spec`: kein Umschalter, keine id in den
+Ankern.
 
 ## Try it
 

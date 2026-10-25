@@ -1,6 +1,7 @@
 # OpenApiReference
 
-An API reference page for a Swagger 2.0, OpenAPI 3.0 or OpenAPI 3.1 spec.
+An API reference page for a Swagger 2.0, OpenAPI 3.0 or OpenAPI 3.1 spec —
+or for several of them, with a switcher (see [several specs](#several-specs)).
 
 ```vue
 <script setup lang="ts">
@@ -30,7 +31,9 @@ description; below 760 px the navigation moves above the document.
 
 | Prop | Type | Default | |
 |---|---|---|---|
-| `spec` | `string \| object` | — | The spec: YAML or JSON text, or a parsed object. Required. |
+| `spec` | `SpecInput` | — | The spec: YAML or JSON text, a parsed object, or a function that returns a promise of either. |
+| `specs` | `SpecSource[]` | — | Several specs on one page, in place of `spec`. See [several specs](#several-specs). |
+| `active` | `string` | the first spec | The id of the open spec; use `v-model:active`. |
 | `send` | `SendFn` | `fetch` from the page | Sends try-it requests. See [the proxy](#sending-through-your-server). |
 | `tryIt` | `boolean` | `true` | `false` hides the try-it panels; the samples stay. |
 | `locale` | `string` | — | `'en'` or `'ru'`. See [languages](#languages). |
@@ -41,8 +44,9 @@ description; below 760 px the navigation moves above the document.
 | `external` | `(url: string) => unknown \| undefined` | — | Loads external `$ref` documents. None are loaded without it. |
 | `hashNavigation` | `boolean` | `true` | Write `location.hash` when an item is opened from the navigation. |
 
-The spec is loaded again when `spec` or `external` changes. Both are compared
-by identity: pass a new object rather than changing the old one in place, and
+With a function, the spec is loaded when it is first shown; a spinner shows
+meanwhile. The spec is loaded again when `spec` or `external` changes. Both
+are compared by identity: pass a new object rather than changing the old one in place, and
 keep the `external` function stable (define it once in `<script setup>`, not
 inline in the template).
 
@@ -50,8 +54,11 @@ inline in the template).
 
 | Event | Payload | |
 |---|---|---|
-| `loaded` | `LoadedSpec` | After every successful load: the normalized document, its operations and groups (see [`loadSpec`](core.md#loading-a-spec)). |
-| `error` | `Error` | The spec could not be read: a `YamlError`, `JsonError` or `OpenApiError`. The page shows the message in place of the reference. |
+| `loaded` | `LoadedSpec`, `id: string` | After every successful load: the normalized document, its operations and groups (see [`loadSpec`](core.md#loading-a-spec)), and the spec's id. |
+| `error` | `Error`, `id: string` | The spec could not be read: a `YamlError`, `JsonError` or `OpenApiError`, or the loader function's own error. The page shows the message in place of the reference. |
+| `update:active` | `id: string` | Another spec was opened from the switcher, a deep link or `open`. |
+
+With a single `spec` the id is `'spec'`.
 
 ## Exposed
 
@@ -59,8 +66,10 @@ Through a template ref:
 
 | | |
 |---|---|
-| `go(anchor: string): Promise<void>` | Scrolls to `'operation/{id}'` or `'schema/{name}'`, marks it in the navigation and, with `hashNavigation`, writes the hash. |
-| `spec` | The current `LoadedSpec`, or `null` when the spec could not be read. |
+| `go(anchor: string): Promise<void>` | Scrolls to `'operation/{id}'`, `'schema/{name}'` or `'tag/{name}'` in the open spec, marks it in the navigation and, with `hashNavigation`, writes the hash. |
+| `open(id: string): Promise<void>` | Opens another spec of `specs`, loading it if needed. |
+| `spec` | The `LoadedSpec` of the open spec, or `null` while it loads or when it could not be read. |
+| `active` | The id of the open spec. |
 
 ```vue
 <script setup lang="ts">
@@ -88,7 +97,8 @@ taken) gets a slug of its method and path, such as `get-pets-id` for
 An operation with several tags is shown in the section of each tag; only
 its first copy carries the anchor, so a deep link lands on that one.
 
-When the page opens with one of these anchors in `location.hash`, the
+Tags have the anchor `#tag/{name}`. When the page opens with one of these
+anchors in `location.hash`, and whenever the hash changes to one later, the
 reference scrolls to it. With `hashNavigation` (the default) a click in the
 navigation replaces the hash, so the address can be copied and shared. Turn
 it off when the reference sits inside a page that uses the hash for its own
@@ -97,6 +107,70 @@ routing:
 ```vue
 <OpenApiReference :spec="text" :hash-navigation="false" />
 ```
+
+## Several specs
+
+`specs` puts several specs — APIs, or versions of one — on one page:
+
+```ts
+interface SpecSource {
+  id: string          // used in deep links and v-model:active
+  name?: string       // shown in the switcher
+  spec: SpecInput     // string | object | (() => Promise<string | object>)
+}
+```
+
+Both types are exported from `@dskripchenko/openapi/vue`. With more than one
+spec, a searchable select at the top of the navigation switches between
+them. It shows each spec's `name`, else the title of a spec already loaded,
+else its id; its accessible name is the `specs` label.
+
+A spec given as a function is loaded the first time it is opened — a spinner
+shows meanwhile, and when the load fails the switcher stays above the error
+so another spec can be chosen. A loaded spec is kept under its id, so switching
+back is instant; with `external` set, the kept specs are dropped whenever the
+sources change.
+
+For example, the specs that a backend serves per API version, each fetched
+only when the reader opens it:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import { OpenApiReference, type SpecSource } from '@dskripchenko/openapi/vue'
+
+const specs: SpecSource[] = [
+  { id: 'v1', name: 'API v1', spec: () => fetch('/api/doc/v1').then((r) => r.json()) },
+  { id: 'admin', name: 'Admin API', spec: () => fetch('/api/doc/admin').then((r) => r.json()) },
+]
+const active = ref('v1')
+</script>
+
+<template>
+  <OpenApiReference v-model:active="active" :specs="specs" locale="en" />
+</template>
+```
+
+A kept spec is reused while its source stays the same. For a loader
+function that means "still a function": a new function under the same id
+reuses the result, so a `specs` array written inline in the template does not
+fetch again on every render. Text and objects are compared by identity: a new
+string or object under the same id is a new source and is loaded again.
+
+What stays and what resets on a switch:
+
+- the credentials typed into the authentication panel are kept per spec and
+  come back when the reader returns to it;
+- the server choice resets to the first server of the opened spec;
+- the search field is cleared;
+- the language chosen for samples stays.
+
+With several specs, anchors carry the spec's id: `#{id}/operation/{opId}`,
+`#{id}/schema/{name}` and `#{id}/tag/{name}`, and `#{id}` alone opens the
+spec. Opening such an address — on load or by a hash change — opens that spec
+first, then the section. `go` takes the anchor without the id and works in
+the open spec; `open(id)` switches specs. A `specs` array with a single entry
+behaves like `spec`: no switcher, no id in anchors.
 
 ## Try it
 

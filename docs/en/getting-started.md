@@ -81,7 +81,10 @@ onMounted(async () => {
 ```
 
 A spec that cannot be read shows an error box in place of the page, and the
-component emits `error`. See [the reference](reference.md) for every prop.
+component emits `error`. `spec` may also be a function returning a promise of
+the text or object; the reference then loads it itself. Several specs — APIs
+or versions — go on one page through `specs`, with a switcher in the
+navigation. See [the reference](reference.md) for every prop.
 
 ## An editor
 

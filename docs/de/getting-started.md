@@ -86,8 +86,11 @@ onMounted(async () => {
 ```
 
 Eine Spezifikation, die sich nicht lesen lässt, zeigt statt der Seite einen
-Fehlerkasten, und die Komponente löst `error` aus. Alle Props stehen unter
-[der Referenz](reference.md).
+Fehlerkasten, und die Komponente löst `error` aus. `spec` darf auch eine
+Funktion sein, die ein Promise auf den Text oder das Objekt liefert; die
+Referenz lädt es dann selbst. Mehrere Spezifikationen — APIs oder Versionen —
+kommen über `specs` auf eine Seite, mit einem Umschalter in der Navigation.
+Alle Props stehen unter [der Referenz](reference.md).
 
 ## Ein Editor
 

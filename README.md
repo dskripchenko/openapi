@@ -23,6 +23,23 @@ import spec from './openapi.yaml?raw'
 </template>
 ```
 
+Several APIs or versions on one page, each fetched when the reader opens it:
+
+```vue
+<script setup lang="ts">
+import { OpenApiReference, type SpecSource } from '@dskripchenko/openapi/vue'
+
+const specs: SpecSource[] = [
+  { id: 'v1', name: 'API v1', spec: () => fetch('/api/doc/v1').then((r) => r.json()) },
+  { id: 'admin', name: 'Admin API', spec: () => fetch('/api/doc/admin').then((r) => r.json()) },
+]
+</script>
+
+<template>
+  <OpenApiReference :specs="specs" locale="en" />
+</template>
+```
+
 ## What is inside
 
 - **`@dskripchenko/openapi`** — the core, plain TypeScript without the DOM:
@@ -35,7 +52,8 @@ import spec from './openapi.yaml?raw'
   - `OpenApiReference` — navigation with search, operations by tag, schema
     trees, examples, request samples, a try-it panel with credentials and
     OAuth2 token fetching, webhooks, deep links `#operation/{id}` and
-    `#schema/{name}`;
+    `#schema/{name}`; several specs on one page with a switcher, each loaded
+    when first opened;
   - `OpenApiEditor` — visual forms for info, servers, tags, security
     schemes, paths, operations and schemas, the source with problems by
     line, and a preview. `v-model` is the text, and its format is kept.
