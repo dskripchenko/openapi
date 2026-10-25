@@ -161,6 +161,10 @@ von OpenAPI 3.1, unabhängig von der Version der Eingabe. Siehe
   jeder Seite, Umstieg von Scalar, die Seitenkomponente
 - [Deep Links und vorausgefüllte Links](links.md) — Anker, die Links von
   Scalar, Links, die das Try-it-Formular ausfüllen
+- [Eine Operation einbetten](embed.md) — eine Operation in einer anderen
+  Dokumentation, in Vue oder aus dem eigenständigen Skript
+- [TypeScript-Typen](types.md) — der Tab Types, der `.d.ts`-Download und der
+  Generator
 - [OpenApiEditor](editor.md) — die drei Ansichten, was die Formulare abdecken,
   Swagger-2.0-Dokumente
 - [Kern-API](core.md) — alle Funktionen von `@dskripchenko/openapi`

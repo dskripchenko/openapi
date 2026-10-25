@@ -5,11 +5,12 @@ Ihrer App:
 
 - **das eigenständige Bundle** — ein `<script>` auf einer beliebigen
   HTML-Seite, kein Build-Schritt, kein Vue in Ihrem Projekt;
-- **`OpenApiPage`** — eine Vue-Komponente: die Referenz mit einer oberen
-  Leiste mit Titel und Umschaltern für Theme und Sprache.
+- **`OpenApiPage`** — eine Vue-Komponente: die Referenz mit Umschaltern für
+  Theme und Sprache in ihrer Kopfzeile.
 
 Das eigenständige Bundle ist `OpenApiPage`, verpackt mit Vue, dem Kit und
-allen Styles.
+allen Styles. Es bettet auch einzelne Operationen in andere Seiten ein: siehe
+[Einbetten](embed.md).
 
 ## Das eigenständige Bundle
 
@@ -39,8 +40,11 @@ allen Styles.
 `dist/standalone.js` ist ein klassisches Skript (eine IIFE), das die globale
 Variable `DskOpenApi` definiert. Es enthält Vue, `@dskripchenko/ui` und alle
 Stylesheets und fügt das CSS selbst in die Seite ein (einmal, auch wenn das
-Skript zweimal eingebunden ist). Außerdem setzt es `body { margin: 0 }`: Die
-Seite soll das Fenster für sich haben. Dasselbe CSS ist als
+Skript zweimal eingebunden ist). Die Basis-Styles des Kits — Box-Sizing,
+Abstände von Überschriften und Absätzen, die Grundschrift — sind auf die
+eigenen Elemente des Pakets beschränkt, sodass der Rest der Seite sein
+Aussehen behält; eine Seite mit einer ganzen Referenz bekommt außerdem
+`body { margin: 0 }` und den Hintergrund des Kits. Dasselbe CSS ist als
 `dist/standalone.css` veröffentlicht, für eine Seite, die lieber ein `<link>`
 verwendet. In einem Bundler heißen die beiden Dateien
 `@dskripchenko/openapi/standalone` und `@dskripchenko/openapi/standalone.css`.
@@ -77,6 +81,8 @@ Optionen:
 | `defaultSnippet` | `SnippetTarget` | `'curl'` | Die zuerst gezeigte Sprache. |
 | `tryIt` | `boolean` | `true` | `false` blendet die Try-it-Panels aus. |
 | `title` | `string` | der Titel der geöffneten Spezifikation | Der Titel der Leiste; setzt auch `document.title`. |
+| `persistCredentials` | `boolean \| 'session' \| 'local'` | `false` | Eingegebene Zugangsdaten im Browser behalten; siehe Referenz. |
+| `oauthRedirectUrl` | `string` | Seiten-URL ohne Query und Hash | OAuth-Redirect-URI, die der Identity Provider erlauben muss. |
 
 Eine Quelle:
 
@@ -98,24 +104,30 @@ Der Sprachumschalter der Seite setzt auch `<html lang>`.
 
 ### Der Proxy
 
-Mit `proxy` laufen Try-it und die Token-Anfragen des Anmelde-Panels über
-diesen Endpunkt statt direkt aus dem Browser. Der Vertrag:
+Mit `proxy` laufen Try-it und die Token- und Discovery-Anfragen des
+Anmelde-Panels über diesen Endpunkt statt direkt aus dem Browser. Der
+Vertrag:
 
 - Die Seite sendet `POST {proxy}` mit `Content-Type: application/json`,
   `Accept: application/json` und Cookies des eigenen Origins. Hat die Seite
   ein `<meta name="csrf-token" content="…">` (die Konvention von Laravel),
   geht sein Wert in den Header `X-CSRF-TOKEN`.
 - Der Body ist der `HttpRequest` als JSON:
-  `{ method, url, headers: [name, value][], body?: { mediaType, text?, form? } }`.
-  `url` ist absolut. Dateifelder eines Formulars kommen als
-  `{ filename, contentType? }` an; die Bytes der Datei werden nicht gesendet.
+  `{ method, url, headers: [name, value][], body?: { mediaType, text?, form?, file? } }`.
+  `url` ist absolut. Eine Datei — ein Formularfeld oder der ganze Body
+  (`file`) — kommt als `{ filename, contentType?, base64? }` an, wobei
+  `base64` ihre Bytes enthält (fehlt, wenn keine Datei gewählt wurde).
 - Der Endpunkt prüft die URL gegen die erlaubten Hosts, führt die Anfrage aus
   und antwortet `200` mit der `HttpResponse` als JSON:
-  `{ status, statusText, headers: [name, value][], body, duration?, error? }`.
-  `error` mit `status: 0` sagt, dass die API nicht erreicht wurde. Ein `body`,
+  `{ status, statusText, headers: [name, value][], body, bodyBase64?, duration?, error? }`.
+  Eine binäre Antwort — ein Bild, eine PDF — kommt in `bodyBase64` mit
+  `body: ''`; die Seite zeigt sie dann als Vorschau oder bietet sie zum
+  Download an, typisiert nach dem Header `Content-Type`. `error` mit
+  `status: 0` sagt, dass die API nicht erreicht wurde. Ein `body`,
   der kein String ist, wird als JSON angezeigt.
 - Jede andere Antwort — nicht 2xx oder kein JSON — wird als fehlgeschlagene
   Anfrage angezeigt.
+- „Cancel“ bricht den Aufruf des Proxys ab.
 
 Den Endpunkt müssen Sie schützen: Lassen Sie nur die gewollten Hosts zu und
 verlangen Sie dieselbe Anmeldung wie im Rest Ihres Backoffice, sonst ist er
@@ -177,7 +189,7 @@ Props:
 |---|---|---|---|
 | `theme` | `PageTheme` | `'system'` | `'light'`, `'dark'` oder `'system'`; mit `v-model:theme` verwenden. |
 | `locale` | `string` | `'auto'` | `'en'`, `'ru'` oder `'auto'`; mit `v-model:locale` verwenden. |
-| `title` | `string` | der Titel der geöffneten Spezifikation | Der Titel der Leiste. |
+| `title` | `string` | der Titel der geöffneten Spezifikation | Der Titel der Kopfzeile. |
 | `languages` | `string[]` | `['en', 'ru']` | Die Sprachen, die der Umschalter anbietet; bei einer ist der Umschalter ausgeblendet. |
 | `persistTheme` | `boolean` | `false` | Das gewählte Theme in localStorage unter `dsk-openapi-theme` behalten; es gewinnt dann gegenüber `theme`. |
 | `applyTheme` | `boolean` | `true` | Das Theme in `data-theme` auf `<html>` schreiben, wo die Themes des Kits es lesen. Abschalten, wenn der Host die Seite selbst gestaltet. |
@@ -185,17 +197,11 @@ Props:
 Jedes andere Attribut und jeder Listener — `spec`, `specs`, `send`, `tryIt`,
 `labels`, `@loaded`, … — geht unverändert an die innere
 [`OpenApiReference`](reference.md); `class` und `style` bleiben auf der Seite.
-`labels` übersetzt auch die Leiste.
+`labels` übersetzt auch die Umschalter.
 
-Slots:
-
-- `#title` — die linke Seite der Leiste; erhält `{ title }`;
-- `#actions` — zusätzliche Bedienelemente vor den Umschaltern für Theme und
-  Sprache.
-
-Die Leiste ist sticky, und ihre Höhe wird in `--oa-sticky-top` geschrieben,
-sodass Navigation und Seitenpanels darunter stehen bleiben. Der Inhalt ist
-zentriert, mit einer maximalen Breite von `--oa-page-width` (1440px) und
+Die Umschalter für Theme und Sprache sitzen am rechten Ende der Kopfzeile der
+Referenz. Der Slot `#actions` setzt zusätzliche Bedienelemente davor. Der
+Inhalt ist zentriert, mit einer maximalen Breite von `--oa-page-width` (1440px) und
 einem seitlichen Abstand von `--oa-page-padding` (24px, 16px auf schmalen
 Bildschirmen).
 

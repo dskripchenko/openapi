@@ -62,6 +62,8 @@ export function createApiReference(target: string | Element, options: Standalone
           baseUrl: options.baseUrl,
           snippetTargets: options.snippetTargets,
           defaultSnippet: options.defaultSnippet,
+          persistCredentials: options.persistCredentials ?? false,
+          oauthRedirectUrl: options.oauthRedirectUrl,
         })
     },
   })

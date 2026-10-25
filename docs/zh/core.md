@@ -296,6 +296,7 @@ const request = buildRequest({
 | `values` | 按位置和名称给出的值：`{ path?, query?, header?, cookie? }`。 |
 | `body` | `{ mediaType, value, encoding? }` —— 结构化媒体类型用对象，或输入的文本；对其他任何媒体类型，也可以是一个文件值 `{ filename, contentType?, data? }`，作为整个请求体。 |
 | `security` | `AppliedSecurity[]`：`{ scheme, value }` —— 密钥或令牌，basic 方案则为 `{ username, password }`。 |
+| `extra` | `ExtraParams`：`{ query?, header?, cookie? }`，各为规范文档未声明的 `[name, value]` 对列表。 |
 
 它遵循规范中的规则：
 
@@ -306,6 +307,9 @@ const request = buildRequest({
 - 空的可选值被省略；空字符串只有在 `allowEmptyValue` 时才保留；
 - 名为 `Accept`、`Content-Type` 和 `Authorization` 的 header 参数会被忽略，这是规范的要求；
 - 来自参数和 API 密钥的 cookie 合并到同一个 `Cookie` 请求头中；
+- `extra` 中的 query 参数和 cookie 跟在已声明的参数之后、凭据之前；`extra` 中的请求头放在最后，
+  并替换同名的自动生成请求头，不区分大小写（`Content-Type`、`Accept`、`Authorization` 等）；
+  名称为空的对会被跳过；
 - `Content-Type` 根据请求体的媒体类型设置，multipart 除外——由 HTTP 客户端连同 boundary 一起添加；
 - JSON 请求体会被序列化，urlencoded 请求体按其 `encoding` 编码，multipart 请求体中的文件字段保持为
   `{ filename, contentType?, data? }`（`data` 是 `Blob` 或字符串）；multipart 字段中的对象变为 JSON，
@@ -441,6 +445,12 @@ if (callback?.code && callback.state === state) {
 
 类型为 `AuthorizeUrlOptions`、`OAuthCallback`、`CodeExchangeOptions` 和
 `OpenIdConfiguration`。
+
+## TypeScript
+
+`operationTypes`、`documentTypes`、`schemaToTs`、`declareType`、`createTsContext`、
+`tsTypeName`、`statusTypeName` 和 `STATUS_TYPE_NAMES` 为操作和整个文档生成 TypeScript 声明；
+见 [TypeScript 类型](types.md)。
 
 ## 链接
 

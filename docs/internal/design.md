@@ -44,8 +44,13 @@ src/
   snippets/   generate(target, HttpRequest) → string; targets[]
   links/      якоря: свои и Scalar (pickSpec, resolveSection, scalarSlug),
               предзаполненные ссылки, формат v1 (encode/decodePrefill)
+  typescript/ OpenAPI → TypeScript: schemaToTs, declareType, operationTypes,
+              documentTypes; имена типов ответов по смыслу статуса
+              (status.ts: 200 Success, 404 NotFound, 500 Error, …)
   standalone/ отдельная сборка: createApiReference, sources в форме Scalar,
-              proxySend — транспорт через прокси хоста
+              mountOperation / autoMount / data-openapi-* для встраивания,
+              proxySend — транспорт через прокси хоста (файлы и бинарные
+              ответы — base64)
   index.ts    публичное API
 ```
 
@@ -144,7 +149,13 @@ JSON Pointer (`/paths/~1pets/get`), а `Position` — `{ line, column }` нач�
   - query: form, spaceDelimited, pipeDelimited, deepObject;
   - header: simple;
   - cookie: form.
-- **Тело:** JSON/XML/текст — текстом; multipart и urlencoded с объектной
+- **Параметры** — виджеты по схеме (enum — select, boolean — переключатель
+  или три состояния, число с границами, массив — теги, date/date-time, JSON
+  для объектов); свои строки query/header/cookie (`BuildInput.extra`), свой
+  заголовок заменяет сгенерированный с тем же именем без учёта регистра.
+- **Тело:** JSON со схемой — форма по схеме (вложенные объекты, массивы,
+  map, null, варианты oneOf/anyOf) с переключателем Form | JSON и
+  двусторонней синхронизацией; XML — из схемы (`sampleXml`); multipart и urlencoded с объектной
   схемой — формой по свойствам, поля `format: binary` — выбор файла (массив —
   несколько файлов), переключатель «Raw JSON»; бинарное тело (octet-stream,
   картинки, PDF, `format: binary`) — один файл.
@@ -197,9 +208,26 @@ JSON Pointer (`/paths/~1pets/get`), а `Position` — `{ line, column }` нач�
     `tag/{name}` и алиасы Scalar (`{doc}/tag/{tag}/{METHOD}{path}`,
     `model/{name}`) — со сдвигом на base path сервера и откатом к тегу;
   - темы через токены кита.
-- `OpenApiPage` — справочник целой страницей: липкая панель с заголовком,
-  переключатели темы (light/dark/system, `data-theme` на `<html>`) и языка;
-  высота панели уходит в `--oa-sticky-top`.
+- Оболочка `OpenApiReference`: липкая шапка (заголовок, версия, summary,
+  переключатель спецификаций, поиск, загрузки YAML/JSON/TS, кнопка настроек
+  с хостом сервера и ключом, слот `#actions`), правый drawer настроек
+  (сервер, авторизация, загрузки, «Print / PDF»), подвал со слотом
+  `#footer`, scroll spy в навигации, на узких экранах (<900px) навигация —
+  выдвижная панель. Операции — карточки; справа вкладки Try it / Request
+  samples / Types; ответы свёрнуты; длинные блоки кода сворачиваются.
+  Высота шапки — `--oa-header-h`, `--oa-sticky-top` сдвигает всё под чужую
+  липкую панель хоста.
+- `OpenApiPage` — справочник целой страницей: переключатели темы
+  (light/dark/system, `data-theme` на `<html>`) и языка в шапке справочника.
+- `OpenApiOperation` — одна операция внутри чужой документации: компактная
+  карточка, общий кэш спецификаций, ссылка на полный справочник
+  (`referenceUrl`, `specId`). В отдельной сборке — `mountOperation`,
+  `autoMount`, `<script … data-auto>`; тема пишется в `<html data-theme>`
+  только по запросу; базовые стили кита ограничены нашими элементами.
+- Печать / PDF — через диалог печати браузера (`printOperation`,
+  `printDocument`): статичный HTML в скрытом iframe со своим стилем (A4,
+  светлая тема), значения учётных данных не печатаются, имя файла — из
+  заголовка; пропустить диалог нельзя.
 - `OpenApiEditor` — конструктор:
   - визуальные формы для info, servers, tags, paths и операций, параметров,
     тел, ответов, components (схемы через конструктор схем),
@@ -226,6 +254,8 @@ JSON Pointer (`/paths/~1pets/get`), а `Position` — `{ line, column }` нач�
 - OAuth: проверка `state`, PKCE, relay только к opener'у того же origin,
   приём сообщения только с origin redirect URI.
 - Хранение учётных данных — только по явному `persistCredentials`.
+- Печать и предпросмотр «What will be sent» не показывают значения
+  учётных данных (в предпросмотре — маска).
 
 ## Тесты
 

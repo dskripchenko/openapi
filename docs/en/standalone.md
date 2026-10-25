@@ -5,11 +5,12 @@ your app:
 
 - **the standalone bundle** — one `<script>` on any HTML page, no build
   step, no Vue in your project;
-- **`OpenApiPage`** — a Vue component: the reference with a top bar holding
-  the title and theme and language switchers.
+- **`OpenApiPage`** — a Vue component: the reference with theme and language
+  switchers in its header.
 
 The standalone bundle is `OpenApiPage` packed with Vue, the kit and all the
-styles.
+styles. It also mounts single operations into other pages: see
+[embedding](embed.md).
 
 ## The standalone bundle
 
@@ -39,8 +40,10 @@ styles.
 `dist/standalone.js` is a classic script (an IIFE) that defines the global
 `DskOpenApi`. It carries Vue, `@dskripchenko/ui` and every stylesheet, and
 adds the CSS to the page itself (once, even when the script is included
-twice). It also sets `body { margin: 0 }`: the page is meant to own the
-window. The same CSS is published as `dist/standalone.css` for a page that
+twice). The kit's base styles — box sizing, heading and paragraph margins,
+the base font — are scoped to the package's own elements, so the rest of the
+page keeps its look; a page holding a whole reference also gets
+`body { margin: 0 }` and the kit's background. The same CSS is published as `dist/standalone.css` for a page that
 prefers a `<link>`. In a bundler the two files are
 `@dskripchenko/openapi/standalone` and `@dskripchenko/openapi/standalone.css`.
 
@@ -76,6 +79,8 @@ Options:
 | `defaultSnippet` | `SnippetTarget` | `'curl'` | The language shown first. |
 | `tryIt` | `boolean` | `true` | `false` hides the try-it panels. |
 | `title` | `string` | the open spec's title | The bar's title; also sets `document.title`. |
+| `persistCredentials` | `boolean \| 'session' \| 'local'` | `false` | Keeps typed credentials in the browser; see the reference page. |
+| `oauthRedirectUrl` | `string` | the page URL without query and hash | The OAuth redirect URI the identity provider must allow. |
 
 A source:
 
@@ -93,23 +98,28 @@ switcher also sets `<html lang>`.
 
 ### The proxy
 
-With `proxy`, try-it and the authentication panel's token requests go
-through that endpoint instead of straight from the browser. The contract:
+With `proxy`, try-it and the authentication panel's token and discovery
+requests go through that endpoint instead of straight from the browser. The
+contract:
 
 - The page sends `POST {proxy}` with `Content-Type: application/json`,
   `Accept: application/json` and same-origin cookies. When the page has a
   `<meta name="csrf-token" content="…">` (Laravel's convention), its value
   goes in the `X-CSRF-TOKEN` header.
 - The body is the `HttpRequest` as JSON:
-  `{ method, url, headers: [name, value][], body?: { mediaType, text?, form? } }`.
-  `url` is absolute. File fields of a form arrive as
-  `{ filename, contentType? }`; the file's bytes are not sent.
+  `{ method, url, headers: [name, value][], body?: { mediaType, text?, form?, file? } }`.
+  `url` is absolute. A file — a form field, or the whole body (`file`) —
+  arrives as `{ filename, contentType?, base64? }`, `base64` holding its
+  bytes (absent when no file was chosen).
 - The endpoint checks the URL against the hosts it allows, performs the
   request and answers `200` with the `HttpResponse` as JSON:
-  `{ status, statusText, headers: [name, value][], body, duration?, error? }`.
-  `error` with `status: 0` says the API was not reached. A `body` that is not
-  a string is shown as JSON.
+  `{ status, statusText, headers: [name, value][], body, bodyBase64?, duration?, error? }`.
+  A binary answer — an image, a PDF — goes in `bodyBase64` with `body: ''`;
+  the page then previews it or offers it for download, typed by the
+  `Content-Type` header. `error` with `status: 0` says the API was not
+  reached. A `body` that is not a string is shown as JSON.
 - Any other answer — not 2xx, or not JSON — is shown as a failed request.
+- "Cancel" aborts the call to the proxy.
 
 The endpoint is yours to protect: allow only the hosts you mean to, and
 require the same sign-in as the rest of your back office, or it is an open
@@ -169,7 +179,7 @@ Props:
 |---|---|---|---|
 | `theme` | `PageTheme` | `'system'` | `'light'`, `'dark'` or `'system'`; use `v-model:theme`. |
 | `locale` | `string` | `'auto'` | `'en'`, `'ru'` or `'auto'`; use `v-model:locale`. |
-| `title` | `string` | the open spec's title | The bar's title. |
+| `title` | `string` | the open spec's title | The header's title. |
 | `languages` | `string[]` | `['en', 'ru']` | The languages the switcher offers; with one, the switcher is hidden. |
 | `persistTheme` | `boolean` | `false` | Keep the chosen theme in localStorage under `dsk-openapi-theme`; it then wins over `theme`. |
 | `applyTheme` | `boolean` | `true` | Write the theme to `data-theme` on `<html>`, where the kit's themes read it. Turn off when the host themes the page itself. |
@@ -177,17 +187,12 @@ Props:
 Every other attribute and listener — `spec`, `specs`, `send`, `tryIt`,
 `labels`, `@loaded`, … — goes to the inner [`OpenApiReference`](reference.md)
 unchanged; `class` and `style` stay on the page. `labels` also translates the
-bar.
+switchers.
 
-Slots:
-
-- `#title` — the bar's left side; receives `{ title }`;
-- `#actions` — extra controls before the theme and language switchers.
-
-The bar is sticky, and its height is written to `--oa-sticky-top`, so the
-navigation and the side panels stop below it. The content is centered with
-a maximum width of `--oa-page-width` (1440px) and side padding of
-`--oa-page-padding` (24px, 16px on narrow screens).
+The theme and language switchers sit at the right end of the reference's
+header. The `#actions` slot puts extra controls before them. The content is
+centered with a maximum width of `--oa-page-width` (1440px) and side padding
+of `--oa-page-padding` (24px, 16px on narrow screens).
 
 Exposed through a template ref: `reference` (the inner `OpenApiReference`),
 `setTheme(theme)`, and `theme` — the theme actually shown, with `'system'`

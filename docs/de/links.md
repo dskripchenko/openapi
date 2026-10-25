@@ -72,7 +72,8 @@ values before sending“ — und drückt „Send“, wenn er bereit ist.
 ### Copy link
 
 Das Try-it-Panel jeder Operation hat eine Schaltfläche „Copy link“: Sie
-kopiert einen vorausgefüllten Link mit dem Formular im aktuellen Zustand.
+kopiert einen vorausgefüllten Link mit dem Formular im aktuellen Zustand,
+einschließlich seiner eigenen Query-, Header- und Cookie-Zeilen.
 Anmeldedaten bleiben draußen, außer „Include credentials“ ist angehakt —
 standardmäßig aus, mit der Warnung, dass jeder, der den Link bekommt, sie
 verwenden kann.
@@ -117,7 +118,10 @@ Das JSON:
   "cookie": { "session": "…" },
   "mediaType": "application/json",
   "body": "{\"name\":\"Rex\"}",
-  "auth": { "bearerAuth": "token", "basicAuth": { "username": "u", "password": "p" } }
+  "auth": { "bearerAuth": "token", "basicAuth": { "username": "u", "password": "p" } },
+  "xQuery": [["debug", "1"]],
+  "xHeader": [["X-Request-Id", "42"]],
+  "xCookie": [["theme", "dark"]]
 }
 ```
 
@@ -130,21 +134,34 @@ Das JSON:
 | `mediaType` | Der Media Type des Bodys, wenn die Operation ihn annimmt. |
 | `body` | Der Text des Bodys wie eingegeben. |
 | `auth` | Anmeldedaten nach Name des Security-Schemas: ein Schlüssel oder Token oder `{ username, password }`. |
+| `xQuery`, `xHeader`, `xCookie` | Query-Parameter, Header und Cookies, die die Spezifikation nicht deklariert — die eigenen Zeilen des Try-it-Formulars — als `[name, value]`-Paare, in Reihenfolge. |
 
 Jeder Schlüssel außer `v` ist optional, und unbekannte Schlüssel werden
 ignoriert. Zahlen und Wahrheitswerte unter den Werten werden als ihr Text
 gelesen; andere Werte werden verworfen. Eine Payload, die fehlerhaft ist, auf
 mehr als 1 MB anwächst oder ein anderes `v` als 1 hat, wird ignoriert (eine
 spätere Version mit einer Warnung in der Konsole), und der Link öffnet
-einfach die Operation.
+einfach die Operation. Die `x*`-Schlüssel kamen zu Version 1 hinzu, ohne sie
+zu ändern: Ein Leser, der sie nicht kennt, ignoriert sie, und Links ohne sie
+werden gelesen wie bisher.
 
 In PHP:
 
 ```php
-$data = ['v' => 1, 'path' => ['id' => '42'], 'body' => '{"name":"Rex"}'];
+$data = [
+    'v' => 1,
+    'path' => ['id' => '42'],
+    'body' => '{"name":"Rex"}',
+    'xHeader' => [['X-Request-Id', '42']],
+];
 $payload = 'z' . rtrim(strtr(base64_encode(gzdeflate(json_encode($data, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))), '+/', '-_'), '=');
 $link = "https://example.com/docs#v1/operation/updatePet?f={$payload}";
 ```
+
+`path`, `query`, `header`, `cookie`, `vars` und `auth` sind assoziative
+Arrays (JSON-Objekte); `xQuery`, `xHeader` und `xCookie` sind Listen aus
+zweielementigen Listen (JSON-Arrays) — ein assoziatives Array würde dort als
+Objekt kodiert und ignoriert.
 
 In TypeScript, mit dem Kern:
 

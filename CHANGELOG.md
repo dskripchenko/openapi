@@ -4,9 +4,35 @@
 
 ### Major Changes
 
-- First release: Swagger 2.0, OpenAPI 3.0 and OpenAPI 3.1 in YAML or JSON, with no runtime dependencies in the core.
-  - Core (`@dskripchenko/openapi`): YAML and JSON parsers with source positions and errors by line; normalization of 2.0 and 3.0 documents to the 3.1 shape; a `$ref` resolver with cycle detection and external documents through a host loader; operations indexed and grouped by tag; structural validation with line numbers; schema samples in JSON and XML, a JSON Schema 2020-12 validator and short type labels; request building by `style` / `explode` with apiKey, http and OAuth2 credentials; `sendRequest` over `fetch` (textual bodies as text, others as a `Blob`; binary request bodies) and OAuth2 helpers — `fetchOAuthToken` for the client-credentials and password flows, PKCE, authorize URLs, callback parsing, code exchange and OpenID Connect discovery; Scalar-compatible deep-link resolution and the prefilled-link format (version 1); code samples for 13 targets (cURL, JavaScript fetch, Node axios, PHP Guzzle, PHP Laravel Http, Python requests, Go, Java, C#, Kotlin, Swift, raw HTTP, PowerShell).
-  - `OpenApiReference` (`@dskripchenko/openapi/vue`): navigation with search, operations by tag, schema trees, examples, request samples, a try-it panel with a replaceable transport (`send`) for a server-side proxy, an authentication panel, servers with variables, webhooks and callbacks, full-text search with keyboard navigation, named examples, try-it forms for multipart and urlencoded bodies with file uploads, binary bodies, cancel, a response viewer with size, pretty/raw JSON, image previews and downloads, "Download spec", copy-link buttons, OAuth2 authorization code (PKCE) and implicit flows in a popup with OpenID Connect discovery, chosen scopes and token expiry, opt-in persisted credentials (`persistCredentials`), Scalar deep links and prefilled links that open an operation with its form filled, several specs on one page (`specs`, a switcher in the navigation, loaders run on first open, `v-model:active`, credentials kept per spec, deep links `#{id}/operation/{opId}`), deep links `#operation/{id}` and `#schema/{name}`, links from the spec limited to http(s), mailto and relative addresses, English and Russian interface.
-  - `OpenApiPage`: the reference as a whole page with a sticky title bar and theme (light / dark / system) and language switchers.
-  - Standalone bundle (`dist/standalone.js`, global `DskOpenApi`): `createApiReference(target, options)` with Scalar's `sources` shape, theme and language options and a try-it proxy transport.
+- First release: Swagger 2.0, OpenAPI 3.0 and OpenAPI 3.1 in YAML or JSON — read, validate, document, try, embed and edit. The core has no runtime dependencies; the Vue components are built on `@dskripchenko/ui`.
+
+  **Core (`@dskripchenko/openapi`)**
+
+  - YAML and JSON parsers with the source position of every value and errors by line and column; `loadSpec` / `parseSpec` / `stringifySpec`.
+  - Normalization of 2.0 and 3.0 documents to the 3.1 shape; a `$ref` resolver with cycle detection and external documents through a host loader; operations indexed and grouped by tag.
+  - Structural validation with line numbers (`validateDocument`).
+  - Schemas: JSON and XML samples, a JSON Schema 2020-12 validator, short type labels.
+  - Requests: `buildRequest` by `style` / `explode` with apiKey, http and OAuth2 credentials, form, multipart and binary bodies and undeclared `extra` parameters; `sendRequest` over `fetch` (textual bodies as text, others as a `Blob`, cancellable).
+  - OAuth2: token requests for the client-credentials and password flows, PKCE, authorize URLs, callback parsing, code exchange, OpenID Connect discovery.
+  - Code samples for 13 targets: cURL, JavaScript fetch, Node axios, PHP Guzzle, PHP Laravel Http, Python requests, Go, Java, C#, Kotlin, Swift, raw HTTP, PowerShell.
+  - TypeScript declarations for an operation or a whole document, with response types named by status meaning (`{Op}Success`, `{Op}NotFound`, …).
+  - Deep links: Scalar-compatible anchor resolution and the prefilled-link format (version 1).
+
+  **`OpenApiReference`**
+
+  - A sticky header with the title, a spec switcher, full-text search with keyboard navigation (`/`, Ctrl/Cmd+K) and YAML / JSON / `.d.ts` downloads; a settings drawer with the server, the authentication panel, downloads and "Print / PDF"; a footer; `#actions` and `#footer` slots.
+  - Navigation by tag with scroll spy, a sliding drawer on narrow screens; operations as cards with "Try it", "Request samples" and "Types" tabs; named examples; folding code blocks.
+  - Try-it: typed parameter inputs, a schema-driven JSON body form synced with the text, multipart and urlencoded forms with file uploads, binary bodies, own query / header / cookie rows, a "What will be sent" preview with masked credentials, cancel, and a response viewer with size, pretty / raw JSON, image previews and downloads; a replaceable transport (`send`) for a server-side proxy.
+  - Authentication: apiKey, http and every OAuth2 flow — authorization code with PKCE and implicit in a popup, client credentials, password — with OpenID Connect discovery, chosen scopes, token expiry and opt-in persisted credentials (`persistCredentials`).
+  - Several specs on one page, loaded on first open (`specs`, `v-model:active`); deep links (`#operation/{id}`, Scalar's forms too) and prefilled links that open an operation with its form filled; print / PDF of an operation or the whole spec through the browser's dialog.
+  - English and Russian interface, overridable strings; light and dark themes from the kit; links from the spec limited to http(s), mailto and relative addresses.
+
+  **More components**
+
+  - `OpenApiOperation`: one operation embedded in other documentation, with a shared spec cache.
+  - `OpenApiPage`: the reference as a whole page with theme (light / dark / system) and language switchers.
   - `OpenApiEditor`: visual forms for info, servers, tags, security schemes, paths, operations and schemas; the source with highlighting and problems by line; a preview with the reference's options; an `issues` event; `v-model` text that keeps its YAML or JSON format; conversion of Swagger 2.0 documents to OpenAPI 3.1.
+
+  **Standalone bundle (`dist/standalone.js`, global `DskOpenApi`)**
+
+  - `createApiReference(target, options)` with Scalar's `sources` shape, theme and language options; `mountOperation`, `autoMount` and `data-openapi-*` markup for embeds; a try-it proxy transport that carries files and binary responses as base64.

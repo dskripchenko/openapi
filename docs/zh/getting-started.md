@@ -143,6 +143,8 @@ Swagger 或 OpenAPI 规范的文档，抛出 `OpenApiError`。无论输入是哪
 - [OpenApiReference](reference.md) —— prop、搜索、try-it、服务端代理、认证与 OAuth、服务器、语言
 - [独立页面与 OpenApiPage](standalone.md) —— 在任意页面上用一个脚本、从 Scalar 迁移、页面组件
 - [深层链接与预填链接](links.md) —— 锚点、Scalar 的链接、填写 try-it 表单的链接
+- [嵌入操作](embed.md) —— 在其他文档中展示单个操作，可通过 Vue 或独立脚本
+- [TypeScript 类型](types.md) —— Types 标签页、`.d.ts` 下载和生成器
 - [OpenApiEditor](editor.md) —— 三个视图、表单覆盖的内容、Swagger 2.0 文档
 - [核心 API](core.md) —— `@dskripchenko/openapi` 的所有函数
 - [代码示例](snippets.md) —— 13 个目标及其运行要求

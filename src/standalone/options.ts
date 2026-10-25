@@ -35,6 +35,10 @@ export interface StandaloneOptions {
   tryIt?: boolean
   /** Sets `document.title` and the bar's title. */
   title?: string
+  /** Keeps typed credentials in the browser: true/'session' or 'local'. */
+  persistCredentials?: boolean | 'session' | 'local'
+  /** The OAuth redirect URI; the page URL without query and hash by default. */
+  oauthRedirectUrl?: string
 }
 
 /** Fetches a spec as text: the reference reads JSON and YAML alike. */

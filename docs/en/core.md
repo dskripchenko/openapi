@@ -321,6 +321,7 @@ const request = buildRequest({
 | `values` | Values by location and name: `{ path?, query?, header?, cookie? }`. |
 | `body` | `{ mediaType, value, encoding? }` — an object for structured media types, the text as typed, or, for any other media type, a file value `{ filename, contentType?, data? }` that is the whole body. |
 | `security` | `AppliedSecurity[]`: `{ scheme, value }` — a key or token, or `{ username, password }` for basic. |
+| `extra` | `ExtraParams`: `{ query?, header?, cookie? }`, each a list of `[name, value]` pairs the spec does not declare. |
 
 It follows the specification's rules:
 
@@ -334,6 +335,10 @@ It follows the specification's rules:
 - header parameters named `Accept`, `Content-Type` and `Authorization` are
   ignored, as the specification requires;
 - cookies, from parameters and API keys, go into one `Cookie` header;
+- `extra` query parameters and cookies follow the declared ones, before the
+  credentials; `extra` headers come last and replace a generated header of
+  the same name, whatever its case (`Content-Type`, `Accept`,
+  `Authorization`, …); pairs with an empty name are skipped;
 - `Content-Type` is set from the body's media type, except for multipart,
   where the HTTP client adds it with the boundary;
 - a JSON body is serialized, a urlencoded body is encoded by its `encoding`,
@@ -484,6 +489,13 @@ if (callback?.code && callback.state === state) {
 
 The types are `AuthorizeUrlOptions`, `OAuthCallback`, `CodeExchangeOptions`
 and `OpenIdConfiguration`.
+
+## TypeScript
+
+`operationTypes`, `documentTypes`, `schemaToTs`, `declareType`,
+`createTsContext`, `tsTypeName`, `statusTypeName` and `STATUS_TYPE_NAMES`
+write TypeScript declarations for operations and whole documents; see
+[TypeScript types](types.md).
 
 ## Links
 

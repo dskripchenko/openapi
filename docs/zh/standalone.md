@@ -3,9 +3,10 @@
 如果想得到一整个文档页面，而不是应用内部的一个组件，有两种方式：
 
 - **独立包**——在任意 HTML 页面上放一个 `<script>`，无需构建步骤，项目中也不需要 Vue；
-- **`OpenApiPage`**——一个 Vue 组件：带顶部标题栏的参考页，标题栏上有标题以及主题和语言切换器。
+- **`OpenApiPage`**——一个 Vue 组件：页头中带主题和语言切换器的参考页。
 
-独立包就是连同 Vue、kit 和所有样式一起打包的 `OpenApiPage`。
+独立包就是连同 Vue、kit 和所有样式一起打包的 `OpenApiPage`。它还能把单个操作挂载到
+其他页面中：见 [嵌入操作](embed.md)。
 
 ## 独立包
 
@@ -34,7 +35,9 @@
 
 `dist/standalone.js` 是一个经典脚本（IIFE），定义全局变量 `DskOpenApi`。它内含 Vue、
 `@dskripchenko/ui` 和所有样式表，并自行把 CSS 加到页面上（只加一次，即使脚本被引入两次）。
-它还会设置 `body { margin: 0 }`：该页面本就打算占据整个窗口。同样的 CSS 也以
+kit 的基础样式——盒模型、标题和段落的外边距、基础字体——只作用于本包自己的元素，
+因此页面的其余部分保持原样；承载完整参考页的页面还会得到 `body { margin: 0 }` 和 kit 的背景色。
+同样的 CSS 也以
 `dist/standalone.css` 发布，供更喜欢用 `<link>` 的页面使用。在打包工具中，这两个文件分别是
 `@dskripchenko/openapi/standalone` 和 `@dskripchenko/openapi/standalone.css`。
 
@@ -69,6 +72,8 @@ DskOpenApi.createApiReference(target, options) // → { app, unmount, setTheme, 
 | `defaultSnippet` | `SnippetTarget` | `'curl'` | 首先显示的语言。 |
 | `tryIt` | `boolean` | `true` | `false` 隐藏 try-it 面板。 |
 | `title` | `string` | 当前打开的规范文档的标题 | 标题栏的标题；同时设置 `document.title`。 |
+| `persistCredentials` | `boolean \| 'session' \| 'local'` | `false` | 在浏览器中保存输入的凭据；见参考页面。 |
+| `oauthRedirectUrl` | `string` | 不含查询和哈希的页面地址 | OAuth 回调地址，身份提供方必须允许。 |
 
 一个来源：
 
@@ -83,19 +88,23 @@ DskOpenApi.createApiReference(target, options) // → { app, unmount, setTheme, 
 
 ### 代理
 
-设置 `proxy` 后，try-it 和认证面板的令牌请求都经由该端点发出，而不是直接从浏览器发出。契约如下：
+设置 `proxy` 后，try-it 以及认证面板的令牌请求和 discovery 请求都经由该端点发出，
+而不是直接从浏览器发出。契约如下：
 
 - 页面发送 `POST {proxy}`，带 `Content-Type: application/json`、`Accept: application/json`
   和同源 cookie。如果页面有 `<meta name="csrf-token" content="…">`（Laravel 的惯例），
   其值放在 `X-CSRF-TOKEN` 请求头中。
 - 请求体是 JSON 形式的 `HttpRequest`：
-  `{ method, url, headers: [name, value][], body?: { mediaType, text?, form? } }`。
-  `url` 是绝对地址。表单中的文件字段以 `{ filename, contentType? }` 的形式到达；
-  文件的字节不会发送。
+  `{ method, url, headers: [name, value][], body?: { mediaType, text?, form?, file? } }`。
+  `url` 是绝对地址。文件——表单字段，或整个请求体（`file`）——以
+  `{ filename, contentType?, base64? }` 的形式到达，`base64` 中是文件的字节（未选择文件时没有）。
 - 端点根据其允许的主机检查 URL，执行请求，并以 `200` 和 JSON 形式的 `HttpResponse` 作答：
-  `{ status, statusText, headers: [name, value][], body, duration?, error? }`。
-  带 `status: 0` 的 `error` 表示没有连到 API。不是字符串的 `body` 会以 JSON 形式显示。
+  `{ status, statusText, headers: [name, value][], body, bodyBase64?, duration?, error? }`。
+  二进制应答——图片、PDF——放在 `bodyBase64` 中，同时 `body: ''`；页面随后按
+  `Content-Type` 请求头预览它或提供下载。带 `status: 0` 的 `error` 表示没有连到 API。
+  不是字符串的 `body` 会以 JSON 形式显示。
 - 其他任何响应——不是 2xx，或不是 JSON——都显示为请求失败。
+- "Cancel" 会中止对代理的调用。
 
 这个端点需要由你来保护：只放行你打算放行的主机，并要求与后台其他部分相同的登录，
 否则它就是一个开放中继。该代理传输方式也以 `DskOpenApi.proxySend(url)` 导出。
@@ -151,21 +160,16 @@ Prop：
 |---|---|---|---|
 | `theme` | `PageTheme` | `'system'` | `'light'`、`'dark'` 或 `'system'`；使用 `v-model:theme`。 |
 | `locale` | `string` | `'auto'` | `'en'`、`'ru'` 或 `'auto'`；使用 `v-model:locale`。 |
-| `title` | `string` | 当前打开的规范文档的标题 | 标题栏的标题。 |
+| `title` | `string` | 当前打开的规范文档的标题 | 页头的标题。 |
 | `languages` | `string[]` | `['en', 'ru']` | 切换器提供的语言；只有一种时隐藏切换器。 |
 | `persistTheme` | `boolean` | `false` | 把所选主题保存在 localStorage 的 `dsk-openapi-theme` 下；之后它优先于 `theme`。 |
 | `applyTheme` | `boolean` | `true` | 把主题写入 `<html>` 的 `data-theme`，kit 的主题从这里读取。宿主自行处理页面主题时请关闭。 |
 
 其他所有属性和监听器——`spec`、`specs`、`send`、`tryIt`、`labels`、`@loaded`……——
 原样传给内部的 [`OpenApiReference`](reference.md)；`class` 和 `style` 留在页面上。
-`labels` 也会翻译标题栏。
+`labels` 也会翻译切换器。
 
-插槽：
-
-- `#title` —— 标题栏的左侧；接收 `{ title }`；
-- `#actions` —— 放在主题和语言切换器之前的额外控件。
-
-标题栏是 sticky 的，其高度会写入 `--oa-sticky-top`，因此导航和侧边面板会停在它下方。
+主题和语言切换器位于参考页页头的右端。`#actions` 插槽把额外的控件放在它们之前。
 内容居中，最大宽度为 `--oa-page-width`（1440px），左右内边距为 `--oa-page-padding`
 （24px，窄屏上为 16px）。
 

@@ -68,7 +68,8 @@ sending" — next to the filled form, which the page scrolls to, and presses
 ### Copy link
 
 The try-it panel of every operation has a "Copy link" button: it copies a
-prefilled link with the form as it is now. Credentials are left out unless
+prefilled link with the form as it is now, its own query, header and cookie
+rows included. Credentials are left out unless
 "Include credentials" is ticked — off by default, with a warning that anyone
 who gets the link can use them.
 
@@ -112,7 +113,10 @@ The JSON:
   "cookie": { "session": "…" },
   "mediaType": "application/json",
   "body": "{\"name\":\"Rex\"}",
-  "auth": { "bearerAuth": "token", "basicAuth": { "username": "u", "password": "p" } }
+  "auth": { "bearerAuth": "token", "basicAuth": { "username": "u", "password": "p" } },
+  "xQuery": [["debug", "1"]],
+  "xHeader": [["X-Request-Id", "42"]],
+  "xCookie": [["theme", "dark"]]
 }
 ```
 
@@ -125,20 +129,33 @@ The JSON:
 | `mediaType` | The body's media type, when the operation accepts it. |
 | `body` | The body text as typed. |
 | `auth` | Credentials by security scheme name: a key or token, or `{ username, password }`. |
+| `xQuery`, `xHeader`, `xCookie` | Query parameters, headers and cookies the spec does not declare — the try-it form's own rows — as `[name, value]` pairs, in order. |
 
 Every key but `v` is optional, and unknown keys are ignored. Numbers and
 booleans among the values are read as their text; other values are dropped.
 A payload that is malformed, inflates past 1 MB, or has a `v` other than 1 is
 ignored (a later version with a console warning), and the link simply opens
-the operation.
+the operation. The `x*` keys were added to version 1 without changing it: a
+reader that does not know them ignores them, and links without them read as
+before.
 
 In PHP:
 
 ```php
-$data = ['v' => 1, 'path' => ['id' => '42'], 'body' => '{"name":"Rex"}'];
+$data = [
+    'v' => 1,
+    'path' => ['id' => '42'],
+    'body' => '{"name":"Rex"}',
+    'xHeader' => [['X-Request-Id', '42']],
+];
 $payload = 'z' . rtrim(strtr(base64_encode(gzdeflate(json_encode($data, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))), '+/', '-_'), '=');
 $link = "https://example.com/docs#v1/operation/updatePet?f={$payload}";
 ```
+
+`path`, `query`, `header`, `cookie`, `vars` and `auth` are associative arrays
+(JSON objects); `xQuery`, `xHeader` and `xCookie` are lists of two-element
+lists (JSON arrays) — an associative array there would encode as an object
+and be ignored.
 
 In TypeScript, with the core:
 

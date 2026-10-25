@@ -29,8 +29,9 @@ Einige paketeigene Dinge sind CSS Custom Properties.
 
 | Variable | Standard | Verwendet für |
 |---|---|---|
-| `--oa-sticky-top` | `0px` | Den Abstand der sticky Navigation, der Beispielspalte und des Editor-Baums von oben sowie der Scrollposition der Anker — setzen Sie ihn auf die Höhe einer festen Kopfzeile. |
+| `--oa-sticky-top` | `0px` | Den Abstand von allem, was sticky ist — Kopfzeile, Navigation und seitliche Tabs der Referenz, der Baum des Editors — sowie der Scrollposition der Anker: setzen Sie ihn auf die Höhe der eigenen festen Leiste der Hostseite. |
 | `--oa-source-height` | `560px` | Die Höhe der Quelltext-Ansicht des Editors. |
+| `--oa-header-h` | `56px` | Die Höhe der Kopfzeile der Referenz; Navigation, seitliche Tabs und Anker bleiben darunter stehen. Auf `.oa-reference` deklariert: setzen Sie sie dort. |
 | `--oa-page-width` | `1440px` | [`OpenApiPage`](standalone.md#openapipage): die maximale Breite des Inhalts. |
 | `--oa-page-padding` | `24px` | `OpenApiPage`: der seitliche Abstand von Leiste und Inhalt (16px unter 640px Breite). |
 | `--oa-nav-width` | `272px` | Die Breite der Navigationsspalte der Referenz. |
@@ -46,9 +47,10 @@ Einige paketeigene Dinge sind CSS Custom Properties.
 
 ## Wo man sie setzt
 
-Die Variablen haben keine eigenen Werte: Jeder Standardwert oben ist ein
-Fallback an der Stelle, an der er verwendet wird. Setzen Sie sie auf der
-Komponente, auf einem beliebigen Vorfahren oder auf `:root`:
+Die Variablen haben keine eigenen Werte — außer `--oa-header-h`, siehe oben
+—, und jeder Standardwert ist ein Fallback an der Stelle, an der er verwendet
+wird. Setzen Sie sie auf der Komponente, auf einem beliebigen Vorfahren oder
+auf `:root`:
 
 ```css
 :root {
@@ -79,7 +81,7 @@ Editors — verwenden die Codehervorhebung des Kits und seine
 ## Klassennamen
 
 Elemente tragen stabile Klassennamen mit dem Präfix `oa-` — `oa-reference`,
-`oa-nav`, `oa-op`, `oa-method oa-method--get`, `oa-schema`, `oa-tryit`,
-`oa-editor` und so weiter — zum Gestalten von außen. Die Anker von
+`oa-header`, `oa-nav`, `oa-op`, `oa-method oa-method--get`, `oa-schema`,
+`oa-tryit`, `oa-footer`, `oa-embed`, `oa-editor` und so weiter — zum Gestalten von außen. Die Anker von
 Operationen und Schemas sind ihre Element-ids: `operation/{id}` und
 `schema/{name}`.

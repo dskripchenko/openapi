@@ -55,7 +55,8 @@ check the values before sending"——页面会滚动到该表单，读者准备
 
 ### Copy link
 
-每个操作的 try-it 面板都有一个 "Copy link" 按钮：它复制一个带有当前表单内容的预填链接。
+每个操作的 try-it 面板都有一个 "Copy link" 按钮：它复制一个带有当前表单内容的预填链接，
+其中包括表单自己添加的 query、header 和 cookie 行。
 除非勾选 "Include credentials"，否则凭据不会包含在内——该选项默认关闭，并会警告：
 任何拿到链接的人都能使用这些凭据。
 
@@ -95,7 +96,10 @@ JSON：
   "cookie": { "session": "…" },
   "mediaType": "application/json",
   "body": "{\"name\":\"Rex\"}",
-  "auth": { "bearerAuth": "token", "basicAuth": { "username": "u", "password": "p" } }
+  "auth": { "bearerAuth": "token", "basicAuth": { "username": "u", "password": "p" } },
+  "xQuery": [["debug", "1"]],
+  "xHeader": [["X-Request-Id", "42"]],
+  "xCookie": [["theme", "dark"]]
 }
 ```
 
@@ -108,18 +112,29 @@ JSON：
 | `mediaType` | 请求体的媒体类型，前提是该操作接受它。 |
 | `body` | 按输入原样给出的请求体文本。 |
 | `auth` | 按安全方案名给出的凭据：密钥或令牌，或 `{ username, password }`。 |
+| `xQuery`、`xHeader`、`xCookie` | 规范文档未声明的 query 参数、请求头和 cookie——即 try-it 表单自己添加的行——以 `[name, value]` 对的形式按顺序给出。 |
 
 除 `v` 以外的所有键都是可选的，未知的键会被忽略。值中的数字和布尔值按其文本读取；
 其他值被丢弃。格式错误、解压后超过 1 MB，或 `v` 不等于 1 的载荷会被忽略
-（更高版本会在控制台给出警告），此时链接只是打开该操作。
+（更高版本会在控制台给出警告），此时链接只是打开该操作。`x*` 键是在不改变版本号的情况下
+加入版本 1 的：不认识它们的读取方会忽略它们，不带它们的链接仍按原来的方式读取。
 
 在 PHP 中：
 
 ```php
-$data = ['v' => 1, 'path' => ['id' => '42'], 'body' => '{"name":"Rex"}'];
+$data = [
+    'v' => 1,
+    'path' => ['id' => '42'],
+    'body' => '{"name":"Rex"}',
+    'xHeader' => [['X-Request-Id', '42']],
+];
 $payload = 'z' . rtrim(strtr(base64_encode(gzdeflate(json_encode($data, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))), '+/', '-_'), '=');
 $link = "https://example.com/docs#v1/operation/updatePet?f={$payload}";
 ```
+
+`path`、`query`、`header`、`cookie`、`vars` 和 `auth` 是关联数组（JSON 对象）；
+`xQuery`、`xHeader` 和 `xCookie` 是由两元素列表组成的列表（JSON 数组）——在这里用关联数组
+会被编码为对象，从而被忽略。
 
 在 TypeScript 中，使用核心：
 

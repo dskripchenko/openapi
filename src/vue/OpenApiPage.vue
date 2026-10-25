@@ -131,6 +131,9 @@ defineExpose({ reference, setTheme, theme: resolved })
   <div class="oa-page" :class="attrs.class" :style="attrs.style as never">
     <div class="oa-page__body">
       <OpenApiReference ref="reference" v-bind="referenceAttrs" :locale="lang" :title="title">
+        <template v-if="$slots.footer" #footer>
+          <slot name="footer" />
+        </template>
         <template #actions>
           <slot name="actions" />
           <div class="oa-segmented oa-page__theme" role="radiogroup" :aria-label="labels.theme">

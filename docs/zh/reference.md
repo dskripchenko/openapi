@@ -13,22 +13,33 @@ import { OpenApiReference } from '@dskripchenko/openapi/vue'
 </template>
 ```
 
-页面分为两栏。左侧是导航：全文搜索、按标签分组的操作、webhook 和 schema。
-右侧是文档本身：标题、版本和描述，"Download spec" 控件，服务器与凭据面板，
-然后是每个操作及其参数、请求体、响应（以带示例的 schema 树展示）、回调、请求示例和
-"Try it" 面板，最后是 `components.schemas` 中的 schema。
+**页头**固定在顶部：API 的标题、版本和摘要，有 [多份规范文档](#多份规范文档)
+时的规范切换器，[搜索](#搜索)，下载按钮（YAML、JSON 和 TS），设置按钮以及 `#actions`
+插槽。设置按钮显示请求所发往服务器的主机名；文档有安全方案时还会显示一个钥匙图标——
+输入凭据后变为绿色。点击它会打开右侧的**设置抽屉**：[服务器](#服务器)及其变量、
+[认证](#认证) 面板、下载，以及 "Print / PDF"。
 
-"Download spec" 按给定时的原样保存文档——而不是归一化后的 3.1 副本——格式为 JSON 或
-YAML，文件名为 `{title}-{version}.json` / `.yaml`。
+**主体**左侧是导航——按标签分组的操作、webhook 和 schema，页面滚动时当前可见的条目
+会高亮——右侧是文档本身：标题、版本、摘要、描述和链接，然后每个操作是一张卡片，
+最后是 `components.schemas` 中的 schema。**页脚**显示标题、版本和 OpenAPI 版本，
+以及 `#footer` 插槽。
 
-如果需要带标题栏以及主题和语言切换器的整页，或者不经过构建步骤的页面，请参阅
-[独立页面与 OpenApiPage](standalone.md)。
+**操作卡片**带有方法、路径和摘要，一个复制指向它的链接的按钮，以及 "PDF"。左侧是
+描述、参数、请求体、响应和回调；响应初始为折叠状态，只有描述的响应显示为普通的一行。
+右侧有三个标签页："Try it"、"Request samples" 和 [Types](types.md)。代码块会对长行
+自动换行，较长的代码块折叠在 "Show all" 后面。卡片进入视口时淡入（开启减少动态效果时
+除外）。
 
-来自规范文档的链接——`info` 中的联系人、许可证和服务条款 URL，以及操作的
-`externalDocs`——只有在是 `http(s)`、`mailto` 或相对地址时才会显示；其他链接一律省略。
+来自规范文档的链接——`info` 中的联系人、许可证和服务条款 URL，操作的 `externalDocs`，
+示例的 `externalValue`——只有在是 `http(s)`、`mailto` 或相对地址时才会显示；
+其他链接一律省略。
 
-宽度小于 1100 px 时，示例和 try-it 移到操作描述的下方；小于 760 px 时，
-导航移到文档上方。
+宽度小于 1240 px 时，侧边标签页移到操作描述的下方。小于 900 px 时，导航变成从左侧
+滑出的抽屉，由页头中的菜单按钮打开，页头中的下载按钮移入设置抽屉。
+
+如果需要带主题和语言切换器的整页，或者不经过构建步骤的页面，请参阅
+[独立页面与 OpenApiPage](standalone.md)。要在其他文档中展示单个操作，请参阅
+[嵌入操作](embed.md)。
 
 ## Prop
 
@@ -46,6 +57,7 @@ YAML，文件名为 `{title}-{version}.json` / `.yaml`。
 | `baseUrl` | `string` | 页面的 origin | 解析相对服务器 URL 时所基于的地址。 |
 | `external` | `(url: string) => unknown \| undefined` | — | 加载外部 `$ref` 文档。没有它则不加载任何外部文档。 |
 | `hashNavigation` | `boolean` | `true` | 从导航打开条目时写入 `location.hash`。 |
+| `title` | `string` | 当前打开规范文档的标题 | 页头的标题。 |
 | `persistCredentials` | `boolean \| 'session' \| 'local'` | `false` | 在多次访问之间保存 API 密钥和令牌；见 [保存凭据](#保存凭据)。 |
 | `oauthRedirectUrl` | `string` | 页面 URL | OAuth 重定向 URI；见 [OAuth2 与 OpenID Connect](#oauth2-与-openid-connect)。 |
 
@@ -90,6 +102,13 @@ const openPets = () => reference.value?.go('operation/listPets')
 </template>
 ```
 
+## 插槽
+
+| 插槽 | |
+|---|---|
+| `#actions` | 页头右端、设置按钮之后的控件。 |
+| `#footer` | 页脚末尾的内容。 |
+
 ## 深层链接
 
 每个操作都有锚点 `#operation/{id}`，`components.schemas` 中的每个 schema 都有锚点
@@ -113,7 +132,7 @@ const openPets = () => reference.value?.go('operation/listPets')
 
 ## 搜索
 
-导航顶部的搜索框在当前打开的规范文档中查找：操作（摘要、路径、操作 id、方法、标签、
+页头中的搜索框在当前打开的规范文档中查找：操作（摘要、路径、操作 id、方法、标签、
 参数名称和描述、描述本身、请求体和响应的属性名）、标签（名称和描述）、schema
 （名称、标题、描述、属性名）以及文档描述中的标题。查询中的每个词都必须匹配；
 结果按词匹配的位置排序——标题或路径比描述更重要——也按匹配方式排序：整个字段、
@@ -146,7 +165,7 @@ interface SpecSource {
 }
 ```
 
-这两个类型都从 `@dskripchenko/openapi/vue` 导出。规范文档多于一份时，导航顶部会出现
+这两个类型都从 `@dskripchenko/openapi/vue` 导出。规范文档多于一份时，页头中会出现
 一个可搜索的下拉框，用来在它们之间切换。它显示每份规范文档的 `name`；没有时显示
 已加载规范文档的标题；再没有时显示其 id。它的无障碍名称取自 `specs` 标签。
 
@@ -192,40 +211,57 @@ const active = ref('v1')
 
 ## Try it
 
-每个操作（webhook 除外）都有一个 "Try it" 面板：每个参数一个输入框，按
-`path`、`query`、`header` 和 `cookie` 分组；带媒体类型选择器的请求体；以及 "Send"。
-输入框的初始值是参数的 `example`、`default`，或者——对必填参数——根据 schema
-生成的示例值；请求体的初始值是该媒体类型的第一个示例，或根据其 schema 生成的示例。
+每个操作（webhook 除外）的 "Try it" 标签页是一个用于构造请求的表单，外加 "Send" 和响应。
 
-输入的内容按参数的 schema 解读：数字和布尔值会被转换，数组和对象按 JSON 读取
-（数组也可以写成 `a, b, c`）。
+**参数**按位置分组——Path、Query、Headers、Cookies——每个参数使用其 schema 所需的输入控件：
+
+- `enum`（或 `const`）—— 下拉选择；
+- 布尔值 —— 必填时为开关，否则为 true / false / 未设置 三选一；
+- 整数或数字 —— 带 schema 中最小值、最大值和步长（`multipleOf`）的数字输入框；
+- 标量数组 —— 标签输入；items 带 `enum` 时为多选；
+- `date` / `date-time` 字符串 —— 日期或日期时间选择器；
+- 对象或对象数组 —— 一个小的 JSON 输入框；
+- 其他 —— 文本输入框。
+
+参数的描述作为提示显示在输入框下方。输入框的初始值是参数的 `example` 或 `default`，
+或者——对必填参数——根据 schema 生成的示例值。"+ Add query parameter"、"+ Add header"
+和 "+ Add cookie" 用于添加规范文档未声明的行；与自动生成的请求头同名的自定义请求头——
+`Content-Type`、`Accept`、`Authorization` 等（不区分大小写）——会替换它。
 
 **请求体**取决于媒体类型：
 
-- **JSON、XML、文本** —— 一个文本框；请求体按输入原样发送。对 JSON 媒体类型，
-  无效的请求体会显示警告，但仍会发送。
+- 带 schema 的 **JSON** —— 根据 schema 生成的表单，带 "Form" / "JSON" 切换：嵌套对象可折叠，
+  数组可增删条目，map（`additionalProperties`）为名称/值行，可为 null 的值有 null 开关，
+  `oneOf` / `anyOf` 提供变体选择。表单与文本保持同步；文本不符合 schema 时 "Form" 不可用。
+- **XML** —— 文本。除非规范文档以 XML 文本给出示例，否则请求体根据 schema 写出，
+  带有其 `xml` 名称和属性。
 - 带对象 schema 的 **`multipart/form-data`** 和 **`application/x-www-form-urlencoded`**
-  —— 每个属性一个字段的表单（`readOnly` 属性除外）。在 multipart 中，`format: binary`
+  —— 每个属性一个字段（`readOnly` 属性除外）。在 multipart 中，`format: binary`
   （或带 `contentMediaType`）的属性有文件选择器，此类属性的数组可以选择多个文件；
-  可接受的类型来自 `encoding` 或 schema。"Raw JSON" 切换为以 JSON 文本编辑这些字段，
-  "Form" 切换回来。
+  可接受的类型来自 `encoding` 或 schema。
 - **二进制请求体** —— `application/octet-stream`、图片、音频、视频、PDF、`format: binary`
   的 schema —— 一个文件选择器；该文件就是整个请求体。
+- **其他文本** —— 一个文本框，按输入原样发送。
+
+有多个示例的请求体会有一个 "Example" 下拉框（见 [示例](#示例)）。
+
+**"What will be sent"** 用一行概括请求——方法、URL 和请求头数量——展开后显示完整 URL
+（带复制按钮）和最终的请求头，凭据会被遮盖（`Bearer ••••abcd`）；"+ Add header" 也在这里。
 
 请求进行中时，"Send" 显示 "Sending…"，并出现一个 "Cancel" 按钮；取消会中止请求
 （见 [下文](#通过你的服务器发送) 的 `signal`），丢弃迟到的响应，并显示 "Cancelled"。
 
 **响应**部分显示状态码、耗时、大小、响应头和响应体。JSON 响应体会被格式化，并有
 "Pretty" / "Raw" 切换。非文本响应体（`HttpResponse.blob`）对 `image/*` 显示图片预览，
-其他情况显示一个 "Download" 按钮，文件名取自 `Content-Disposition` 或
+其他情况显示一个 "Download" 链接，文件名取自 `Content-Disposition` 或
 `response.{subtype}`。如果请求没有到达服务器——网络错误，或浏览器拦截了跨域请求——
 面板会用浏览器给出的消息说明这一点。
 
-面板旁边的请求示例打印的正是 "Send" 将发出的请求，包含已输入的值、已选的文件（按文件名）
-和已填写的凭据。在一个操作中选择的语言会被所有操作使用。
+"Request samples" 标签页打印的正是 "Send" 将发出的请求，包含已输入的值、已选的文件
+（按文件名）和已填写的凭据。在一个操作中选择的语言会被所有操作使用。
 
-面板中的 "Copy link" 生成一个链接，打开该操作并带上当前的表单内容；见
-[预填链接](links.md#预填链接)。
+表单下方的 "Copy link" 生成一个链接，打开该操作并带上当前的表单内容，包括自定义的行；
+见 [预填链接](links.md#预填链接)。
 
 ### 凭据与 cookie
 
@@ -309,8 +345,8 @@ const send: SendFn = async (request, options) => {
 
 像上面这样把 `options.signal` 传给你自己的 `fetch`，"Cancel" 就能同时中止发往你后端的请求。
 文件（表单字段的 `data` 和 `body.file` 的 `data`）是 `Blob`，经过 `JSON.stringify`
-后会丢失：需要传递文件的代理应改用 `multipart/form-data` 发送请求。JSON 响应同样没有
-`blob`，因此二进制响应的图片预览和下载需要一个能返回 `blob` 的传输方式。
+后会丢失，而 JSON 响应也不带 `blob`：要传递文件和二进制响应，需要对它们编码——
+独立包的代理把文件字节作为 `base64` 发送，从 `bodyBase64` 读取二进制响应，再把它还原为 `Blob`。
 
 URL 总是绝对地址：相对的服务器 URL，以及没有 `servers` 的文档所用的 `/`，
 都会基于 `baseUrl` 解析。在后端，端点读取 `HttpRequest`，
@@ -342,8 +378,8 @@ discovery 请求同样经过 `send`：代理也必须放行这些主机。[`Open
 
 ## 认证
 
-当文档声明了 `components.securitySchemes` 时，页面顶部有一个 "Authentication"
-面板，每个方案一个输入项：
+当文档声明了 `components.securitySchemes` 时，设置抽屉中有一个 "Authentication"
+区域，每个方案一个输入项：
 
 - **apiKey** —— 密钥；它会放进该方案指定的请求头、查询参数或 cookie；
 - **http basic** —— 用户名和密码；
@@ -363,7 +399,7 @@ discovery 请求同样经过 `send`：代理也必须放行这些主机。[`Open
 对于 oauth2 方案，面板提供该方案声明的流程——有多个时提供切换：
 "Authorization code"（需要 `authorizationUrl` 和 `tokenUrl`）、"Implicit"
 （`authorizationUrl`）、"Client credentials" 和 "Password"（`tokenUrl`）。
-openIdConnect 方案在面板打开时读取其 discovery 文档（`openIdConnectUrl`），
+openIdConnect 方案在设置抽屉打开时读取其 discovery 文档（`openIdConnectUrl`），
 并提供其支持的流程，以 `scopes_supported` 作为 scope。
 
 每个流程以复选框列出其 scope，初始时全部勾选；令牌按勾选的 scope 申请。
@@ -418,9 +454,10 @@ OpenID Connect 访问令牌及其有效期（过期的不会恢复），以及 b
 
 ## 服务器
 
-当文档有 `servers` 时，"Server" 面板会列出它们，另加 "…" 用于填写你自己的 URL。
+设置抽屉列出文档的 `servers`，以及用于填写你自己 URL 的 "Custom URL"，并显示请求发往的 URL。
 每个服务器变量各有一个输入项——变量有 `enum` 时为下拉选择——并预填其 `default`。
-声明了自己 `servers` 的操作或路径使用自己的列表，选中的位置相同。
+声明了自己 `servers` 的操作或路径使用自己的列表，选中的位置相同。页头中的设置按钮
+显示所选服务器的主机名。
 
 相对的服务器 URL（`/v1`）会基于 `baseUrl` 解析，`baseUrl` 默认为页面的 origin；
 没有 `servers` 的文档以 `baseUrl` 的 `/` 作为调用地址。
@@ -429,6 +466,29 @@ OpenID Connect 访问令牌及其有效期（过期的不会恢复），以及 b
 ```vue
 <OpenApiReference :spec="text" base-url="https://api.example.com" />
 ```
+
+## 下载与打印
+
+页头和设置抽屉可以下载当前打开的规范文档：
+
+- **YAML** 和 **JSON** —— 按给定时的原样保存文档，而不是归一化后的 3.1 副本，
+  文件名为 `{title}-{version}.yaml` / `.json`；
+- **TS** —— 整个文档的 [TypeScript 类型](types.md)，文件名为 `{title}-{version}.d.ts`。
+
+打印通过浏览器自身的打印对话框进行，其中 "Save as PDF" 是打印机之一：
+
+- 操作卡片上的 **"PDF"** 打印该操作；
+- 设置抽屉中的 **"Print / PDF"** 打印整个规范文档：简介、每个操作各占一页，然后是 schema。
+
+打印视图按纸张排版——A4，无论页面主题如何都使用浅色，schema 完全展开，默认示例，
+所选语言和 cURL 的请求示例，以及操作的地址——不含任何交互元素。凭据永远不会被打印：
+安全部分只列出方案名称，示例也不带凭据生成。它渲染在一个带独立样式表的隐藏框架中，
+因此宿主页面不会被改变样式；其标题——`{API} — {operation}`——就是浏览器建议的 PDF 文件名。
+对话框本身无法跳过：浏览器不允许页面在没有它的情况下保存 PDF。
+
+`@dskripchenko/openapi/vue` 中的 `printOperation(entry, ctx, { url? })` 和
+`printDocument(ctx, { base? })` 在代码中完成同样的事；它们接收参考页的上下文
+（见 [上下文](#上下文)）。`url` 是随操作一起打印的地址，`base` 是操作锚点所追加到的页面。
 
 ## 请求示例
 
@@ -471,9 +531,9 @@ const de: OpenApiLabels = { ...en, search: 'Suche', tryIt: 'Ausprobieren', send:
 
 ### 所有字符串
 
-`OpenApiLabels` 的键及其英文文本。`expiresIn` 用分钟数替换 `{n}`。
-[`OpenApiPage`](standalone.md#openapipage) 的标题栏使用 `theme`、`themeLight`、
-`themeDark`、`themeSystem` 和 `language`。
+`OpenApiLabels` 的键及其英文文本。在 `expiresIn`、`headerCount` 和 `itemCount` 中，
+`{n}` 代表数字。[`OpenApiPage`](standalone.md#openapipage) 的切换器使用 `theme`、
+`themeLight`、`themeDark`、`themeSystem` 和 `language`。
 
 | 键 | 英文 |
 |---|---|
@@ -526,6 +586,11 @@ const de: OpenApiLabels = { ...en, search: 'Suche', tryIt: 'Ausprobieren', send:
 | `copy` | Copy |
 | `show` | Show |
 | `hide` | Hide |
+| `settings` | Server and authentication |
+| `customServer` | Another URL… |
+| `addHeader` | Add header |
+| `addQueryParam` | Add query parameter |
+| `addCookie` | Add cookie |
 | `copyLink` | Copy link |
 | `linkCopied` | Copied |
 | `includeCredentials` | Include credentials |
@@ -568,7 +633,44 @@ const de: OpenApiLabels = { ...en, search: 'Suche', tryIt: 'Ausprobieren', send:
 | `downloadSpec` | Download spec |
 | `copyOperationLink` | Copy link to this operation |
 | `operationLinkCopied` | Link copied |
-
+| `locPath` | Path |
+| `locQuery` | Query |
+| `locHeader` | Headers |
+| `locCookie` | Cookies |
+| `add` | Add |
+| `addItem` | Add item |
+| `remove` | Remove |
+| `name` | Name |
+| `value` | Value |
+| `jsonView` | JSON |
+| `notSet` | not set |
+| `nullValue` | null |
+| `variant` | Variant |
+| `willBeSent` | What will be sent |
+| `headerCount` | headers: {n} |
+| `itemCount` | items: {n} |
+| `copyUrl` | Copy URL |
+| `urlCopied` | Copied |
+| `request` | Request |
+| `types` | Types |
+| `copyTypeName` | Copy the type name |
+| `typeNameCopied` | Copied |
+| `downloadTypes` | Download TypeScript types |
+| `openInReference` | Open in reference |
+| `operationNotFound` | Operation not found |
+| `pdf` | PDF |
+| `printOperation` | Print or save as PDF |
+| `printDocument` | Print / PDF |
+| `security` | Security |
+| `noSecurity` | No authentication |
+| `description` | Description |
+| `type` | Type |
+| `location` | In |
+| `operationId` | Operation ID |
+| `tags` | Tags |
+| `seeAbove` | see above |
+| `requestSample` | Request sample |
+| `generatedOn` | Generated |
 
 ### kit 自身的字符串
 
@@ -620,8 +722,8 @@ onMounted(async () => {
 
 ## 固定页头下的布局
 
-导航和示例栏是 sticky 的。在固定的站点页头下，把 `--oa-sticky-top`
-设为页头高度，它们就会停在页头下方；锚点也滚动到相同的偏移处：
+参考页的页头、导航和侧边标签页都是 sticky 的。在固定的站点页头下，把 `--oa-sticky-top`
+设为该页头的高度：所有内容都会停在它下方，锚点也滚动到相同的偏移处：
 
 ```css
 :root {
@@ -629,8 +731,8 @@ onMounted(async () => {
 }
 ```
 
-[`OpenApiPage`](standalone.md#openapipage) 会把它设为自身标题栏的高度。其他变量——
-导航宽度、间距、方法颜色——列在 [主题](theming.md) 中。
+参考页自身的页头高 `--oa-header-h`（56px）。其他变量——导航宽度、间距、方法颜色——
+列在 [主题](theming.md) 中。
 
 ## 上下文
 

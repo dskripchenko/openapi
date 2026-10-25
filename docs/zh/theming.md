@@ -24,8 +24,9 @@
 
 | 变量 | 默认值 | 用途 |
 |---|---|---|
-| `--oa-sticky-top` | `0px` | sticky 导航、示例栏和编辑器树距顶部的偏移，以及锚点的滚动位置——设为固定页头的高度。 |
+| `--oa-sticky-top` | `0px` | 所有 sticky 元素——参考页的页头、导航和侧边标签页，编辑器的树——距顶部的偏移，以及锚点的滚动位置：设为宿主页面自己固定栏的高度。 |
 | `--oa-source-height` | `560px` | 编辑器源码视图的高度。 |
+| `--oa-header-h` | `56px` | 参考页页头的高度；导航、侧边标签页和锚点停在它下方。它声明在 `.oa-reference` 上：请在那里设置。 |
 | `--oa-page-width` | `1440px` | [`OpenApiPage`](standalone.md#openapipage)：内容的最大宽度。 |
 | `--oa-page-padding` | `24px` | `OpenApiPage`：标题栏和内容的左右内边距（宽度小于 640px 时为 16px）。 |
 | `--oa-nav-width` | `272px` | 参考页导航栏的宽度。 |
@@ -41,8 +42,8 @@
 
 ## 在哪里设置
 
-这些变量本身没有声明值：上表中的每个默认值都是使用处的回退值。可以在组件上、
-任一祖先元素上或 `:root` 上设置它们：
+这些变量本身没有声明值——`--oa-header-h` 除外，见上文——每个默认值都是使用处的回退值。
+可以在组件上、任一祖先元素上或 `:root` 上设置它们：
 
 ```css
 :root {
@@ -70,6 +71,7 @@
 
 ## 类名
 
-元素带有以 `oa-` 为前缀的稳定类名——`oa-reference`、`oa-nav`、`oa-op`、
-`oa-method oa-method--get`、`oa-schema`、`oa-tryit`、`oa-editor` 等——便于从外部设置样式。
+元素带有以 `oa-` 为前缀的稳定类名——`oa-reference`、`oa-header`、`oa-nav`、`oa-op`、
+`oa-method oa-method--get`、`oa-schema`、`oa-tryit`、`oa-footer`、`oa-embed`、`oa-editor`
+等——便于从外部设置样式。
 操作和 schema 的锚点就是它们的元素 id：`operation/{id}` 和 `schema/{name}`。

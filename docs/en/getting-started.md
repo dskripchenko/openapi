@@ -154,6 +154,10 @@ of the input. See [the core API](core.md).
   migrating from Scalar, the page component
 - [Deep links and prefilled links](links.md) — anchors, Scalar's links, links
   that fill the try-it form
+- [Embedding an operation](embed.md) — one operation inside other
+  documentation, in Vue or from the standalone script
+- [TypeScript types](types.md) — the Types tab, the `.d.ts` download and the
+  generator
 - [OpenApiEditor](editor.md) — the three views, what the forms cover, Swagger
   2.0 documents
 - [Core API](core.md) — every function of `@dskripchenko/openapi`

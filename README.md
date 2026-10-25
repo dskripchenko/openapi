@@ -53,6 +53,13 @@ as Scalar's `createApiReference`:
 </script>
 ```
 
+One operation inside a guide, from the same script:
+
+```html
+<div data-openapi-operation="createOrder" data-openapi-src="/openapi.json"></div>
+<script src="https://cdn.jsdelivr.net/npm/@dskripchenko/openapi/dist/standalone.js" data-auto></script>
+```
+
 ## What is inside
 
 - **`@dskripchenko/openapi`** — the core, plain TypeScript without the DOM:
@@ -60,26 +67,31 @@ as Scalar's `createApiReference`:
   2.0 and 3.0 documents to the 3.1 shape, `$ref` resolution, structural
   validation with line numbers, schema samples (JSON and XML), a JSON Schema
   validator, request building by `style` / `explode` and security schemes,
-  code samples in 13 languages, OAuth2 helpers (PKCE, token requests,
-  OpenID Connect discovery) and the deep-link and prefilled-link formats.
+  code samples in 13 languages, TypeScript declarations for operations and
+  whole documents, OAuth2 helpers (PKCE, token requests, OpenID Connect
+  discovery) and the deep-link and prefilled-link formats.
 - **`@dskripchenko/openapi/vue`** — the components:
-  - `OpenApiReference` — navigation with full-text search (`/`, Ctrl/Cmd+K),
-    operations by tag, schema trees, named examples, request samples, a
-    try-it panel with forms, file uploads, cancel and a response viewer
-    (images, downloads), an authentication panel with every OAuth2 flow
-    (authorization code with PKCE and implicit in a popup, client
-    credentials, password, OpenID Connect discovery) and opt-in remembered
-    credentials, webhooks, deep links (Scalar's links too) and prefilled
-    links that open an operation with its form filled; several specs on one
-    page with a switcher, each loaded when first opened;
-  - `OpenApiPage` — the reference as a whole page, with a title bar and
-    light / dark / system theme and language switchers;
+  - `OpenApiReference` — a sticky header with full-text search (`/`,
+    Ctrl/Cmd+K) and downloads (YAML, JSON, `.d.ts`), a settings drawer with
+    the server and the authentication panel, navigation with scroll spy,
+    operations as cards with "Try it", "Request samples" and "Types" tabs,
+    named examples, print / PDF;
+    try-it with typed parameter inputs, a schema-driven JSON body form, file
+    uploads, own headers, a "What will be sent" preview, cancel and a
+    response viewer (images, downloads); every OAuth2 flow (authorization
+    code with PKCE and implicit in a popup, client credentials, password,
+    OpenID Connect discovery) and opt-in remembered credentials; deep links
+    (Scalar's too) and prefilled links; several specs on one page;
+  - `OpenApiOperation` — one operation embedded in other documentation;
+  - `OpenApiPage` — the reference as a whole page, with light / dark /
+    system theme and language switchers;
   - `OpenApiEditor` — visual forms for info, servers, tags, security
     schemes, paths, operations and schemas, the source with problems by
     line, and a preview. `v-model` is the text, and its format is kept.
-- **`dist/standalone.js`** — `OpenApiPage` with Vue, the kit and the styles in
-  one script (global `DskOpenApi`), for a page without a build step; a
-  drop-in for Scalar's `createApiReference` with an optional try-it proxy.
+- **`dist/standalone.js`** — the page and the embed with Vue, the kit and the
+  styles in one script (global `DskOpenApi`), for pages without a build
+  step: a drop-in for Scalar's `createApiReference`, `mountOperation` and
+  `data-openapi-operation` markup, and an optional try-it proxy.
 
 The components follow the kit's light and dark themes; the interface ships in
 English and Russian.
@@ -92,6 +104,8 @@ English and Russian.
 | OpenApiReference | [en](docs/en/reference.md) | [ru](docs/ru/reference.md) | [de](docs/de/reference.md) | [zh](docs/zh/reference.md) |
 | Standalone page and OpenApiPage | [en](docs/en/standalone.md) | [ru](docs/ru/standalone.md) | [de](docs/de/standalone.md) | [zh](docs/zh/standalone.md) |
 | Deep links and prefilled links | [en](docs/en/links.md) | [ru](docs/ru/links.md) | [de](docs/de/links.md) | [zh](docs/zh/links.md) |
+| Embedding an operation | [en](docs/en/embed.md) | [ru](docs/ru/embed.md) | [de](docs/de/embed.md) | [zh](docs/zh/embed.md) |
+| TypeScript types | [en](docs/en/types.md) | [ru](docs/ru/types.md) | [de](docs/de/types.md) | [zh](docs/zh/types.md) |
 | OpenApiEditor | [en](docs/en/editor.md) | [ru](docs/ru/editor.md) | [de](docs/de/editor.md) | [zh](docs/zh/editor.md) |
 | Core API | [en](docs/en/core.md) | [ru](docs/ru/core.md) | [de](docs/de/core.md) | [zh](docs/zh/core.md) |
 | Code samples | [en](docs/en/snippets.md) | [ru](docs/ru/snippets.md) | [de](docs/de/snippets.md) | [zh](docs/zh/snippets.md) |

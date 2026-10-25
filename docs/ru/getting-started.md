@@ -158,6 +158,9 @@ console.log(generateSnippet('curl', request))
   странице, переход со Scalar, компонент страницы
 - [Глубокие ссылки и предзаполненные ссылки](links.md) — якоря, ссылки
   Scalar, ссылки, заполняющие форму try-it
+- [Встраивание операции](embed.md) — одна операция внутри другой
+  документации, во Vue или из отдельного скрипта
+- [Типы TypeScript](types.md) — вкладка Types, загрузка `.d.ts` и генератор
 - [OpenApiEditor](editor.md) — три режима, что покрывают формы, документы
   Swagger 2.0
 - [API ядра](core.md) — все функции `@dskripchenko/openapi`

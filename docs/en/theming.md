@@ -29,8 +29,9 @@ A few things of the package's own are CSS custom properties.
 
 | Variable | Default | Used for |
 |---|---|---|
-| `--oa-sticky-top` | `0px` | The offset of the sticky navigation, samples column and editor tree from the top, and of the anchors' scroll position — set it to the height of a fixed header. |
+| `--oa-sticky-top` | `0px` | The offset of everything sticky — the reference's header, navigation and side tabs, the editor's tree — and of the anchors' scroll position: set it to the height of the host page's own fixed bar. |
 | `--oa-source-height` | `560px` | The height of the editor's source view. |
+| `--oa-header-h` | `56px` | The height of the reference's header; the navigation, side tabs and anchors stick below it. Declared on `.oa-reference`: set it there. |
 | `--oa-page-width` | `1440px` | [`OpenApiPage`](standalone.md#openapipage): the maximum width of the content. |
 | `--oa-page-padding` | `24px` | `OpenApiPage`: the side padding of the bar and the content (16px below 640px of width). |
 | `--oa-nav-width` | `272px` | The width of the reference's navigation column. |
@@ -46,9 +47,9 @@ A few things of the package's own are CSS custom properties.
 
 ## Where to set them
 
-The variables have no values of their own: each default above is a fallback
-at the place it is used. Set them on the component, on any ancestor or on
-`:root`:
+The variables have no values of their own — except `--oa-header-h`, see
+above — and each default is a fallback at the place it is used. Set them on
+the component, on any ancestor or on `:root`:
 
 ```css
 :root {
@@ -79,6 +80,6 @@ them through the kit.
 ## Class names
 
 Elements carry stable class names with the `oa-` prefix — `oa-reference`,
-`oa-nav`, `oa-op`, `oa-method oa-method--get`, `oa-schema`, `oa-tryit`,
-`oa-editor` and so on — for styling from outside. The anchors of operations
+`oa-header`, `oa-nav`, `oa-op`, `oa-method oa-method--get`, `oa-schema`,
+`oa-tryit`, `oa-footer`, `oa-embed`, `oa-editor` and so on — for styling from outside. The anchors of operations
 and schemas are their element ids: `operation/{id}` and `schema/{name}`.

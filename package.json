@@ -57,7 +57,8 @@
   ],
   "files": [
     "dist",
-    "!dist/**/*.map"
+    "!dist/**/*.map",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.build.json && vue-tsc --noEmit -p tsconfig.vue.json && vite build && vite build -c vite.standalone.config.ts",
@@ -68,7 +69,8 @@
     "changeset": "changeset",
     "release": "pnpm build && changeset publish",
     "check:browser": "node scripts/browser-check.mjs",
-    "dev": "vite --config playground/vite.config.ts"
+    "dev": "vite --config playground/vite.config.ts",
+    "prepublishOnly": "pnpm build"
   },
   "peerDependencies": {
     "@dskripchenko/ui": "^1.13.0",

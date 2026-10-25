@@ -28,7 +28,7 @@ them.
   never fetched. Requests to the API leave the page only when the reader
   presses "Send", "Get token" or "Authorize"; the one request made without a
   click is the OpenID Connect discovery document of an `openIdConnect` scheme,
-  read when the reader opens the authentication panel. (An image in a
+  read when the reader opens the settings drawer. (An image in a
   markdown description is loaded by the browser like any other image.)
 - **No code from the spec runs.** Nothing in the document is evaluated.
 - **Cookies stay on their origin.** Try-it sends with
@@ -46,6 +46,10 @@ them.
   that anyone with the link can use them. After the form is filled, the
   address is replaced with the plain anchor, so credentials do not stay in
   the address bar or come back on reload. A payload is limited to 1 MB.
+- **Nothing secret is printed.** The print / PDF view of an operation or of
+  the whole spec names the security schemes but never carries the values the
+  reader entered, and its request sample is built without them. The "What
+  will be sent" preview masks `Authorization` and API-key headers.
 - **OAuth responses are checked.** The sign-in window's response is accepted
   only with the `state` the request carried. The authorization code flow
   uses PKCE (S256). A redirect page relays the response only to a same-origin
@@ -60,7 +64,8 @@ them.
   mean to, and protect the endpoint like the rest of your back office;
   otherwise it is an open relay. The standalone proxy sends same-origin
   cookies and the page's `<meta name="csrf-token">` as `X-CSRF-TOKEN`, so a
-  CSRF-protected endpoint works as it is.
+  CSRF-protected endpoint works as it is; file uploads reach it as base64,
+  so limit the request size it accepts.
 - **Stored credentials.** `persistCredentials: 'local'` keeps tokens until
   they are removed, readable by any script on the page's origin. Turn it on
   only where that is acceptable.

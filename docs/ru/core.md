@@ -329,6 +329,7 @@ const request = buildRequest({
 | `values` | Значения по месту и имени: `{ path?, query?, header?, cookie? }`. |
 | `body` | `{ mediaType, value, encoding? }` — объект для структурированных типов содержимого, текст как набран или, для любого другого типа содержимого, файловое значение `{ filename, contentType?, data? }`, которое и есть всё тело. |
 | `security` | `AppliedSecurity[]`: `{ scheme, value }` — ключ или токен, либо `{ username, password }` для basic. |
+| `extra` | `ExtraParams`: `{ query?, header?, cookie? }`, каждое — список пар `[name, value]`, которых нет в спецификации. |
 
 Функция следует правилам спецификации:
 
@@ -342,6 +343,10 @@ const request = buildRequest({
 - параметры-заголовки с именами `Accept`, `Content-Type` и `Authorization`
   игнорируются, как требует спецификация;
 - куки — из параметров и ключей API — идут в один заголовок `Cookie`;
+- параметры query и куки из `extra` идут после объявленных, до учётных
+  данных; заголовки из `extra` идут последними и заменяют сгенерированный
+  заголовок с тем же именем без учёта регистра (`Content-Type`, `Accept`,
+  `Authorization`, …); пары с пустым именем пропускаются;
 - `Content-Type` ставится по типу содержимого тела, кроме multipart, где
   HTTP-клиент добавляет его вместе с boundary;
 - тело JSON сериализуется, urlencoded-тело кодируется по своему
@@ -495,6 +500,13 @@ if (callback?.code && callback.state === state) {
 
 Типы — `AuthorizeUrlOptions`, `OAuthCallback`, `CodeExchangeOptions` и
 `OpenIdConfiguration`.
+
+## TypeScript
+
+`operationTypes`, `documentTypes`, `schemaToTs`, `declareType`,
+`createTsContext`, `tsTypeName`, `statusTypeName` и `STATUS_TYPE_NAMES`
+пишут объявления TypeScript для операций и целых документов; см.
+[типы TypeScript](types.md).
 
 ## Глубокие ссылки
 

@@ -13,26 +13,43 @@ import { OpenApiReference } from '@dskripchenko/openapi/vue'
 </template>
 ```
 
-The page has two columns. On the left, a navigation: a full-text search, the
-operations grouped by tag, the webhooks and the schemas. On the right, the
-document: its title, version and description, a "Download spec" control, the
-server and credentials panels, then every operation with its parameters,
-request body, responses (as schema trees with their examples), callbacks,
-request samples and a "Try it" panel, and at the end the schemas of
-`components.schemas`.
+**The header** stays at the top: the API's title, version and summary, a
+spec switcher when there are [several specs](#several-specs), the
+[search](#search), download buttons (YAML, JSON and TS), a settings button
+and the `#actions` slot. The settings button shows the host of the server
+requests go to, and a key icon — green once credentials are entered — when
+the document has security schemes. It opens **the settings drawer** on the
+right: the [server](#servers) and its variables, the
+[authentication](#authentication) panel, the downloads, and "Print / PDF".
 
-"Download spec" saves the document as it was given — not the normalized 3.1
-copy — as JSON or YAML, named `{title}-{version}.json` / `.yaml`.
+**The body** has the navigation on the left — the operations grouped by tag,
+the webhooks and the schemas, with the item in view highlighted as the page
+scrolls — and the document on the right: its title, version, summary,
+description and links, then every operation as a card, and at the end the
+schemas of `components.schemas`. **The footer** shows the title, version and
+OpenAPI version, and the `#footer` slot.
 
-For a whole page with a title bar and theme and language switchers, or for a
-page without a build step, see [standalone page and OpenApiPage](standalone.md).
+**An operation card** has the method, path and summary, a button that copies
+the link to it, and "PDF". On the left: the description, parameters, request
+body, responses and callbacks; responses start folded, and one with only a
+description is a plain row. On the right, three tabs: "Try it", "Request
+samples" and [Types](types.md). Code blocks wrap long lines and fold long
+blocks behind "Show all". Cards fade in as they come into view (not with
+reduced motion).
 
 Links from the spec — the contact, license and terms-of-service URLs of
-`info` and an operation's `externalDocs` — are shown only when they are
-`http(s)`, `mailto` or relative addresses; any other link is left out.
+`info`, an operation's `externalDocs`, an example's `externalValue` — are
+shown only when they are `http(s)`, `mailto` or relative addresses; any other
+link is left out.
 
-Below 1100 px of width the samples and try-it move under the operation's
-description; below 760 px the navigation moves above the document.
+Below 1240 px of width the side tabs move under the operation's description.
+Below 900 px the navigation becomes a drawer that slides in from the left,
+opened by a menu button in the header, and the header's download buttons
+move to the settings drawer.
+
+For a whole page with theme and language switchers, or a page without a
+build step, see [standalone page and OpenApiPage](standalone.md). To show a
+single operation inside other documentation, see [embedding](embed.md).
 
 ## Props
 
@@ -50,6 +67,7 @@ description; below 760 px the navigation moves above the document.
 | `baseUrl` | `string` | the page origin | The base a relative server URL is resolved against. |
 | `external` | `(url: string) => unknown \| undefined` | — | Loads external `$ref` documents. None are loaded without it. |
 | `hashNavigation` | `boolean` | `true` | Write `location.hash` when an item is opened from the navigation. |
+| `title` | `string` | the open spec's title | The header's title. |
 | `persistCredentials` | `boolean \| 'session' \| 'local'` | `false` | Keep API keys and tokens between visits; see [keeping credentials](#keeping-credentials). |
 | `oauthRedirectUrl` | `string` | the page URL | The OAuth redirect URI; see [OAuth2 and OpenID Connect](#oauth2-and-openid-connect). |
 
@@ -95,6 +113,13 @@ const openPets = () => reference.value?.go('operation/listPets')
 </template>
 ```
 
+## Slots
+
+| Slot | |
+|---|---|
+| `#actions` | Controls at the right end of the header, after the settings button. |
+| `#footer` | Content at the end of the footer. |
+
 ## Deep links
 
 Every operation has the anchor `#operation/{id}`, every schema of
@@ -123,7 +148,7 @@ described in [deep links and prefilled links](links.md).
 
 ## Search
 
-The search field at the top of the navigation looks through the open spec:
+The search field in the header looks through the open spec:
 operations (summary, path, operation id, method, tags, parameter names and
 descriptions, the description, the property names of their bodies and
 responses), tags (name and description), schemas (name, title, description,
@@ -165,7 +190,7 @@ interface SpecSource {
 ```
 
 Both types are exported from `@dskripchenko/openapi/vue`. With more than one
-spec, a searchable select at the top of the navigation switches between
+spec, a searchable select in the header switches between
 them. It shows each spec's `name`, else the title of a spec already loaded,
 else its id; its accessible name is the `specs` label.
 
@@ -218,30 +243,54 @@ behaves like `spec`: no switcher, no id in anchors.
 
 ## Try it
 
-Each operation (webhooks excepted) has a "Try it" panel: a field per
-parameter, grouped by `path`, `query`, `header` and `cookie`, the body with a
-media type selector, and "Send". The fields start with the parameter's
-`example`, `default`, or — for required parameters — a value sampled from the
-schema; the body starts with the media type's first example or a sample
-generated from its schema.
+The "Try it" tab of each operation (webhooks excepted) is a form for the
+request, "Send", and the response.
 
-What is typed is read according to the parameter's schema: numbers and
-booleans are converted, arrays and objects are read as JSON (an array may
-also be typed as `a, b, c`).
+**Parameters** are grouped by location — Path, Query, Headers, Cookies — and
+each gets the input its schema calls for:
+
+- an `enum` (or `const`) — a select;
+- a boolean — a switch when required, else a choice of true / false / not set;
+- an integer or number — a number input with the schema's minimum, maximum
+  and step (`multipleOf`);
+- an array of scalars — tags, or a multi-select when the items have an `enum`;
+- a `date` / `date-time` string — a date or date-and-time picker;
+- an object, or an array of objects — a small JSON box;
+- anything else — a text input.
+
+The parameter's description is a hint under the input. The fields start with
+the parameter's `example` or `default`, or — for required ones — a value
+sampled from the schema. "+ Add query parameter", "+ Add header" and
+"+ Add cookie" add rows the spec does not declare; an own header named like a
+generated one — `Content-Type`, `Accept`, `Authorization`, … (case does not
+matter) — replaces it.
 
 **The body** depends on the media type:
 
-- **JSON, XML, text** — a text area; the body is sent as typed. For a JSON
-  media type an invalid body shows a warning but is still sent.
+- **JSON** with a schema — a form generated from it, with a "Form" / "JSON"
+  switch: nested objects fold, arrays add and remove items, maps
+  (`additionalProperties`) are name/value rows, a nullable value has a null
+  toggle, and `oneOf` / `anyOf` offer a variant select. The form and the text
+  stay in sync; "Form" is unavailable while the text does not fit the schema.
+- **XML** — text. Unless the spec gives the example as XML text, the body is
+  written from the schema, with its `xml` names and attributes.
 - **`multipart/form-data`** and **`application/x-www-form-urlencoded`** with
-  an object schema — a form with a field per property (`readOnly` ones
-  excepted). In multipart, a property of `format: binary` (or with a
-  `contentMediaType`) gets a file picker, and an array of such takes several
-  files; the accepted types come from the `encoding` or the schema. "Raw JSON"
-  switches to the fields as JSON text, "Form" back.
+  an object schema — a field per property (`readOnly` ones excepted). In
+  multipart, a property of `format: binary` (or with a `contentMediaType`)
+  gets a file picker, and an array of such takes several files; the accepted
+  types come from the `encoding` or the schema.
 - **A binary body** — `application/octet-stream`, images, audio, video, PDF,
   a `format: binary` schema — a single file picker; the file is the whole
   body.
+- **Other text** — a text area, sent as typed.
+
+A body with several examples gets an "Example" select (see
+[examples](#examples)).
+
+**"What will be sent"** sums the request up in one line — method, URL and
+the number of headers — and opens into the full URL with a copy button and
+the final headers, credentials masked (`Bearer ••••abcd`); "+ Add header" is
+there too.
 
 While the request is in flight, "Send" shows "Sending…" and a "Cancel"
 button appears; cancelling aborts the request (see the `signal`
@@ -251,17 +300,17 @@ button appears; cancelling aborts the request (see the `signal`
 **The response** shows the status, the time, the size, the headers and the
 body. A JSON body is pretty-printed, with a "Pretty" / "Raw" toggle. A
 non-textual body (`HttpResponse.blob`) is an image preview for `image/*` and
-a "Download" button otherwise, named from `Content-Disposition` or
+a "Download" link otherwise, named from `Content-Disposition` or
 `response.{subtype}`. When the request does not reach the server — a network
 error, or the browser blocking a cross-origin request — the panel says so
 with the browser's message.
 
-The request samples next to the panel print the same request that "Send"
-makes, with the values typed, the files chosen (by name) and the credentials
-entered. The language chosen in one operation is used by all of them.
+The "Request samples" tab prints the same request that "Send" makes, with
+the values typed, the files chosen (by name) and the credentials entered.
+The language chosen in one operation is used by all of them.
 
-The panel's "Copy link" makes a link that opens this operation with the form
-as it is; see [prefilled links](links.md#prefilled-links).
+"Copy link" under the form makes a link that opens this operation with the
+form as it is, own rows included; see [prefilled links](links.md#prefilled-links).
 
 ### Credentials and cookies
 
@@ -347,10 +396,10 @@ const send: SendFn = async (request, options) => {
 
 Forward `options.signal` to your own `fetch`, as above, so "Cancel" also
 stops the request to your backend. Files (`data` of form fields and of
-`body.file`) are `Blob`s and do not survive `JSON.stringify`: a proxy that
-must carry them sends the request as `multipart/form-data` instead. A JSON
-answer has no `blob` either, so images and downloads of binary responses need
-a transport that returns one.
+`body.file`) are `Blob`s and do not survive `JSON.stringify`, and a JSON
+answer carries no `blob`: to pass files and binary responses, encode them —
+the standalone bundle's proxy sends file bytes as `base64` and reads a
+binary answer from `bodyBase64`, then turns it back into a `Blob`.
 
 The URL is always absolute: a relative server URL, and `/` for a document
 without `servers`, is resolved against `baseUrl`. On the backend, the
@@ -386,8 +435,8 @@ bundle has a ready-made transport of this kind, with a fixed contract: see
 
 ## Authentication
 
-When the document declares `components.securitySchemes`, the head of the page
-has an "Authentication" panel with a field for each scheme:
+When the document declares `components.securitySchemes`, the settings drawer
+has an "Authentication" section with a field for each scheme:
 
 - **apiKey** — the key; it goes into the header, query parameter or cookie the
   scheme names;
@@ -412,8 +461,9 @@ For an oauth2 scheme the panel offers the flows the scheme declares — a
 switch when there are several: "Authorization code" (needs
 `authorizationUrl` and `tokenUrl`), "Implicit" (`authorizationUrl`),
 "Client credentials" and "Password" (`tokenUrl`). An openIdConnect scheme
-reads its discovery document (`openIdConnectUrl`) when the panel opens and
-offers the flows it supports, with `scopes_supported` as the scopes.
+reads its discovery document (`openIdConnectUrl`) when the settings drawer
+opens, and offers the flows it supports, with `scopes_supported` as the
+scopes.
 
 Each flow lists its scopes as checkboxes, all ticked at first; the token is
 requested for the ticked ones.
@@ -479,20 +529,53 @@ spec, in memory and in storage.
 
 ## Servers
 
-When the document has `servers`, the "Server" panel lists them, plus "…" for
-a URL of your own. Server variables get a field each — a select when the
-variable has an `enum` — prefilled with their `default`. An operation or path
-that declares its own `servers` uses its own list, with the same position
-chosen.
+The settings drawer lists the document's `servers` and "Custom URL" for one
+of your own, and shows the URL requests go to. Server variables get a field
+each — a select when the variable has an `enum` — prefilled with their
+`default`. An operation or path that declares its own `servers` uses its own
+list, with the same position chosen. The header's settings button shows the
+chosen server's host.
 
 A relative server URL (`/v1`) is resolved against `baseUrl`, which defaults
 to the origin of the page; a document without `servers` is called at `/` of
-`baseUrl`. Set it when the reference is served from another
-origin than the API:
+`baseUrl`. Set it when the reference is served from another origin than the
+API:
 
 ```vue
 <OpenApiReference :spec="text" base-url="https://api.example.com" />
 ```
+
+## Download and print
+
+The header and the settings drawer download the open spec:
+
+- **YAML** and **JSON** — the document as it was given, not the normalized
+  3.1 copy, named `{title}-{version}.yaml` / `.json`;
+- **TS** — the [TypeScript types](types.md) of the whole document, named
+  `{title}-{version}.d.ts`.
+
+Printing goes through the browser's own print dialog, where "Save as PDF" is
+one of the printers:
+
+- **"PDF"** on an operation card prints that operation;
+- **"Print / PDF"** in the settings drawer prints the whole spec: the
+  introduction, every operation on a page of its own, then the schemas.
+
+The print view is laid out for paper — A4, light colours whatever the page's
+theme, schemas fully expanded, the default examples, a request sample in the
+chosen language and in cURL, the operation's address — and has no
+interactive parts. Credentials are never printed: the security section names
+the schemes, and the sample is built without them. It is rendered into a
+hidden frame with its own stylesheet, so the host page is not restyled, and
+its title — `{API} — {operation}` — is what browsers offer as the PDF's file
+name. The dialog itself cannot be skipped: a browser does not let a page
+save a PDF without it.
+
+`printOperation(entry, ctx, { url? })` and `printDocument(ctx, { base? })`
+from `@dskripchenko/openapi/vue` do the same from code; they take the
+reference context (see [the context](#the-context)). `url` is the address
+printed with the operation, `base` the page the operation anchors are
+appended to.
 
 ## Request samples
 
@@ -539,10 +622,10 @@ const de: OpenApiLabels = { ...en, search: 'Suche', tryIt: 'Ausprobieren', send:
 
 ### All strings
 
-The keys of `OpenApiLabels` with their English text. `expiresIn` takes the
-number of minutes in place of `{n}`. [`OpenApiPage`](standalone.md#openapipage)
+The keys of `OpenApiLabels` with their English text. In `expiresIn`,
+`headerCount` and `itemCount`, `{n}` stands for the number. [`OpenApiPage`](standalone.md#openapipage)
 uses `theme`, `themeLight`, `themeDark`, `themeSystem` and `language` for its
-bar.
+switchers.
 
 | Key | English |
 |---|---|
@@ -595,6 +678,11 @@ bar.
 | `copy` | Copy |
 | `show` | Show |
 | `hide` | Hide |
+| `settings` | Server and authentication |
+| `customServer` | Another URL… |
+| `addHeader` | Add header |
+| `addQueryParam` | Add query parameter |
+| `addCookie` | Add cookie |
 | `copyLink` | Copy link |
 | `linkCopied` | Copied |
 | `includeCredentials` | Include credentials |
@@ -637,6 +725,44 @@ bar.
 | `downloadSpec` | Download spec |
 | `copyOperationLink` | Copy link to this operation |
 | `operationLinkCopied` | Link copied |
+| `locPath` | Path |
+| `locQuery` | Query |
+| `locHeader` | Headers |
+| `locCookie` | Cookies |
+| `add` | Add |
+| `addItem` | Add item |
+| `remove` | Remove |
+| `name` | Name |
+| `value` | Value |
+| `jsonView` | JSON |
+| `notSet` | not set |
+| `nullValue` | null |
+| `variant` | Variant |
+| `willBeSent` | What will be sent |
+| `headerCount` | headers: {n} |
+| `itemCount` | items: {n} |
+| `copyUrl` | Copy URL |
+| `urlCopied` | Copied |
+| `request` | Request |
+| `types` | Types |
+| `copyTypeName` | Copy the type name |
+| `typeNameCopied` | Copied |
+| `downloadTypes` | Download TypeScript types |
+| `openInReference` | Open in reference |
+| `operationNotFound` | Operation not found |
+| `pdf` | PDF |
+| `printOperation` | Print or save as PDF |
+| `printDocument` | Print / PDF |
+| `security` | Security |
+| `noSecurity` | No authentication |
+| `description` | Description |
+| `type` | Type |
+| `location` | In |
+| `operationId` | Operation ID |
+| `tags` | Tags |
+| `seeAbove` | see above |
+| `requestSample` | Request sample |
+| `generatedOn` | Generated |
 
 ### The kit's own strings
 
@@ -695,9 +821,9 @@ itself.
 
 ## Layout under a fixed header
 
-The navigation and the samples column are sticky. Under a fixed site header,
-set `--oa-sticky-top` to the header's height so they stop below it; anchors
-scroll to the same offset:
+The reference's header, navigation and side tabs are sticky. Under a fixed
+site header, set `--oa-sticky-top` to that header's height: everything sticks
+below it, and anchors scroll to the same offset:
 
 ```css
 :root {
@@ -705,9 +831,9 @@ scroll to the same offset:
 }
 ```
 
-[`OpenApiPage`](standalone.md#openapipage) sets it to the height of its own
-bar. The other variables — navigation width, gaps, method colours — are listed
-in [theming](theming.md).
+The reference's own header is `--oa-header-h` (56px) tall. The other
+variables — navigation width, gaps, method colours — are listed in
+[theming](theming.md).
 
 ## The context
 
