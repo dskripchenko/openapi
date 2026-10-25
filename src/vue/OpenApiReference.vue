@@ -23,6 +23,7 @@ import { LOCALES, en, type OpenApiLabels } from './labels'
 import OaIntro from './OaIntro.vue'
 import OaOperation from './OaOperation.vue'
 import OaSchema from './OaSchema.vue'
+import { buildSearchIndex, fold, type SearchHit, type SearchIndex } from './search'
 
 const props = withDefaults(
   defineProps<{
@@ -195,35 +196,94 @@ watch(
 /* ------------------------------ navigation ------------------------------ */
 
 const query = ref('')
+
+/*
+ * Search: one index per loaded spec, built on the first query. It covers the
+ * open spec only; the navigation below keeps what matches, and a list under
+ * the input shows the best hits.
+ */
+const indexes = new WeakMap<LoadedSpec, SearchIndex>()
+function searchIndex(spec: LoadedSpec): SearchIndex {
+  let index = indexes.get(spec)
+  if (!index) indexes.set(spec, (index = buildSearchIndex(spec)))
+  return index
+}
+const matched = computed(() => (loaded.value && query.value.trim() ? searchIndex(loaded.value).matches(query.value) : null))
+const shown = (key: string): boolean => !matched.value || matched.value.has(key)
+
 const groups = computed(() => {
   const spec = loaded.value
   if (!spec) return []
-  const q = query.value.trim().toLowerCase()
   return spec.groups
-    .map((g) => ({
-      ...g,
-      operations: g.operations.filter(
-        (e) =>
-          !e.webhook &&
-          (!q ||
-            e.path.toLowerCase().includes(q) ||
-            e.method.includes(q) ||
-            (e.operation.summary ?? '').toLowerCase().includes(q) ||
-            e.id.toLowerCase().includes(q)),
-      ),
-    }))
+    .map((g) => ({ ...g, operations: g.operations.filter((e) => !e.webhook && shown(`operation/${e.id}`)) }))
     .filter((g) => g.operations.length)
 })
-const webhooks = computed(() => {
-  const q = query.value.trim().toLowerCase()
-  return (loaded.value?.operations ?? []).filter(
-    (e) => e.webhook && (!q || e.path.toLowerCase().includes(q) || (e.operation.summary ?? '').toLowerCase().includes(q)),
+const webhooks = computed(() => (loaded.value?.operations ?? []).filter((e) => e.webhook && shown(`operation/${e.id}`)))
+const schemaNames = computed(() => Object.keys(loaded.value?.document.components?.schemas ?? {}).filter((n) => shown(`schema/${n}`)))
+
+const hits = computed<SearchHit[]>(() => (loaded.value && query.value.trim() ? searchIndex(loaded.value).search(query.value, 50) : []))
+const resultsOpen = ref(false)
+const cursor = ref(0)
+const searchId = `oa-search-${Math.random().toString(36).slice(2, 10)}`
+const isMac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent)
+const searchPlaceholder = computed(() => `${labels.value.search}   /  ${isMac ? '⌘K' : 'Ctrl+K'}`)
+const kindLabel = (h: SearchHit): string =>
+  h.entry.kind === 'tag' ? labels.value.tag : h.entry.kind === 'schema' ? labels.value.schema : labels.value.section
+
+function onQuery(value: string): void {
+  query.value = value
+  cursor.value = 0
+  resultsOpen.value = true
+}
+
+/** Opens a hit: a section by its anchor, or a heading of the description. */
+async function pick(hit: SearchHit | undefined): Promise<void> {
+  if (!hit) return
+  resultsOpen.value = false
+  if (hit.entry.kind !== 'heading') return go(hit.entry.key)
+  const wanted = fold(hit.entry.title)
+  const heading = [...(root.value?.querySelectorAll<HTMLElement>('.oa-intro h1, .oa-intro h2, .oa-intro h3, .oa-intro h4, .oa-intro h5, .oa-intro h6') ?? [])].find(
+    (h) => fold(h.textContent ?? '').trim() === wanted,
   )
-})
-const schemaNames = computed(() => {
-  const q = query.value.trim().toLowerCase()
-  return Object.keys(loaded.value?.document.components?.schemas ?? {}).filter((n) => !q || n.toLowerCase().includes(q))
-})
+  heading?.scrollIntoView({ block: 'start' })
+}
+
+async function moveCursor(step: number): Promise<void> {
+  if (!hits.value.length) return
+  resultsOpen.value = true
+  cursor.value = (cursor.value + step + hits.value.length) % hits.value.length
+  await nextTick()
+  root.value?.querySelector(`#${searchId}-${cursor.value}`)?.scrollIntoView({ block: 'nearest' })
+}
+
+function onSearchKey(ev: KeyboardEvent): void {
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+    ev.preventDefault()
+    void moveCursor(ev.key === 'ArrowDown' ? 1 : -1)
+  } else if (ev.key === 'Enter') {
+    if (!resultsOpen.value || !hits.value.length) return
+    ev.preventDefault()
+    void pick(hits.value[cursor.value])
+  } else if (ev.key === 'Escape') {
+    if (resultsOpen.value && query.value) resultsOpen.value = false
+    else query.value = ''
+  }
+}
+
+/** `/` (outside text fields) and Ctrl/Cmd+K put the cursor into the search. */
+function onGlobalKey(ev: KeyboardEvent): void {
+  const target = ev.target as HTMLElement | null
+  const typing = !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+  const combo = (ev.ctrlKey || ev.metaKey) && !ev.altKey && ev.key.toLowerCase() === 'k'
+  const slash = ev.key === '/' && !typing && !ev.ctrlKey && !ev.metaKey && !ev.altKey
+  if (!combo && !slash) return
+  const input = root.value?.querySelector<HTMLInputElement>('.oa-nav__search input')
+  // A reference that is not on screen (a hidden editor preview) leaves the keys alone.
+  if (!input || !input.getClientRects().length) return
+  ev.preventDefault()
+  input.focus()
+  input.select()
+}
 const nothing = computed(() => !groups.value.length && !webhooks.value.length && !schemaNames.value.length)
 
 const active = ref('')
@@ -270,8 +330,12 @@ const onHashChange = (): void => void followHash()
 onMounted(() => {
   void followHash()
   window.addEventListener('hashchange', onHashChange)
+  window.addEventListener('keydown', onGlobalKey)
 })
-onBeforeUnmount(() => window.removeEventListener('hashchange', onHashChange))
+onBeforeUnmount(() => {
+  window.removeEventListener('hashchange', onHashChange)
+  window.removeEventListener('keydown', onGlobalKey)
+})
 
 const schemas = computed(() => loaded.value?.document.components?.schemas ?? {})
 
@@ -307,7 +371,55 @@ defineExpose({ go, open, spec: loaded, active: activeId })
           :aria-label="labels.specs"
           @update:model-value="(v: unknown) => open(String(v))"
         />
-        <UidInput v-model="query" size="sm" type="search" :placeholder="labels.search" class="oa-nav__search" />
+        <div class="oa-search">
+          <UidInput
+            :model-value="query"
+            size="sm"
+            type="search"
+            :placeholder="searchPlaceholder"
+            class="oa-nav__search"
+            role="combobox"
+            autocomplete="off"
+            :aria-label="labels.search"
+            aria-autocomplete="list"
+            :aria-expanded="resultsOpen && !!query.trim()"
+            :aria-controls="`${searchId}-list`"
+            :aria-activedescendant="resultsOpen && hits.length ? `${searchId}-${cursor}` : undefined"
+            @update:model-value="onQuery"
+            @keydown="onSearchKey"
+            @focus="resultsOpen = true"
+            @blur="resultsOpen = false"
+          />
+          <div
+            v-if="resultsOpen && query.trim()"
+            :id="`${searchId}-list`"
+            class="oa-search__results"
+            role="listbox"
+            :aria-label="labels.searchResults"
+            @mousedown.prevent
+          >
+            <div
+              v-for="(h, i) in hits"
+              :id="`${searchId}-${i}`"
+              :key="h.entry.key"
+              role="option"
+              class="oa-search__hit"
+              :class="{ 'is-cursor': i === cursor }"
+              :aria-selected="i === cursor"
+              @mouseenter="cursor = i"
+              @click="pick(h)"
+            >
+              <div class="oa-search__line">
+                <span v-if="h.entry.method" class="oa-method oa-method--small" :class="`oa-method--${h.entry.method}`">{{ h.entry.method === 'delete' ? 'DEL' : h.entry.method.toUpperCase() }}</span>
+                <span v-else class="oa-search__kind">{{ kindLabel(h) }}</span>
+                <span class="oa-search__title"><template v-for="(s, j) in h.title" :key="j"><mark v-if="s.mark">{{ s.text }}</mark><template v-else>{{ s.text }}</template></template></span>
+              </div>
+              <code v-if="h.entry.path && h.entry.path !== h.entry.title" class="oa-search__path">{{ h.entry.path }}</code>
+              <div v-if="h.snippet" class="oa-search__snippet"><template v-for="(s, j) in h.snippet" :key="j"><mark v-if="s.mark">{{ s.text }}</mark><template v-else>{{ s.text }}</template></template></div>
+            </div>
+            <p v-if="!hits.length" class="oa-nav__empty">{{ labels.noResults }}</p>
+          </div>
+        </div>
         <div class="oa-nav__scroll">
           <div v-for="g in groups" :key="g.name" class="oa-nav__group">
             <div class="oa-nav__tag">{{ g.displayName }}</div>

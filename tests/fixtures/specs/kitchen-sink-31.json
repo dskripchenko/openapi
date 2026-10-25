@@ -4,7 +4,7 @@
   "info": {
     "title": "Kitchen Sink API",
     "summary": "Exercises most OpenAPI 3.1 features",
-    "description": "Every feature the renderer should understand, in one document.",
+    "description": "Every feature the renderer should understand, in one document.\n\n## Rate limits\n\nAt most 100 requests a minute per token.",
     "version": "2.3.0",
     "termsOfService": "https://example.com/terms",
     "contact": { "name": "API Team", "url": "https://example.com", "email": "api@example.com" },
@@ -54,7 +54,11 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/OrderPage" },
-                "examples": { "page": { "$ref": "#/components/examples/OrderPage" } }
+                "examples": {
+                  "page": { "$ref": "#/components/examples/OrderPage" },
+                  "empty": { "summary": "No orders yet", "description": "The last page has **no** `next` cursor.", "value": { "data": [], "next": null } },
+                  "archive": { "summary": "Archived orders", "externalValue": "https://example.com/examples/orders-archive.json" }
+                }
               }
             },
             "links": { "next": { "$ref": "#/components/links/NextPage" } }
@@ -126,13 +130,18 @@
         "tags": ["payments"],
         "operationId": "createPayment",
         "summary": "Pay for an order",
+        "description": "Charges the order with a tokenized instrument. Retries with the same key are safe.",
         "security": [{ "oauth": ["payments:write"] }, { "mtls": [] }],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": { "$ref": "#/components/schemas/PaymentMethod" },
-              "example": { "kind": "card", "number": "4242424242424242", "expiry": "12/30" }
+              "examples": {
+                "card": { "summary": "Card", "value": { "kind": "card", "number": "4242424242424242", "expiry": "12/30" } },
+                "bank": { "summary": "Bank transfer", "description": "Settles in one to three business days.", "value": { "kind": "bank", "iban": "DE89370400440532013000" } },
+                "wallet": { "summary": "Wallet (external)", "externalValue": "https://example.com/examples/wallet.json" }
+              }
             }
           }
         },
@@ -197,7 +206,7 @@
           { "name": "reserved", "in": "query", "allowReserved": true, "schema": { "type": "string" } },
           { "name": "empty", "in": "query", "allowEmptyValue": true, "schema": { "type": "boolean" } },
           { "name": "json", "in": "query", "content": { "application/json": { "schema": { "type": "object", "properties": { "x": { "type": "number" } } } } } },
-          { "name": "X-Trace", "in": "header", "schema": { "type": "string" }, "examples": { "short": { "value": "abc" }, "long": { "value": "abcdef0123456789" } } },
+          { "name": "X-Trace", "in": "header", "schema": { "type": "string" }, "examples": { "short": { "summary": "Short id", "value": "abc" }, "long": { "value": "abcdef0123456789" } } },
           { "name": "session", "in": "cookie", "schema": { "type": "string" }, "deprecated": true }
         ],
         "responses": { "204": { "description": "No content" } }

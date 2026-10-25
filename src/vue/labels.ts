@@ -52,6 +52,13 @@ export interface OpenApiLabels {
   copy: string
   show: string
   hide: string
+  // search
+  generatedSample: string
+  externalExample: string
+  useExample: string
+  searchResults: string
+  tag: string
+  section: string
 }
 
 export const en: OpenApiLabels = {
@@ -104,6 +111,13 @@ export const en: OpenApiLabels = {
   copy: 'Copy',
   show: 'Show',
   hide: 'Hide',
+  // search
+  generatedSample: 'Generated sample',
+  externalExample: 'Open the example',
+  useExample: 'Put into try-it',
+  searchResults: 'Search results',
+  tag: 'Tag',
+  section: 'Section',
 }
 
 export const ru: OpenApiLabels = {
@@ -156,6 +170,13 @@ export const ru: OpenApiLabels = {
   copy: 'Копировать',
   show: 'Показать',
   hide: 'Скрыть',
+  // search
+  generatedSample: 'Сгенерированный пример',
+  externalExample: 'Открыть пример',
+  useExample: 'Подставить в «Попробовать»',
+  searchResults: 'Результаты поиска',
+  tag: 'Тег',
+  section: 'Раздел',
 }
 
 export const LOCALES: Record<string, OpenApiLabels> = { en, ru }

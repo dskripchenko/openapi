@@ -531,3 +531,42 @@
 .oa-ef__section > .uid-button,
 .oa-es > .uid-button,
 .oa-es__nested > .uid-button { align-self: flex-start; }
+
+/* ------------------------------ named examples ---------------------------- */
+.oa-examples { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+.oa-examples__names { display: flex; flex-wrap: wrap; gap: 4px; }
+.oa-examples__external { margin: 0; font-size: 13px; }
+.oa-param__examples .oa-chip { cursor: pointer; }
+.oa-tryit__example { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--uid-text-secondary); }
+
+/* --------------------------------- search -------------------------------- */
+.oa-search { position: relative; }
+.oa-search__results {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--uid-border-default);
+  border-radius: var(--oa-radius, 8px);
+  background: var(--uid-surface-overlay, var(--uid-color-bg));
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
+}
+.oa-search__hit { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.oa-search__hit.is-cursor { background: var(--uid-accent-subtle); }
+.oa-search__line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.oa-search__kind {
+  flex: none;
+  min-width: 40px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--uid-text-tertiary);
+}
+.oa-search__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--uid-text-primary); font-size: 13px; }
+.oa-search__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11px var(--oa-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); color: var(--uid-text-secondary); }
+.oa-search__snippet { font-size: 12px; line-height: 1.4; color: var(--uid-text-secondary); overflow-wrap: anywhere; }
+.oa-search__hit mark { background: var(--uid-warning-subtle, rgb(250 204 21 / 0.35)); color: inherit; border-radius: 2px; }
