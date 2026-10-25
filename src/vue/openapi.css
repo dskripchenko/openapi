@@ -1105,3 +1105,24 @@
   .oa-kv__value { grid-column: 1; }
   .oa-sf__entry--leaf { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Adding an undeclared header, query parameter or cookie: a visible row, not a hidden link. */
+.oa-tryit__add {
+  align-self: flex-start;
+  margin-left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px dashed var(--uid-border-default);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--uid-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.oa-tryit__add:hover { border-color: var(--uid-accent); color: var(--uid-text-primary); background: var(--uid-accent-subtle); }
+.oa-tryit__add:focus-visible { outline: 2px solid var(--uid-focus-ring, var(--uid-accent)); outline-offset: 1px; }
+.oa-preview__add { margin-top: 8px; }

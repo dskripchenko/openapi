@@ -260,7 +260,6 @@ const downloadName = computed(() => {
       <section v-for="g in groups" :key="g.loc" class="oa-tryit__group" :data-loc="g.loc">
         <div class="oa-tryit__group-title">
           <span class="oa-tryit__heading">{{ labels[LOCATION_LABEL[g.loc]] }}</span>
-          <button v-if="g.loc !== 'path'" type="button" class="oa-link oa-tryit__add" @click="addExtra(g.loc)">+ {{ labels.add }}</button>
         </div>
         <OaField
           v-for="p in g.params"
@@ -278,6 +277,9 @@ const downloadName = computed(() => {
           :rows="draft.extra[g.loc]"
           @update:rows="(rows: [string, string][]) => g.loc !== 'path' && (draft.extra[g.loc] = rows)"
         />
+        <button v-if="g.loc !== 'path'" type="button" class="oa-tryit__add" :data-add="g.loc" @click="addExtra(g.loc)">
+          <span aria-hidden="true">+</span> {{ g.loc === 'header' ? labels.addHeader : g.loc === 'query' ? labels.addQueryParam : labels.addCookie }}
+        </button>
       </section>
 
       <section v-if="types.length" class="oa-tryit__group oa-tryit__bodygroup">
@@ -382,7 +384,7 @@ const downloadName = computed(() => {
         </template>
       </section>
 
-      <OaRequestPreview :request="draft.request" />
+      <OaRequestPreview :request="draft.request" @add-header="addExtra('header')" />
 
       <div class="oa-tryit__actions">
         <UidButton class="oa-tryit__send" variant="primary" :loading="sending" @click="send">

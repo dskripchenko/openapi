@@ -11,6 +11,7 @@ import { previewHeaders, secretHeaderNames } from './preview'
 import { copyText } from './share'
 
 const props = defineProps<{ request: HttpRequest }>()
+const emit = defineEmits<{ 'add-header': [] }>()
 const ctx = useReference()
 const labels = ctx.labels
 
@@ -54,6 +55,9 @@ onBeforeUnmount(() => clearTimeout(timer))
           <dd>{{ v }}</dd>
         </template>
       </dl>
+      <button type="button" class="oa-tryit__add oa-preview__add" @click="emit('add-header')">
+        <span aria-hidden="true">+</span> {{ labels.addHeader }}
+      </button>
     </div>
   </div>
 </template>

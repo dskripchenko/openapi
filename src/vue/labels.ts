@@ -55,6 +55,9 @@ export interface OpenApiLabels {
   // shell
   settings: string
   customServer: string
+  addHeader: string
+  addQueryParam: string
+  addCookie: string
   // links
   copyLink: string
   linkCopied: string
@@ -192,6 +195,9 @@ export const en: OpenApiLabels = {
   // shell
   settings: 'Server and authentication',
   customServer: 'Another URL…',
+  addHeader: 'Add header',
+  addQueryParam: 'Add query parameter',
+  addCookie: 'Add cookie',
   // links
   copyLink: 'Copy link',
   linkCopied: 'Copied',
@@ -314,6 +320,9 @@ export const ru: OpenApiLabels = {
   // shell
   settings: 'Сервер и авторизация',
   customServer: 'Другой адрес…',
+  addHeader: 'Добавить заголовок',
+  addQueryParam: 'Добавить query-параметр',
+  addCookie: 'Добавить cookie',
   // links
   copyLink: 'Скопировать ссылку',
   linkCopied: 'Скопировано',

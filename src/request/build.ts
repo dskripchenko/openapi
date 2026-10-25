@@ -126,8 +126,9 @@ function buildBody(body: NonNullable<BuildInput['body']>): HttpRequestBody {
  * - Header parameters named Accept, Content-Type or Authorization are
  *   ignored, as the spec requires.
  * - Cookies (parameters and API keys) go into a single `Cookie` header.
- * - Undeclared `extra` pairs follow the declared parameters, before the
- *   credentials.
+ * - Undeclared `extra` query and cookie pairs follow the declared
+ *   parameters, before the credentials. Extra headers come last and replace
+ *   a generated header of the same name (case-insensitive).
  * - `Content-Type` is set from the body media type, except for multipart:
  *   the HTTP client adds it with the boundary (`body.mediaType` keeps it).
  *   A file body under a wildcard type (`image/*`) declares the file's type.
@@ -165,7 +166,6 @@ export function buildRequest(input: BuildInput): HttpRequest {
 
   const named = (pairs: [string, string][] | undefined) => (pairs ?? []).filter(([k]) => k.trim() !== '').map(([k, v]): [string, string] => [k.trim(), v])
   for (const [k, v] of named(input.extra?.query)) query.push([encodeComponent(k), encodeComponent(v)])
-  for (const [k, v] of named(input.extra?.header)) headers.push([k, v])
   for (const [k, v] of named(input.extra?.cookie)) cookies.push([encodeCookie(k), encodeCookie(v)])
 
   const security = applySecurity(input.security)
@@ -191,5 +191,12 @@ export function buildRequest(input: BuildInput): HttpRequest {
     }
   }
   if (cookies.length) headers.push(['Cookie', cookies.map(([k, v]) => k + '=' + v).join('; ')])
+  // The user's own headers come last and win: one named like a generated
+  // header (Content-Type, Authorization, Accept…) replaces it.
+  const own = named(input.extra?.header)
+  if (own.length) {
+    const names = new Set(own.map(([k]) => k.toLowerCase()))
+    request.headers = [...headers.filter(([k]) => !names.has(k.toLowerCase())), ...own]
+  }
   return request
 }

@@ -347,14 +347,14 @@ describe('buildRequest: extra parameters', () => {
       security: [{ scheme: { type: 'apiKey', in: 'header', name: 'X-Key' }, value: 'k' }],
     })
 
-  it('appends them after the declared ones, encoded, before the credentials', () => {
+  it('appends query and cookie pairs before the credentials, own headers last', () => {
     const r = build({ query: [['a b', 'c&d']], header: [['X-Extra', 'v 1']], cookie: [['theme', 'dark mode']] })
     expect(r.url).toBe('https://a.com/s?q=x&a%20b=c%26d')
     expect(r.headers).toEqual([
       ['X-Trace', 't'],
-      ['X-Extra', 'v 1'],
       ['X-Key', 'k'],
       ['Cookie', 'sid=1; theme=dark%20mode'],
+      ['X-Extra', 'v 1'],
     ])
   })
 
@@ -362,5 +362,21 @@ describe('buildRequest: extra parameters', () => {
     const r = build({ query: [['', 'lost'], [' n ', '']], header: [['  ', 'x']] })
     expect(r.url).toBe('https://a.com/s?q=x&n=')
     expect(r.headers.map(([k]) => k)).toEqual(['X-Trace', 'X-Key', 'Cookie'])
+  })
+})
+
+describe('own headers', () => {
+  it('replace a generated header of the same name', () => {
+    const r = buildRequest({
+      method: 'post',
+      path: '/a',
+      server: 'https://x',
+      parameters: [],
+      values: {},
+      body: { mediaType: 'application/json', value: { a: 1 } },
+      extra: { header: [['content-type', 'application/vnd.custom+json'], ['X-Debug', '1']] },
+    })
+    expect(r.headers.filter(([k]) => k.toLowerCase() === 'content-type')).toEqual([['content-type', 'application/vnd.custom+json']])
+    expect(r.headers).toContainEqual(['X-Debug', '1'])
   })
 })

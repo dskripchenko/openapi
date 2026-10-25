@@ -694,6 +694,12 @@ try {
   await co.locator('.oa-tryit__group[data-loc="header"] .oa-tryit__add').click()
   await co.locator('.oa-kv__key input').fill('X-Debug')
   await co.locator('.oa-kv__value input').fill('on')
+  // The preview offers the same: a second own header that replaces the generated Content-Type.
+  await co.locator('.oa-preview__summary').click()
+  await co.locator('.oa-preview__add').click()
+  await co.locator('.oa-kv__key input').nth(1).fill('Content-Type')
+  await co.locator('.oa-kv__value input').nth(1).fill('application/vnd.shop+json')
+  await co.locator('.oa-preview__summary').click()
   let formSent = null
   await tf.route('**/v2/orders**', async (route) => {
     const r = route.request()
@@ -704,6 +710,7 @@ try {
   await co.locator('.oa-tryit__response .oa-status').waitFor()
   check('try-it form: the request carries the form body', formSent?.body?.items?.[1]?.sku === 'SKU-2' && formSent?.body?.total?.amount === '42.50')
   check('try-it form: a custom header is sent', formSent?.headers['x-debug'] === 'on', JSON.stringify(formSent?.headers ?? {}))
+  check('try-it form: an own Content-Type replaces the generated one', formSent?.headers['content-type'] === 'application/vnd.shop+json', formSent?.headers['content-type'])
   check('try-it form: the response body is a wrapped code block', (await co.locator('.oa-tryit__response .oa-code').count()) === 1)
   // The preview: closed to one line, open to the URL and headers.
   const preview = co.locator('.oa-preview')
