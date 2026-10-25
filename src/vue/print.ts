@@ -52,7 +52,7 @@ pre, .oap-code { margin: 0.4em 0; padding: 8px 10px; border: 1px solid #d5d9e0; 
 table { width: 100%; margin: 0.4em 0 0.8em; border-collapse: collapse; break-inside: auto; }
 tr, .oap-security li { break-inside: avoid; page-break-inside: avoid; }
 thead { display: table-header-group; }
-th, td { padding: 4px 6px; border: 1px solid #d5d9e0; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+th, td { padding: 4px 6px; border: 1px solid #d5d9e0; text-align: left; vertical-align: top; overflow-wrap: anywhere; font-size: 9pt; }
 th { background: #f1f3f6; font-size: 9pt; font-weight: 600; }
 th::first-letter { text-transform: uppercase; }
 td > p:first-child, td .oap-md > :first-child { margin-top: 0; }
@@ -72,7 +72,7 @@ td .oap-md > :last-child { margin-bottom: 0; }
 .oap-flag--deprecated { border-color: #fcd34d; color: #92400e; }
 .oap-note { color: #4a5160; font-size: 9pt; }
 .oap-note code { margin-right: 4px; }
-.oap-cycle { color: #4a5160; font-style: italic; }
+.oap-cycle { color: #4a5160; font-style: italic; font-size: 9pt; }
 .oap-schema__root { margin: 0.3em 0; }
 .oap-status { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .oap-md img { max-width: 100%; }
