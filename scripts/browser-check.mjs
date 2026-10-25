@@ -353,6 +353,160 @@ try {
   await sp.screenshot({ path: `${out}/examples.png` })
   check('search and examples: no page errors', spErrors.length === 0, spErrors.join('; '))
   await sp.close()
+  // OAuth in the browser: a mock identity provider on the playground's origin.
+  const oc = await browser.newContext({ viewport: { width: 1440, height: 1400 } })
+  const op2 = await oc.newPage()
+  const oErrors = []
+  op2.on('pageerror', (e) => oErrors.push(String(e)))
+  const idp = { authorize: [], token: [], api: [] }
+  await oc.route('**/mock-idp/authorize**', async (route) => {
+    const q = Object.fromEntries(new URL(route.request().url()).searchParams)
+    idp.authorize.push(q)
+    const back =
+      q.client_id === 'deny'
+        ? `${q.redirect_uri}?error=access_denied&error_description=${encodeURIComponent('The user said no')}&state=${q.state}`
+        : q.response_type === 'token'
+          ? `${q.redirect_uri}#access_token=implicit-token&token_type=Bearer&expires_in=1800&state=${q.state}`
+          : `${q.redirect_uri}?code=code-${idp.authorize.length}&state=${q.state}`
+    await route.fulfill({ status: 302, headers: { location: back } })
+  })
+  await oc.route('**/mock-idp/token', async (route) => {
+    const form = Object.fromEntries(new URL(`http://form/?${route.request().postData() ?? ''}`).searchParams)
+    idp.token.push(form)
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ access_token: `token-for-${form.code}`, token_type: 'Bearer', expires_in: 3600 }),
+    })
+  })
+  await oc.route('**/mock-idp/.well-known/openid-configuration', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authorization_endpoint: `${base}mock-idp/authorize`,
+        token_endpoint: `${base}mock-idp/token`,
+        scopes_supported: ['openid', 'email'],
+        response_types_supported: ['code'],
+      }),
+    }),
+  )
+  await oc.route('**/mock-api/**', async (route) => {
+    idp.api.push(route.request().headers())
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' })
+  })
+  const sendFrom = async (summary) => {
+    const o = op2.locator('.oa-op').filter({ hasText: summary }).first()
+    const n = idp.api.length
+    await o.locator('.oa-tryit button', { hasText: 'Send' }).click()
+    for (let i = 0; i < 50 && idp.api.length === n; i++) await op2.waitForTimeout(100)
+    return idp.api.length > n ? idp.api[idp.api.length - 1].authorization : undefined
+  }
+  const waitToken = async (scheme) => {
+    const status = op2.locator(`.oa-auth__scheme[data-scheme="${scheme}"] .oa-auth__status`)
+    await status.waitFor({ timeout: 10000 }).catch(() => {})
+    return status.innerText().catch(() => '')
+  }
+  await op2.goto(`${base}?spec=oauth`)
+  await op2.waitForSelector('.oa-op')
+  await op2.locator('.oa-auth .oa-panel__head').click()
+  const oauthBox = op2.locator('.oa-auth__scheme[data-scheme="oauth"]')
+  await oauthBox.locator('.oa-auth__oauth input').first().fill('docs-app')
+  await oauthBox.locator('.uid-checkbox', { hasText: 'orders' }).locator('.uid-checkbox__label').click()
+  await oauthBox.locator('.oa-auth__authorize').click()
+  const codeStatus = await waitToken('oauth')
+  const auth = idp.authorize[0] ?? {}
+  const tok = idp.token[0] ?? {}
+  const { createHash } = await import('node:crypto')
+  const s256 = (v) => createHash('sha256').update(v).digest('base64url')
+  check(
+    'oauth code: the authorize request carries PKCE, state and the checked scopes',
+    auth.response_type === 'code' && auth.code_challenge_method === 'S256' && !!auth.state && auth.client_id === 'docs-app' && auth.scope === 'profile' && auth.redirect_uri === base,
+    JSON.stringify(auth),
+  )
+  check(
+    'oauth code: the token request sends the code and the verifier',
+    tok.grant_type === 'authorization_code' && tok.code === 'code-1' && !!tok.code_verifier && s256(tok.code_verifier) === auth.code_challenge && tok.redirect_uri === base && !tok.client_secret,
+    JSON.stringify(tok),
+  )
+  check('oauth code: the token shows its expiry', /expires in 60 min/.test(codeStatus), codeStatus)
+  check('oauth code: try-it sends the bearer token', (await sendFrom('Who am I (OAuth2)')) === 'Bearer token-for-code-1')
+
+  await oauthBox.locator('[data-flow="implicit"]').click()
+  await oauthBox.locator('.oa-auth__authorize').click()
+  await op2
+    .waitForFunction(() => document.querySelector('.oa-auth__scheme[data-scheme="oauth"] .oa-auth__expiry')?.textContent?.includes('30 min'), null, { timeout: 10000 })
+    .catch(() => {})
+  check('oauth implicit: response_type=token without a challenge', idp.authorize[1]?.response_type === 'token' && !idp.authorize[1]?.code_challenge)
+  check('oauth implicit: try-it sends the token from the fragment', (await sendFrom('Who am I (OAuth2)')) === 'Bearer implicit-token')
+
+  await oauthBox.locator('.oa-auth__logout').click()
+  check('oauth: log out clears the token', (await oauthBox.locator('.oa-auth__token input').inputValue()) === '')
+
+  await oauthBox.locator('[data-flow="authorizationCode"]').click()
+  await oauthBox.locator('.oa-auth__oauth input').first().fill('deny')
+  await oauthBox.locator('.oa-auth__authorize').click()
+  await oauthBox.locator('.oa-auth__error').waitFor({ timeout: 10000 }).catch(() => {})
+  const denied = await oauthBox.locator('.oa-auth__error').innerText().catch(() => '')
+  check('oauth: the provider error is shown', denied.includes('access_denied') && denied.includes('The user said no'), denied)
+
+  const oidcBox = op2.locator('.oa-auth__scheme[data-scheme="openId"]')
+  await oidcBox.locator('.uid-checkbox', { hasText: 'email' }).waitFor({ timeout: 5000 }).catch(() => {})
+  check('openIdConnect: discovery offers its scopes', (await oidcBox.locator('.uid-checkbox').count()) === 2)
+  await oidcBox.locator('.oa-auth__oauth input').first().fill('oidc-app')
+  const tokensBefore = idp.token.length
+  await oidcBox.locator('.oa-auth__authorize').click()
+  await waitToken('openId')
+  check(
+    'openIdConnect: code flow against the discovered endpoints',
+    idp.token[tokensBefore]?.client_id === 'oidc-app' && idp.authorize.at(-1)?.scope === 'openid email',
+  )
+  check('openIdConnect: try-it sends the token', ((await sendFrom('Who am I (OpenID Connect)')) ?? '').startsWith('Bearer token-for-code-'))
+  await op2.locator('.oa-auth').screenshot({ path: `${out}/auth-oauth.png` })
+
+  // The relay: a page opened as a popup with an OAuth response posts it to its opener.
+  const relayed = await op2.evaluate(
+    () =>
+      new Promise((resolve) => {
+        window.addEventListener('message', (e) => {
+          if (e.data?.type === 'dsk-openapi-oauth') resolve({ origin: e.origin, ...e.data })
+        })
+        window.open(`${window.location.origin}/?spec=petstore&code=relayed&state=st-1`, 'relay-test')
+        window.setTimeout(() => resolve(null), 8000)
+      }),
+  )
+  check(
+    'oauth: a redirected popup relays the response to its opener',
+    relayed?.code === 'relayed' && relayed?.state === 'st-1' && relayed?.origin === base.slice(0, -1),
+    JSON.stringify(relayed),
+  )
+  check('oauth: no page errors', oErrors.length === 0, oErrors.join('; '))
+  await op2.close()
+
+  // Persisted credentials: kept across a reload, gone after Forget.
+  const pp = await oc.newPage()
+  const keyInput = () => pp.locator('.oa-auth__scheme[data-scheme="apiKey"] .oa-auth__token input')
+  const openAuth = async () => {
+    await pp.waitForSelector('.oa-op')
+    await pp.locator('.oa-auth .oa-panel__head').click()
+  }
+  await pp.goto(`${base}?spec=oauth&persist=local`)
+  await openAuth()
+  check('persist: the panel says where credentials are kept', await pp.locator('.oa-auth__persist', { hasText: 'Saved in this browser' }).isVisible())
+  await keyInput().fill('kept-key')
+  await pp.waitForTimeout(200)
+  await pp.reload()
+  await openAuth()
+  check('persist: an API key survives a reload', (await keyInput().inputValue()) === 'kept-key')
+  const stored = await pp.evaluate(() => Object.keys(window.localStorage).filter((k) => k.startsWith('dsk-openapi:credentials:')))
+  check('persist: stored under the spec id and title', stored.includes('dsk-openapi:credentials:spec:OAuth Playground'), stored.join(', '))
+  await pp.locator('.oa-auth__forget').click()
+  check('persist: Forget clears the field', (await keyInput().inputValue()) === '')
+  await pp.reload()
+  await openAuth()
+  check('persist: Forget clears the storage', (await keyInput().inputValue()) === '' && (await pp.evaluate(() => window.localStorage.length)) === 0)
+  await pp.close()
+  await oc.close()
 
   // The editor: visual edits land in the text, the source view reports problems.
   const ed = await browser.newPage({ viewport: { width: 1440, height: 1200 } })

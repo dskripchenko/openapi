@@ -71,6 +71,23 @@ export interface OpenApiLabels {
   searchResults: string
   tag: string
   section: string
+  // oauth
+  authorize: string
+  redirectUri: string
+  redirectHint: string
+  flowAuthorizationCode: string
+  flowImplicit: string
+  flowClientCredentials: string
+  flowPassword: string
+  logOut: string
+  forget: string
+  savedInBrowser: string
+  /** `{n}` is the number of minutes. */
+  expiresIn: string
+  tokenExpired: string
+  popupBlocked: string
+  popupClosed: string
+  stateMismatch: string
 }
 
 export const en: OpenApiLabels = {
@@ -142,6 +159,22 @@ export const en: OpenApiLabels = {
   searchResults: 'Search results',
   tag: 'Tag',
   section: 'Section',
+  // oauth
+  authorize: 'Authorize',
+  redirectUri: 'Redirect URI',
+  redirectHint: 'The identity provider must allow this redirect URI.',
+  flowAuthorizationCode: 'Authorization code',
+  flowImplicit: 'Implicit',
+  flowClientCredentials: 'Client credentials',
+  flowPassword: 'Password',
+  logOut: 'Log out',
+  forget: 'Forget',
+  savedInBrowser: 'Saved in this browser',
+  expiresIn: 'expires in {n} min',
+  tokenExpired: 'expired',
+  popupBlocked: 'The browser blocked the sign-in window. Allow pop-ups for this page and try again.',
+  popupClosed: 'The sign-in window was closed before it finished.',
+  stateMismatch: 'The sign-in response does not match the request. Try again.',
 }
 
 export const ru: OpenApiLabels = {
@@ -213,6 +246,22 @@ export const ru: OpenApiLabels = {
   searchResults: 'Результаты поиска',
   tag: 'Тег',
   section: 'Раздел',
+  // oauth
+  authorize: 'Войти',
+  redirectUri: 'Redirect URI',
+  redirectHint: 'Этот адрес возврата должен быть разрешён у провайдера.',
+  flowAuthorizationCode: 'Код авторизации',
+  flowImplicit: 'Implicit',
+  flowClientCredentials: 'Client credentials',
+  flowPassword: 'Пароль',
+  logOut: 'Выйти',
+  forget: 'Забыть',
+  savedInBrowser: 'Сохранено в этом браузере',
+  expiresIn: 'истекает через {n} мин',
+  tokenExpired: 'истёк',
+  popupBlocked: 'Браузер заблокировал окно входа. Разрешите всплывающие окна для этой страницы и повторите.',
+  popupClosed: 'Окно входа закрыли до завершения.',
+  stateMismatch: 'Ответ входа не соответствует запросу. Повторите.',
 }
 
 export const LOCALES: Record<string, OpenApiLabels> = { en, ru }

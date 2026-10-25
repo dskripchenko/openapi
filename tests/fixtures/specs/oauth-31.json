@@ -1,0 +1,51 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "OAuth Playground", "version": "1.0.0", "description": "Browser-based OAuth flows against a mock identity provider on the same origin." },
+  "servers": [{ "url": "/mock-api" }],
+  "paths": {
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "Who am I (OAuth2)",
+        "security": [{ "oauth": ["profile"] }],
+        "responses": { "200": { "description": "The caller" } }
+      }
+    },
+    "/oidc/me": {
+      "get": {
+        "operationId": "getOidcMe",
+        "summary": "Who am I (OpenID Connect)",
+        "security": [{ "openId": ["openid"] }],
+        "responses": { "200": { "description": "The caller" } }
+      }
+    },
+    "/keyed": {
+      "get": {
+        "operationId": "getKeyed",
+        "summary": "With an API key",
+        "security": [{ "apiKey": [] }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "oauth": {
+        "type": "oauth2",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "/mock-idp/authorize",
+            "tokenUrl": "/mock-idp/token",
+            "scopes": { "profile": "Read the profile", "orders": "Read orders" }
+          },
+          "implicit": {
+            "authorizationUrl": "/mock-idp/authorize",
+            "scopes": { "profile": "Read the profile" }
+          }
+        }
+      },
+      "openId": { "type": "openIdConnect", "openIdConnectUrl": "/mock-idp/.well-known/openid-configuration" },
+      "apiKey": { "type": "apiKey", "in": "header", "name": "X-API-Key" }
+    }
+  }
+}

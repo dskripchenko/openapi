@@ -45,6 +45,14 @@ export interface ReferenceContext {
   anchorPrefix: Ref<string>
   /** A prefilled link waiting for its operation (the full anchor); the operation takes and clears it. */
   prefill: ShallowRef<{ anchor: string; data: PrefillData } | null>
+  /** When each scheme's token expires (epoch ms), if the token endpoint said so. */
+  tokenExpiry: Record<string, number>
+  /** The OAuth redirect URI; the page URL without query and fragment by default. */
+  oauthRedirectUrl: Ref<string | undefined>
+  /** Where credentials are kept between visits, or null when they are not kept. */
+  persistence: Ref<'session' | 'local' | null>
+  /** Clears the open spec's credentials, in memory and in the browser's storage. */
+  forgetCredentials: () => void
 }
 
 export const referenceKey: InjectionKey<ReferenceContext> = Symbol('openapi-reference')

@@ -8,7 +8,23 @@ export {
   isJsonMediaType,
   isMultipart,
 } from './encode'
-export { fetchOAuthToken, type OAuthToken, type OAuthTokenOptions } from './oauth'
+export {
+  base64Url,
+  buildAuthorizeUrl,
+  codeChallenge,
+  createCodeVerifier,
+  exchangeAuthorizationCode,
+  fetchOAuthToken,
+  fetchOpenIdConfiguration,
+  parseCallbackUrl,
+  randomToken,
+  type AuthorizeUrlOptions,
+  type CodeExchangeOptions,
+  type OAuthCallback,
+  type OAuthToken,
+  type OAuthTokenOptions,
+  type OpenIdConfiguration,
+} from './oauth'
 export {
   applySecurity,
   basicAuth,
