@@ -214,6 +214,38 @@ describe('blockToDocument', () => {
   })
 })
 
+describe('the documented examples', () => {
+  it('read', () => {
+    const params = ok('url: /a\nparams:\n  query:\n    sort: { type: string, enum: [name, date], description: Order, example: name }\n    page: { type: integer!, minimum: 1 }\n')
+    expect(params.document.paths!['/a']!.get!.parameters).toEqual([
+      { name: 'sort', in: 'query', description: 'Order', schema: { type: 'string', enum: ['name', 'date'] }, example: 'name' },
+      { name: 'page', in: 'query', required: true, schema: { type: 'integer', minimum: 1 } },
+    ])
+    const multi = ok(`title: Orders
+baseUrl: https://api.example.com/v2
+auth: bearer
+requests:
+  - url: /orders?page=1
+    summary: List orders
+  - method: POST
+    url: /orders
+    summary: Create an order
+    body: { type: form, example: { item: book, qty: 2 } }
+  - url: https://files.example.com/upload
+    method: PUT
+    auth: none
+`)
+    expect(Object.keys(multi.document.paths!)).toEqual(['/orders', '/upload'])
+    expect(multi.document.paths!['/upload']!.put!.servers).toEqual([{ url: 'https://files.example.com' }])
+    const schema = ok('url: /a\nmethod: POST\nbody:\n  schema:\n    type: object\n    properties:\n      name: string!\n      email: string(email) Where receipts go\n      tags!: { type: array, items: string }\n')
+    expect((schema.document.paths!['/a']!.post!.requestBody as { content: Record<string, { schema: unknown }> }).content['application/json']!.schema).toEqual({
+      type: 'object',
+      properties: { name: { type: 'string' }, email: { type: 'string', format: 'email', description: 'Where receipts go' }, tags: { type: 'array', items: { type: 'string' } } },
+      required: ['name', 'tags'],
+    })
+  })
+})
+
 describe('parseBlock errors', () => {
   it('names the line of a value at fault', () => {
     expect(fail('url: /a\nmethod: FETCH\n')).toEqual({ message: expect.stringContaining('Unknown method "FETCH"'), line: 2, column: 1, pointer: '/method' })

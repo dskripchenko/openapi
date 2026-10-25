@@ -1,5 +1,15 @@
 # @dskripchenko/openapi
 
+## Unreleased
+
+### Minor Changes
+
+- API blocks: a fenced ```` ```openapi ```` block in rich content — a few hand-written lines of YAML or JSON describing one or more requests — rendered as live API cards and edited through Preview / Source / Constructor tabs. See [docs/en/blocks.md](docs/en/blocks.md).
+
+  - **Core:** the compact block format (one request, `requests: [...]` with a shared title, base URL and auth, or a whole OpenAPI / Swagger document as is); laravel-api's type shorthand (`string(email)!`, `integer[]`, `file`, `name!` properties); `parseBlock` with errors by line and column, `blockToDocument` (OpenAPI 3.1 with readable operationIds, servers from absolute URLs, security schemes from `auth`), `stringifyBlock` (YAML ⇄ JSON), `inferSchema` (a schema from an example), and the constructor's model `blockToModel` / `modelToBlock` that patches the data and keeps what the form cannot express.
+  - **Vue:** `OpenApiBlock` (read-only cards, or editable tabs with a YAML / JSON switch and a constructor of method, URL, parameters, auth, body and responses on kit controls), `mountOpenApiBlock`, and `openApiBlockRenderer` — a block renderer with a live-island `mount` for host editors and markdown views. `blockEn` / `blockRu` strings.
+  - **Standalone:** `DskOpenApi.renderBlocks(root?, options?)` turns `<pre><code class="language-openapi">` into read-only widgets; the `data-auto` script does it on load. `DskOpenApi.mountOpenApiBlock` too.
+
 ## 1.0.0
 
 ### Major Changes
