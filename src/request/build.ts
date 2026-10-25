@@ -6,7 +6,7 @@ import type {
   Parameter,
   ParameterIn,
 } from '../core/types'
-import { isFormUrlEncoded, isMultipart } from './encode'
+import { encodeComponent, encodeCookie, isFormUrlEncoded, isMultipart } from './encode'
 import { applySecurity, type AppliedSecurity } from './security'
 import { isFileValue, serializeParam, serializeValue, stringifyLeaf } from './serialize'
 import { joinUrl } from './server'
@@ -31,6 +31,19 @@ export interface BuildInput {
     encoding?: Record<string, Encoding>
   }
   security?: AppliedSecurity[]
+  /**
+   * Name/value pairs the spec does not declare, typed by the user; they go
+   * after the declared parameters. Pairs with an empty name are skipped;
+   * names and values are encoded here.
+   */
+  extra?: ExtraParams
+}
+
+/** Undeclared query parameters, headers and cookies, in order. */
+export interface ExtraParams {
+  query?: [string, string][]
+  header?: [string, string][]
+  cookie?: [string, string][]
 }
 
 /** Header parameters the spec says to ignore: they are set by other means. */
@@ -113,6 +126,8 @@ function buildBody(body: NonNullable<BuildInput['body']>): HttpRequestBody {
  * - Header parameters named Accept, Content-Type or Authorization are
  *   ignored, as the spec requires.
  * - Cookies (parameters and API keys) go into a single `Cookie` header.
+ * - Undeclared `extra` pairs follow the declared parameters, before the
+ *   credentials.
  * - `Content-Type` is set from the body media type, except for multipart:
  *   the HTTP client adds it with the boundary (`body.mediaType` keeps it).
  *   A file body under a wildcard type (`image/*`) declares the file's type.
@@ -147,6 +162,11 @@ export function buildRequest(input: BuildInput): HttpRequest {
     else if (serialized.in === 'query') query.push(...serialized.pairs)
     else if (serialized.in === 'cookie') cookies.push(...serialized.pairs)
   }
+
+  const named = (pairs: [string, string][] | undefined) => (pairs ?? []).filter(([k]) => k.trim() !== '').map(([k, v]): [string, string] => [k.trim(), v])
+  for (const [k, v] of named(input.extra?.query)) query.push([encodeComponent(k), encodeComponent(v)])
+  for (const [k, v] of named(input.extra?.header)) headers.push([k, v])
+  for (const [k, v] of named(input.extra?.cookie)) cookies.push([encodeCookie(k), encodeCookie(v)])
 
   const security = applySecurity(input.security)
   query.push(...security.query)

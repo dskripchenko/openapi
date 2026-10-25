@@ -1,4 +1,4 @@
-export { buildRequest, type BuildInput } from './build'
+export { buildRequest, type BuildInput, type ExtraParams } from './build'
 export {
   base64Utf8,
   baseMediaType,

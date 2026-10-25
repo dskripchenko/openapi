@@ -104,6 +104,36 @@ export interface OpenApiLabels {
   downloadSpec: string
   copyOperationLink: string
   operationLinkCopied: string
+  // tryit
+  /** Try-it groups of parameters by location. */
+  locPath: string
+  locQuery: string
+  locHeader: string
+  locCookie: string
+  /** Adds an undeclared name/value row to a group. */
+  add: string
+  addItem: string
+  remove: string
+  /** Placeholders of a name/value row. */
+  name: string
+  value: string
+  /** The body edited as JSON text (the toggle next to "Form"). */
+  jsonView: string
+  /** An optional value left out of the request. */
+  notSet: string
+  /** The value is JSON null. */
+  nullValue: string
+  /** The choice among `oneOf`/`anyOf` branches. */
+  variant: string
+  /** The request preview: its title and `{n}` headers. */
+  willBeSent: string
+  headerCount: string
+  /** `{n}` items of an array. */
+  itemCount: string
+  copyUrl: string
+  urlCopied: string
+  /** The section with the request to send. */
+  request: string
 }
 
 export const en: OpenApiLabels = {
@@ -203,6 +233,26 @@ export const en: OpenApiLabels = {
   downloadSpec: 'Download spec',
   copyOperationLink: 'Copy link to this operation',
   operationLinkCopied: 'Link copied',
+  // tryit
+  locPath: 'Path',
+  locQuery: 'Query',
+  locHeader: 'Headers',
+  locCookie: 'Cookies',
+  add: 'Add',
+  addItem: 'Add item',
+  remove: 'Remove',
+  name: 'Name',
+  value: 'Value',
+  jsonView: 'JSON',
+  notSet: 'not set',
+  nullValue: 'null',
+  variant: 'Variant',
+  willBeSent: 'What will be sent',
+  headerCount: 'headers: {n}',
+  itemCount: 'items: {n}',
+  copyUrl: 'Copy URL',
+  urlCopied: 'Copied',
+  request: 'Request',
 }
 
 export const ru: OpenApiLabels = {
@@ -302,6 +352,26 @@ export const ru: OpenApiLabels = {
   downloadSpec: 'Скачать спецификацию',
   copyOperationLink: 'Скопировать ссылку на операцию',
   operationLinkCopied: 'Ссылка скопирована',
+  // tryit
+  locPath: 'Путь',
+  locQuery: 'Query-параметры',
+  locHeader: 'Заголовки',
+  locCookie: 'Cookies',
+  add: 'Добавить',
+  addItem: 'Добавить элемент',
+  remove: 'Удалить',
+  name: 'Имя',
+  value: 'Значение',
+  jsonView: 'JSON',
+  notSet: 'не задано',
+  nullValue: 'null',
+  variant: 'Вариант',
+  willBeSent: 'Что уйдёт',
+  headerCount: 'заголовков: {n}',
+  itemCount: 'элементов: {n}',
+  copyUrl: 'Скопировать URL',
+  urlCopied: 'Скопировано',
+  request: 'Запрос',
 }
 
 export const LOCALES: Record<string, OpenApiLabels> = { en, ru }

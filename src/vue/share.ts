@@ -7,7 +7,7 @@ import type { PrefillData } from '../links'
 import type { OperationEntry } from '../model'
 import { serverUrl } from '../request'
 import type { ReferenceContext } from './context'
-import { mediaTypes, sampleBody, type OperationDraft } from './draft'
+import { mediaTypes, sampleBody, type ExtraLocation, type OperationDraft } from './draft'
 
 const LOCATIONS: ParameterIn[] = ['path', 'query', 'header', 'cookie']
 
@@ -51,7 +51,18 @@ export function applyPrefill(draft: OperationDraft, data: PrefillData, entry: Op
     draft.bodyText = sampleBody(body?.content[data.mediaType], ctx, data.mediaType)
   }
   if (data.body !== undefined && draft.mediaType) draft.bodyText = data.body
+  for (const [loc, key] of EXTRA_KEYS) {
+    const pairs = data[key]
+    if (pairs?.length) draft.extra[loc] = pairs.map(([k, v]): [string, string] => [k, v])
+  }
 }
+
+/** The link keys of the undeclared name/value rows. */
+const EXTRA_KEYS = [
+  ['query', 'xQuery'],
+  ['header', 'xHeader'],
+  ['cookie', 'xCookie'],
+] as const satisfies readonly (readonly [ExtraLocation, keyof PrefillData])[]
 
 /**
  * The prefill data of a draft. Kept short: empty values are skipped, and so
@@ -79,6 +90,10 @@ export function draftPrefill(draft: OperationDraft, entry: OperationEntry, ctx: 
   if (draft.mediaType && draft.mediaType !== types[0]) data.mediaType = draft.mediaType
   if (draft.mediaType && draft.bodyText !== '' && draft.bodyText !== sampleBody(body?.content[draft.mediaType], ctx, draft.mediaType))
     data.body = draft.bodyText
+  for (const [loc, key] of EXTRA_KEYS) {
+    const pairs = draft.extra[loc].filter(([k]) => k.trim() !== '').map(([k, v]): [string, string] => [k, v])
+    if (pairs.length) data[key] = pairs
+  }
   if (withCredentials) {
     const auth: NonNullable<PrefillData['auth']> = {}
     for (const [name, value] of Object.entries(ctx.credentials)) {
