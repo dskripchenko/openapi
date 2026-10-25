@@ -9,8 +9,23 @@ import oauth from '../tests/fixtures/specs/oauth-31.json?raw'
 
 const specs: Record<string, string> = { petstore, kitchen, swagger, oauth, empty: '' }
 
-// ?mode=block: an API block, as a WYSIWYG editor would hold it.
-const BLOCK = `method: POST
+// ?mode=block: an API block, as a WYSIWYG editor would hold it; &block=multi for several requests.
+const MULTI = `title: Orders
+baseUrl: https://api.example.com/v2
+auth: { type: oauth2, tokenUrl: https://auth.example.com/token, scopes: [orders] }
+requests:
+  - url: /orders?page=1
+    summary: List orders
+  - method: POST
+    url: /orders
+    summary: Create an order
+    body:
+      type: form
+      schema: { type: object, properties: { item: string!, qty: integer } }
+    responses:
+      201: Created
+`
+const SINGLE = `method: POST
 url: https://api.example.com/v1/users/{id}
 summary: Update a user
 description: Changes the user's **name** and age.
@@ -26,6 +41,7 @@ responses:
   404: Not found
 `
 const params = new URLSearchParams(location.search)
+const BLOCK = params.get('block') === 'multi' ? MULTI : SINGLE
 const mode = params.get('mode') ?? 'reference'
 const name = params.get('spec') ?? (mode === 'embed' ? 'kitchen' : 'petstore')
 document.documentElement.setAttribute('data-theme', params.get('theme') ?? 'light')
