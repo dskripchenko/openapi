@@ -39,7 +39,7 @@ createApp({
               locale,
               view: (params.get('view') as 'visual' | 'source' | 'preview' | null) ?? 'visual',
             })
-          : params.has('multi')
+          : params.has('multi') || (!params.has('spec') && !params.has('url'))
             ? h(OpenApiReference, {
                 locale,
                 specs: [
