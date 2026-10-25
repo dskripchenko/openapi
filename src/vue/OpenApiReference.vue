@@ -26,7 +26,7 @@ import { sendRequest, type SendFn } from '../request'
 import { SNIPPET_TARGETS, type SnippetTarget } from '../snippets'
 import { referenceKey, type ReferenceContext, type SpecInput, type SpecSource } from './context'
 import { LOCALES, en, type OpenApiLabels } from './labels'
-import { downloadSpec } from './download'
+import { downloadSpec, downloadTypes } from './download'
 import { currentServer } from './draft'
 import OaAuth from './OaAuth.vue'
 import OaIntro from './OaIntro.vue'
@@ -563,6 +563,9 @@ defineExpose({ go, open, spec: loaded, active: activeId })
             >
               <Download :size="14" aria-hidden="true" />{{ f.toUpperCase() }}
             </button>
+            <button type="button" class="oa-header__download" data-format="ts" :title="labels.downloadTypes" @click="downloadTypes(loaded)">
+              <Download :size="14" aria-hidden="true" />TS
+            </button>
           </div>
           <button type="button" class="oa-header__settings" :aria-label="labels.settings" :aria-expanded="settingsOpen" @click="settingsOpen = true">
             <Settings2 :size="16" aria-hidden="true" />
@@ -668,6 +671,7 @@ defineExpose({ go, open, spec: loaded, active: activeId })
             <h3 class="oa-settings__title">{{ labels.downloadSpec }}</h3>
             <div class="oa-settings__row">
               <UidButton v-for="f in (['yaml', 'json'] as const)" :key="f" variant="secondary" size="sm" :icon="Download" :data-format="f" @click="downloadSpec(loaded, f)">{{ f.toUpperCase() }}</UidButton>
+              <UidButton variant="secondary" size="sm" :icon="Download" data-format="ts" :title="labels.downloadTypes" @click="downloadTypes(loaded)">TS</UidButton>
             </div>
           </section>
         </div>

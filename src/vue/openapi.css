@@ -1126,3 +1126,17 @@
 .oa-tryit__add:hover { border-color: var(--uid-accent); color: var(--uid-text-primary); background: var(--uid-accent-subtle); }
 .oa-tryit__add:focus-visible { outline: 2px solid var(--uid-focus-ring, var(--uid-accent)); outline-offset: 1px; }
 .oa-preview__add { margin-top: 8px; }
+/* --------------------------------- types --------------------------------- */
+.oa-types__names {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--uid-border-subtle);
+}
+.oa-types__name { max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+.oa-types__copied { font-size: 11px; color: var(--uid-text-tertiary); }
+.oa-types__code { border: 0; border-radius: 0; }
+/* In the tabbed side column the tab names the panel. */
+.oa-side-tabs ~ .oa-types > .oa-panel__head { display: none; }

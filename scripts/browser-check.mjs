@@ -772,6 +772,51 @@ try {
   check('try-it forms: no page errors', tfErrors.length === 0, tfErrors.join('; '))
   await tf.close()
 
+  // TypeScript types: a lazy side tab with name chips, and the whole document as a .d.ts download.
+  const ty = await browser.newPage({ viewport: { width: 1440, height: 1600 }, permissions: ['clipboard-read', 'clipboard-write'], acceptDownloads: true })
+  const tyErrors = []
+  ty.on('pageerror', (e) => tyErrors.push(String(e)))
+  await ty.goto(`${base}?spec=kitchen#operation/createOrder`)
+  const tco = ty.locator('[id="operation/createOrder"]')
+  await tco.locator('.oa-side-tabs').waitFor()
+  check('types: generated only when the tab opens', (await ty.locator('.oa-types').count()) === 0)
+  await tco.locator('.oa-side-tabs__tab[data-tab="types"]').click()
+  await tco.locator('.oa-types .oa-code').waitFor()
+  const tsCode = await tco.locator('.oa-types__code').evaluate((el) => el.textContent ?? '')
+  check(
+    'types: the operation code names its body and reaches the components',
+    tsCode.includes('export type CreateOrderRequestBody = Order') && tsCode.includes('export interface Order {') && tsCode.includes('export interface CreateOrderHeaders'),
+    tsCode.slice(0, 120),
+  )
+  check('types: only the opened operation generated its types', (await ty.locator('.oa-types').count()) === 1)
+  await tco.locator('.oa-types__name[data-name="CreateOrderResponse201"]').click()
+  await tco.locator('.oa-types__copied').waitFor()
+  check('types: a chip copies its name', (await ty.evaluate(() => window.navigator.clipboard.readText())) === 'CreateOrderResponse201')
+  await tco.locator('.oa-op__side').screenshot({ path: `${out}/types.png` })
+  await tco.locator('.oa-side-tabs__tab[data-tab="try"]').click()
+  check('types: the other tabs still switch', await tco.locator('.oa-tryit').isVisible() && !(await tco.locator('.oa-types').isVisible()))
+  await ty.goto(`${base}?spec=kitchen#operation/orderPaidWebhook`)
+  const hook = ty.locator('[id="operation/orderPaidWebhook"]')
+  await hook.locator('.oa-side-tabs').waitFor()
+  const hookTabs = await hook.locator('.oa-side-tabs__tab').evaluateAll((els) => els.map((el) => el.getAttribute('data-tab')).join(','))
+  check('types: a webhook has the code and types tabs', hookTabs === 'code,types', hookTabs)
+  await hook.locator('.oa-side-tabs__tab[data-tab="types"]').click()
+  check('types: a webhook names its payload', (await hook.locator('.oa-types__code').evaluate((el) => el.textContent ?? '')).includes('OrderPaidWebhookRequestBody = OrderEvent'))
+  await ty.evaluate(() => window.scrollTo(0, 0))
+  const [tsDl] = await Promise.all([ty.waitForEvent('download'), ty.locator('.oa-header__download[data-format="ts"]').click()])
+  const tsText = await readFile(await tsDl.path(), 'utf8')
+  check(
+    'download types: a .d.ts of the document',
+    tsDl.suggestedFilename() === 'kitchen-sink-api-2.3.0.d.ts' && tsText.includes('export interface Order {') && tsText.includes('export type CreateOrderRequestBody'),
+    tsDl.suggestedFilename(),
+  )
+  await openSettings(ty)
+  const [tsDl2] = await Promise.all([ty.waitForEvent('download'), ty.locator('.oa-settings__downloads [data-format="ts"]').click()])
+  check('download types: from the settings drawer too', tsDl2.suggestedFilename().endsWith('.d.ts') && (await readFile(await tsDl2.path(), 'utf8')).includes('export interface'))
+  await closeSettings(ty)
+  check('types: no page errors', tyErrors.length === 0, tyErrors.join('; '))
+  await ty.close()
+
   // The editor: visual edits land in the text, the source view reports problems.
   const ed = await browser.newPage({ viewport: { width: 1440, height: 1200 } })
   const edErrors = []

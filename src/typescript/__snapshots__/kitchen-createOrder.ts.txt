@@ -1,0 +1,71 @@
+export interface CreateOrderHeaders {
+  /** @format uuid */
+  'Idempotency-Key': string
+}
+
+/** Media type: application/json, application/xml. */
+export type CreateOrderRequestBody = Order
+
+/** The body of a successful (2xx) response. */
+export type CreateOrderResponse = CreateOrderResponse201
+
+/**
+ * 201: Created
+ * Media type: application/json.
+ */
+export type CreateOrderResponse201 = Order
+
+/** Headers of the 201 response. */
+export interface CreateOrderResponse201Headers {
+  /**
+   * URL of the order
+   * @format uri
+   */
+  Location?: string
+}
+
+/**
+ * default: Problem details
+ * Media type: application/problem+json.
+ */
+export type CreateOrderResponseDefault = Problem
+
+export interface Money {
+  /** @example "10.00" */
+  amount: string
+  /** @default "EUR" */
+  currency: string
+}
+
+export interface Order {
+  /** @format uuid */
+  readonly id: string
+  status: OrderStatus
+  total: Money
+  items?: OrderItem[]
+  note?: string | null
+  /**
+   * @format uri
+   * @writeOnly sent in requests, never returned
+   */
+  callbackUrl?: string
+  /** @format date-time */
+  readonly createdAt?: string
+  parent?: Order
+}
+
+export interface OrderItem {
+  sku?: string
+  quantity?: number
+  price?: Money
+}
+
+export type OrderStatus = 'new' | 'paid' | 'shipped' | 'cancelled'
+
+export interface Problem {
+  /** @format uri */
+  type?: string
+  title?: string
+  status?: number
+  detail?: string
+}

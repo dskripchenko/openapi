@@ -72,3 +72,15 @@ export {
   type PrefillData,
   type PrefillValues,
 } from './links'
+export {
+  schemaToTs,
+  createTsContext,
+  declareType,
+  operationTypes,
+  documentTypes,
+  typeName as tsTypeName,
+  type TsContext,
+  type OperationTypes,
+  type OperationTypeNames,
+  type OperationTypesOptions,
+} from './typescript'

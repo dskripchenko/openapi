@@ -15,6 +15,7 @@ import OaExamples from './OaExamples.vue'
 import OaSamples from './OaSamples.vue'
 import OaSchema from './OaSchema.vue'
 import OaTryIt from './OaTryIt.vue'
+import OaTypes from './OaTypes.vue'
 import { safeHref } from './safe'
 import { applyPrefill } from './share'
 
@@ -33,9 +34,17 @@ const resolveRef = (r: string) => ctx.spec.value.resolver.get(r) as never
 
 const op = computed(() => props.entry.operation)
 
-/** The right column shows one thing at a time: try-it, or the request as code. */
+/** The right column shows one thing at a time: try-it, the request as code, or its TypeScript types. */
 const canTry = computed(() => ctx.tryIt.value && !props.entry.webhook)
-const sideTab = ref<'try' | 'code'>('try')
+type SideTab = 'try' | 'code' | 'types'
+const sideTab = ref<SideTab>('try')
+const sideTabs = computed<SideTab[]>(() => (canTry.value ? ['try', 'code', 'types'] : ['code', 'types']))
+/** The open tab: without try-it, its place goes to the code. */
+const activeTab = computed<SideTab>(() => (sideTab.value === 'try' && !canTry.value ? 'code' : sideTab.value))
+const tabLabel = (t: SideTab): string => (t === 'try' ? labels.value.tryIt : t === 'code' ? labels.value.samples : labels.value.types)
+/** The types are generated the first time their tab opens, and kept. */
+const typesOpened = ref(false)
+watch(activeTab, (t) => t === 'types' && (typesOpened.value = true))
 
 /**
  * A large spec has hundreds of operations: each one builds its draft, samples
@@ -284,21 +293,22 @@ watch(
       </div>
 
       <aside class="oa-op__side">
-        <div v-if="canTry" class="oa-side-tabs" role="tablist">
+        <div class="oa-side-tabs" role="tablist">
           <button
-            v-for="t in (['try', 'code'] as const)"
+            v-for="t in sideTabs"
             :key="t"
             type="button"
             role="tab"
             class="oa-side-tabs__tab"
-            :class="{ 'is-active': sideTab === t }"
-            :aria-selected="sideTab === t"
+            :class="{ 'is-active': activeTab === t }"
+            :aria-selected="activeTab === t"
             :data-tab="t"
             @click="sideTab = t"
-          >{{ t === 'try' ? labels.tryIt : labels.samples }}</button>
+          >{{ tabLabel(t) }}</button>
         </div>
-        <OaTryIt v-if="canTry" v-show="sideTab === 'try'" :entry="entry" :draft="draft" :prefilled="prefilled" @dismiss="prefilled = false" />
-        <OaSamples v-show="!canTry || sideTab === 'code'" :draft="draft" />
+        <OaTryIt v-if="canTry" v-show="activeTab === 'try'" :entry="entry" :draft="draft" :prefilled="prefilled" @dismiss="prefilled = false" />
+        <OaSamples v-show="activeTab === 'code'" :draft="draft" />
+        <OaTypes v-if="typesOpened" v-show="activeTab === 'types'" :entry="entry" />
       </aside>
     </div>
   </section>
