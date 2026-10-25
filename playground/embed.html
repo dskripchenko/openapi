@@ -1,0 +1,61 @@
+<!doctype html>
+<!--
+  Operations embedded in a documentation article through the standalone
+  bundle: two by data attributes (the script's data-auto mounts them), one
+  by DskOpenApi.mountOperation. Needs dist/standalone.js — run `pnpm build`
+  first, then open /embed.html (`pnpm dev`). ?theme=dark sets a theme
+  explicitly; without it the host page keeps its own.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orders — a documentation article</title>
+    <style>
+      /* The host's own typography: the embeds must not change it. */
+      body { margin: 0; font: 16px/1.65 Georgia, "Times New Roman", serif; color: #222; background: #fdfcf8; }
+      .article { max-width: 860px; margin: 0 auto; padding: 32px 20px 80px; }
+      .article h1 { font-size: 34px; margin: 0 0 12px; }
+      .article h2 { font-size: 24px; margin: 40px 0 10px; }
+      .article p { margin: 0 0 14px; }
+      .article code { font-size: 14px; background: #f0eee6; padding: 1px 4px; border-radius: 3px; }
+      .aside { max-width: 380px; }
+    </style>
+  </head>
+  <body>
+    <main class="article">
+      <h1>Working with orders</h1>
+      <p>
+        An order collects the items a customer buys. This article walks through creating one and reading it
+        back; each call below is live — fill in the form and press <em>Send</em>.
+      </p>
+
+      <h2>Creating an order</h2>
+      <p>Send the items and the total. The response carries the order's id and its status.</p>
+      <div id="create" data-openapi-operation="createOrder" data-openapi-src="/fixtures/kitchen-sink-31.json" data-openapi-reference="/standalone.html" data-openapi-slug="kitchen"></div>
+
+      <h2>Reading it back</h2>
+      <p>Ask for the order by its id. Unknown ids answer <code>404</code>.</p>
+      <div id="get" data-openapi-operation="GET /orders/{orderId}" data-openapi-src="/fixtures/kitchen-sink-31.json" data-openapi-try-it="false"></div>
+
+      <h2>Listing orders</h2>
+      <p>The list is paged; this one is mounted from a script, in a narrow column.</p>
+      <div class="aside"><div id="list"></div></div>
+
+      <p>That is all there is to it.</p>
+    </main>
+
+    <script src="/standalone/standalone.js" data-auto></script>
+    <script>
+      const params = new URLSearchParams(location.search)
+      window.__embed = DskOpenApi.mountOperation('#list', {
+        source: { url: '/fixtures/kitchen-sink-31.json', slug: 'kitchen' },
+        operation: 'listOrders',
+        referenceUrl: '/standalone.html',
+        theme: params.get('theme') || undefined,
+        locale: params.get('locale') || 'auto',
+        proxy: params.get('proxy') || undefined,
+      })
+    </script>
+  </body>
+</html>

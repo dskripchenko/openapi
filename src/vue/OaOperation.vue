@@ -5,7 +5,7 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { UidButton, UidMarkdown } from '@dskripchenko/ui'
-import { Check, Link } from '@dskripchenko/ui/icons'
+import { Check, Link, Printer } from '@dskripchenko/ui/icons'
 import type { Header, MediaType, Parameter, ParameterIn, RequestBody, Response } from '../core/types'
 import type { OperationEntry } from '../model'
 import { describe as describeSchema } from '../schema'
@@ -17,14 +17,17 @@ import OaSchema from './OaSchema.vue'
 import OaTryIt from './OaTryIt.vue'
 import { safeHref } from './safe'
 import { applyPrefill } from './share'
+import { printOperation } from './print'
 
 const props = withDefaults(
   defineProps<{
     entry: OperationEntry
     /** False for the second and later copies of an operation listed under several tags. */
     anchored?: boolean
+    /** Embedded on its own (OpenApiOperation): no header or card, one column in a narrow container. */
+    compact?: boolean
   }>(),
-  { anchored: true },
+  { anchored: true, compact: false },
 )
 const ctx = useReference()
 const labels = ctx.labels
@@ -51,6 +54,7 @@ function show(): void {
   observer = null
 }
 onMounted(() => {
+  if (props.compact) return show()
   if (typeof IntersectionObserver === 'undefined' || !root.value) return show()
   observer = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && show(), { rootMargin: '1200px 0px' })
   observer.observe(root.value)
@@ -131,8 +135,8 @@ watch(
 </script>
 
 <template>
-  <section :id="anchored ? anchor : undefined" ref="root" class="oa-op" :class="{ 'oa-op--deprecated': entry.deprecated, 'oa-op--pending': !draft }">
-    <header class="oa-op__head">
+  <section :id="anchored ? anchor : undefined" ref="root" class="oa-op" :class="{ 'oa-op--deprecated': entry.deprecated, 'oa-op--pending': !draft, 'oa-op--compact': compact }">
+    <header v-if="!compact" class="oa-op__head">
       <div class="oa-op__titlebar">
         <h3 class="oa-op__title">{{ op.summary || entry.path }}</h3>
         <UidButton
@@ -146,6 +150,7 @@ watch(
           @click="copyLink"
         />
         <span v-if="linkCopied" class="oa-op__copied" role="status">{{ labels.operationLinkCopied }}</span>
+        <UidButton class="oa-op__pdf" variant="ghost" size="sm" :icon="Printer" :title="labels.printOperation" @click="printOperation(entry, ctx)">{{ labels.pdf }}</UidButton>
       </div>
       <div class="oa-op__line">
         <span class="oa-method" :class="`oa-method--${entry.method}`">{{ entry.method.toUpperCase() }}</span>

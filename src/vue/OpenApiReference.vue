@@ -17,7 +17,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { UidAlert, UidButton, UidDrawer, UidInput, UidLocaleProvider, UidMarkdown, UidSelect, UidSpinner } from '@dskripchenko/ui'
-import { Download, KeyRound, Menu, Settings2 } from '@dskripchenko/ui/icons'
+import { Download, KeyRound, Menu, Printer, Settings2 } from '@dskripchenko/ui/icons'
 import { decodePrefill, pickSpec, resolveSection, splitLink } from '../links'
 import type { LoadedSpec } from '../model'
 import type { ResolverOptions } from '../model'
@@ -26,6 +26,7 @@ import { SNIPPET_TARGETS, type SnippetTarget } from '../snippets'
 import type { SpecInput, SpecSource } from './context'
 import type { OpenApiLabels } from './labels'
 import { downloadSpec } from './download'
+import { printDocument } from './print'
 import { currentServer } from './draft'
 import OaAuth from './OaAuth.vue'
 import OaIntro from './OaIntro.vue'
@@ -563,6 +564,9 @@ defineExpose({ go, open, spec: loaded, active: activeId })
             <div class="oa-settings__row">
               <UidButton v-for="f in (['yaml', 'json'] as const)" :key="f" variant="secondary" size="sm" :icon="Download" :data-format="f" @click="downloadSpec(loaded, f)">{{ f.toUpperCase() }}</UidButton>
             </div>
+          </section>
+          <section class="oa-settings__section oa-settings__print">
+            <UidButton variant="secondary" size="sm" :icon="Printer" @click="printDocument(ctx)">{{ labels.printDocument }}</UidButton>
           </section>
         </div>
       </UidDrawer>

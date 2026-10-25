@@ -140,6 +140,28 @@ export interface OpenApiLabels {
   urlCopied: string
   /** The section with the request to send. */
   request: string
+  // embed
+  /** The embed's link to the operation in the full reference. */
+  openInReference: string
+  /** An embed names an operation the spec does not have. */
+  operationNotFound: string
+  /** The button that prints an operation (to paper or a PDF file). */
+  pdf: string
+  printOperation: string
+  /** Prints the whole spec. */
+  printDocument: string
+  /** Print view: headings and table columns. */
+  security: string
+  noSecurity: string
+  description: string
+  type: string
+  location: string
+  operationId: string
+  tags: string
+  /** A schema met again further down its own branch. */
+  seeAbove: string
+  requestSample: string
+  generatedOn: string
 }
 
 export const en: OpenApiLabels = {
@@ -265,6 +287,22 @@ export const en: OpenApiLabels = {
   copyUrl: 'Copy URL',
   urlCopied: 'Copied',
   request: 'Request',
+  // embed
+  openInReference: 'Open in reference',
+  operationNotFound: 'Operation not found',
+  pdf: 'PDF',
+  printOperation: 'Print or save as PDF',
+  printDocument: 'Print / PDF',
+  security: 'Security',
+  noSecurity: 'No authentication',
+  description: 'Description',
+  type: 'Type',
+  location: 'In',
+  operationId: 'Operation ID',
+  tags: 'Tags',
+  seeAbove: 'see above',
+  requestSample: 'Request sample',
+  generatedOn: 'Generated',
 }
 
 export const ru: OpenApiLabels = {
@@ -390,6 +428,22 @@ export const ru: OpenApiLabels = {
   copyUrl: 'Скопировать URL',
   urlCopied: 'Скопировано',
   request: 'Запрос',
+  // embed
+  openInReference: 'Открыть в справочнике',
+  operationNotFound: 'Операция не найдена',
+  pdf: 'PDF',
+  printOperation: 'Распечатать или сохранить в PDF',
+  printDocument: 'Печать / PDF',
+  security: 'Авторизация',
+  noSecurity: 'Без авторизации',
+  description: 'Описание',
+  type: 'Тип',
+  location: 'Где',
+  operationId: 'ID операции',
+  tags: 'Теги',
+  seeAbove: 'см. выше',
+  requestSample: 'Пример запроса',
+  generatedOn: 'Сформировано',
 }
 
 export const LOCALES: Record<string, OpenApiLabels> = { en, ru }

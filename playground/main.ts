@@ -1,6 +1,6 @@
 import { createApp, h, ref } from 'vue'
 import '@dskripchenko/ui/styles/all.css'
-import { OpenApiEditor, OpenApiReference } from '../src/vue'
+import { OpenApiEditor, OpenApiOperation, OpenApiReference } from '../src/vue'
 import '../src/vue/openapi.css'
 import petstore from '../tests/fixtures/specs/petstore-30.yaml?raw'
 import kitchen from '../tests/fixtures/specs/kitchen-sink-31.json?raw'
@@ -9,8 +9,8 @@ import oauth from '../tests/fixtures/specs/oauth-31.json?raw'
 
 const specs: Record<string, string> = { petstore, kitchen, swagger, oauth, empty: '' }
 const params = new URLSearchParams(location.search)
-const name = params.get('spec') ?? 'petstore'
 const mode = params.get('mode') ?? 'reference'
+const name = params.get('spec') ?? (mode === 'embed' ? 'kitchen' : 'petstore')
 document.documentElement.setAttribute('data-theme', params.get('theme') ?? 'light')
 document.body.style.margin = '0'
 document.body.style.background = 'var(--uid-surface-base, var(--uid-color-bg))'
@@ -32,7 +32,14 @@ createApp({
     const locale = params.get('locale') ?? 'en'
     return () =>
       h('div', { style: 'padding: 16px 24px; max-width: 1440px; margin: 0 auto' }, [
-        mode === 'editor'
+        // ?mode=embed&op=createOrder: one operation in an article, as OpenApiOperation.
+        mode === 'embed'
+          ? h('article', { class: 'playground-article', style: 'max-width: 1100px; margin: 0 auto' }, [
+              h('h1', 'An article with an operation'),
+              h('p', 'The operation below is embedded with OpenApiOperation.'),
+              h(OpenApiOperation, { spec: text.value, operation: params.get('op') ?? 'createOrder', locale, referenceUrl: '/?spec=kitchen' }),
+            ])
+          : mode === 'editor'
           ? h(OpenApiEditor, {
               modelValue: text.value,
               'onUpdate:modelValue': (v: string) => (text.value = v),
