@@ -71,12 +71,19 @@ gehen.
   `MultipartBody` in OkHttp, `-Form` in PowerShell. Java und Swift, die keinen
   Multipart-Builder haben, setzen den Body mit einer Boundary von Hand
   zusammen.
+- **Ein binärer Body** (`body.file`: ein Bild, `application/octet-stream`, …)
+  — die Datei selbst, mit ihrem `Content-Type`: `--data-binary '@rex.png'` für
+  curl, `-InFile` für PowerShell, `fopen` als `body` von Guzzle,
+  `withBody(file_get_contents(…))` von Laravel, `data=open(…, 'rb')` für
+  requests, `readFile` für axios, `os.Open` in Go, `BodyPublishers.ofFile` in
+  Java, `ByteArrayContent` in C#, `asRequestBody` in OkHttp,
+  `Data(contentsOf:)` in Swift und die Datei des Datei-Inputs für fetch.
 
 ## Dateien
 
-Ein Dateifeld eines Multipart-Bodys — `{ filename, contentType? }` in der
-Anfrage — verweist auf die Datei über ihren Namen, als Pfad neben dem
-Skript:
+Auf eine Datei — ein Feld eines Multipart-Bodys oder einen binären Body,
+`{ filename, contentType? }` in der Anfrage — wird über ihren Namen verwiesen,
+als Pfad neben dem Skript. Für Multipart-Felder:
 
 - curl: `-F 'photo=@rex.png;type=image/png'`;
 - PHP: `fopen('rex.png', 'r')`; Python: `open('rex.png', 'rb')`;

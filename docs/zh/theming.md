@@ -26,6 +26,8 @@
 |---|---|---|
 | `--oa-sticky-top` | `0px` | sticky 导航、示例栏和编辑器树距顶部的偏移，以及锚点的滚动位置——设为固定页头的高度。 |
 | `--oa-source-height` | `560px` | 编辑器源码视图的高度。 |
+| `--oa-page-width` | `1440px` | [`OpenApiPage`](standalone.md#openapipage)：内容的最大宽度。 |
+| `--oa-page-padding` | `24px` | `OpenApiPage`：标题栏和内容的左右内边距（宽度小于 640px 时为 16px）。 |
 | `--oa-nav-width` | `272px` | 参考页导航栏的宽度。 |
 | `--oa-gap` | `24px` | 栏与栏之间、操作内各块之间的间距。 |
 | `--oa-radius` | `8px` | 面板的圆角半径。 |

@@ -319,7 +319,7 @@ const request = buildRequest({
 | `server` | The base URL, already resolved with `serverUrl`; may be relative. |
 | `parameters` | The operation's dereferenced parameters (`OperationEntry.parameters`). |
 | `values` | Values by location and name: `{ path?, query?, header?, cookie? }`. |
-| `body` | `{ mediaType, value, encoding? }` — an object for structured media types, or the text as typed. |
+| `body` | `{ mediaType, value, encoding? }` — an object for structured media types, the text as typed, or, for any other media type, a file value `{ filename, contentType?, data? }` that is the whole body. |
 | `security` | `AppliedSecurity[]`: `{ scheme, value }` — a key or token, or `{ username, password }` for basic. |
 
 It follows the specification's rules:
@@ -339,7 +339,11 @@ It follows the specification's rules:
 - a JSON body is serialized, a urlencoded body is encoded by its `encoding`,
   and a multipart body keeps file fields as `{ filename, contentType?, data? }`
   (`data` is a `Blob` or a string); objects in multipart fields become JSON,
-  arrays repeat the field.
+  arrays repeat the field;
+- a file value as the body of another media type (`image/png`,
+  `application/octet-stream`, …) becomes `body.file` —
+  `{ filename, contentType?, data? }`, `data` a `Blob`; without `data` the
+  request carries no bytes, and the samples read the file by name.
 
 ### Parameters and servers on their own
 
@@ -371,7 +375,10 @@ a relative base relative.
 `{ headers, query, cookies }`, and `basicAuth(username, password)` gives the
 `Basic …` header value. The small encoders the builder uses are exported
 too: `encodeComponent`, `encodeCookie`, `base64Utf8`, `baseMediaType`,
-`isJsonMediaType`, `isFormUrlEncoded`, `isMultipart`.
+`isJsonMediaType`, `isFormUrlEncoded`, `isMultipart`, and
+`isTextualMediaType` — whether a response of that type is read as text (an
+empty type, `text/*`, JSON, urlencoded, and `xml`, `yaml`, `javascript`,
+`ndjson`, `graphql`, `csv` subtypes) or kept as bytes.
 
 ### Sending
 
@@ -381,23 +388,27 @@ import { sendRequest } from '@dskripchenko/openapi'
 const response = await sendRequest(request, { credentials: 'same-origin' })
 response.status     // 0 when there was no response
 response.error      // the reason in that case: network, CORS
-response.body       // the body as text
+response.body       // the body of a textual response
+response.blob       // the body of any other response (images, archives, …)
 response.duration   // milliseconds
 ```
 
 `sendRequest(request, { fetch?, signal?, credentials? })` sends with `fetch`
-(the global one unless you pass another) and reads the body as text. It never
-throws: a failure before a response comes back as `status: 0` with `error`
+(the global one unless you pass another). A response whose `Content-Type` is
+textual (`isTextualMediaType`) is read into `body`; any other is kept in
+`blob`, with `body` empty. It never throws: a failure before a response comes back as `status: 0` with `error`
 set. `credentials` defaults to `'same-origin'`, so cookies are never sent to
 a foreign API. For a multipart body it removes `Content-Type` so that `fetch`
 sets it with the boundary. In a browser, headers the browser forbids
 (`Cookie`, `Host`, `Origin`, …) are dropped by the browser itself.
 
-`toFetchBody(request)` gives the `fetch` body on its own: `FormData` for
-multipart, `URLSearchParams` for urlencoded forms, the text otherwise.
+`toFetchBody(request)` gives the `fetch` body on its own: the file's `Blob`
+for a binary body, `FormData` for multipart, `URLSearchParams` for urlencoded
+forms, the text otherwise.
 
-`SendFn` — `(request: HttpRequest) => Promise<HttpResponse>` — is the type of
-the transport the reference accepts; see
+`SendFn` — `(request: HttpRequest, options?: SendFnOptions) => Promise<HttpResponse>`,
+where `SendFnOptions` is `{ signal?: AbortSignal }` — is the type of the
+transport the reference accepts; see
 [sending through your server](reference.md#sending-through-your-server).
 
 ### OAuth2 tokens
@@ -422,6 +433,65 @@ token.expiresIn     // seconds, when the server says so
 authenticates with HTTP Basic; without one `client_id` goes into the form.
 Options also take `fetch` and `signal`. On failure it rejects with an error
 carrying the server's `error_description` or `error`, or the HTTP status.
+
+The redirect-based flows are pieces you put together; the reference's
+authentication panel uses exactly these:
+
+```ts
+import {
+  buildAuthorizeUrl,
+  codeChallenge,
+  createCodeVerifier,
+  exchangeAuthorizationCode,
+  parseCallbackUrl,
+  randomToken,
+} from '@dskripchenko/openapi'
+
+const state = randomToken(16)
+const verifier = createCodeVerifier()
+const url = buildAuthorizeUrl({
+  authorizationUrl: 'https://auth.example.com/authorize',
+  responseType: 'code',
+  clientId: 'my-client',
+  redirectUri: 'https://example.com/docs',
+  scopes: ['pets:read'],
+  state,
+  codeChallenge: await codeChallenge(verifier),
+})
+// … the user signs in at `url` and comes back to the redirect URI …
+const callback = parseCallbackUrl(location.href)
+if (callback?.code && callback.state === state) {
+  const token = await exchangeAuthorizationCode({
+    tokenUrl: 'https://auth.example.com/token',
+    code: callback.code,
+    redirectUri: 'https://example.com/docs',
+    clientId: 'my-client',
+    codeVerifier: verifier,
+  })
+}
+```
+
+| | |
+|---|---|
+| `randomToken(bytes = 32)` | A random URL-safe string (Web Crypto), for `state`. |
+| `createCodeVerifier()` | A PKCE code verifier (RFC 7636 §4.1): 43 characters. |
+| `codeChallenge(verifier)` | Its S256 challenge: base64url of SHA-256. Async. |
+| `base64Url(bytes)` | Base64url without padding. |
+| `buildAuthorizeUrl(options)` | The authorization request URL: `{ authorizationUrl, responseType: 'code' \| 'token', clientId, redirectUri, scopes?, state, codeChallenge? }`. A query already in the URL is kept. |
+| `parseCallbackUrl(url)` | The response on a redirect URL — `{ state?, code?, accessToken?, tokenType?, expiresIn?, error?, errorDescription? }` — read from the query and the fragment (the query wins); `null` when there is none. |
+| `exchangeAuthorizationCode(options)` | Exchanges a code for a token (RFC 6749 §4.1.3): `{ tokenUrl, code, redirectUri, clientId, clientSecret?, codeVerifier?, fetch?, signal? }`. `client_secret`, when given, goes into the form. |
+| `fetchOpenIdConfiguration(url, { fetch?, signal? })` | Reads an OpenID Connect discovery document: `{ authorizationEndpoint?, tokenEndpoint?, scopesSupported, responseTypesSupported, grantTypesSupported }`. |
+
+The types are `AuthorizeUrlOptions`, `OAuthCallback`, `CodeExchangeOptions`
+and `OpenIdConfiguration`.
+
+## Links
+
+`splitLink`, `pickSpec`, `resolveSection`, `scalarSlug`,
+`scalarDocumentSlug`, `encodePrefill`, `decodePrefill`, `prefillHash` and
+`PREFILL_VERSION` read and build the reference's deep links, Scalar's, and
+prefilled try-it links. They are described with the formats in
+[deep links and prefilled links](links.md).
 
 ## Code samples
 

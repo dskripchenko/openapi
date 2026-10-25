@@ -31,6 +31,8 @@ A few things of the package's own are CSS custom properties.
 |---|---|---|
 | `--oa-sticky-top` | `0px` | The offset of the sticky navigation, samples column and editor tree from the top, and of the anchors' scroll position — set it to the height of a fixed header. |
 | `--oa-source-height` | `560px` | The height of the editor's source view. |
+| `--oa-page-width` | `1440px` | [`OpenApiPage`](standalone.md#openapipage): the maximum width of the content. |
+| `--oa-page-padding` | `24px` | `OpenApiPage`: the side padding of the bar and the content (16px below 640px of width). |
 | `--oa-nav-width` | `272px` | The width of the reference's navigation column. |
 | `--oa-gap` | `24px` | The gap between the columns and between the blocks of an operation. |
 | `--oa-radius` | `8px` | The corner radius of panels. |

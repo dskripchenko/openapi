@@ -37,9 +37,23 @@ src/
               describe(schema) — короткое описание типа для UI
   request/    build(operation, values, security, server) → HttpRequest
               сериализация параметров по style/explode, тела по media type
+              (формы, multipart с файлами, бинарное тело body.file)
+              send: fetch, текстовые ответы → body, прочие → blob; signal
+              oauth: токен (client credentials, password), PKCE, authorize URL,
+              разбор колбэка, обмен кода, OIDC discovery
   snippets/   generate(target, HttpRequest) → string; targets[]
+  links/      якоря: свои и Scalar (pickSpec, resolveSection, scalarSlug),
+              предзаполненные ссылки, формат v1 (encode/decodePrefill)
+  standalone/ отдельная сборка: createApiReference, sources в форме Scalar,
+              proxySend — транспорт через прокси хоста
   index.ts    публичное API
 ```
+
+Отдельная сборка `dist/standalone.js` — IIFE с глобальным `DskOpenApi`:
+внутри Vue, кит и все стили (CSS вставляется скриптом, тот же CSS лежит в
+`dist/standalone.css`). Это `OpenApiPage`, упакованный для страницы без
+сборки; поля опций повторяют `Scalar.createApiReference`, чтобы Blade-вью
+`laravel-api` переключалась сменой скрипта и глобала.
 
 `HttpRequest` — общая промежуточная форма для сниппетов и try-it:
 
@@ -48,9 +62,17 @@ interface HttpRequest {
   method: string            // GET, POST, …
   url: string               // полный URL с query
   headers: [string, string][]
-  body?: { mediaType: string; text?: string; form?: [string, FormValue][] }
+  body?: {
+    mediaType: string
+    text?: string
+    form?: [string, FormValue][]
+    file?: { filename: string; contentType?: string; data?: Blob } // бинарное тело
+  }
 }
 ```
+
+`HttpResponse` несёт `body` (текст) для текстовых типов (`isTextualMediaType`)
+и `blob` для остальных — на этом стоят превью картинок и скачивание в try-it.
 
 ## Позиции в исходнике
 
@@ -122,24 +144,62 @@ JSON Pointer (`/paths/~1pets/get`), а `Position` — `{ line, column }` нач�
   - query: form, spaceDelimited, pipeDelimited, deepObject;
   - header: simple;
   - cookie: form.
+- **Тело:** JSON/XML/текст — текстом; multipart и urlencoded с объектной
+  схемой — формой по свойствам, поля `format: binary` — выбор файла (массив —
+  несколько файлов), переключатель «Raw JSON»; бинарное тело (octet-stream,
+  картинки, PDF, `format: binary`) — один файл.
 - **Безопасность:**
   - apiKey в header, query или cookie;
   - http basic и bearer;
-  - oauth2 и openIdConnect: токен вводится, для clientCredentials и password
-    его можно получить кнопкой.
+  - oauth2: все четыре потока. Client credentials и password — запрос к
+    `tokenUrl`; authorization code (PKCE S256) и implicit — во всплывающем
+    окне. Результат возвращается двумя путями: опрос окна, пока оно на
+    redirect URI того же origin, или страница redirect URI шлёт ответ
+    opener'у (`relayOAuthCallback`, сообщение `OAUTH_MESSAGE`); `state`
+    проверяется всегда. Redirect URI — `oauthRedirectUrl`, по умолчанию адрес
+    страницы без query и fragment;
+  - openIdConnect: discovery-документ при открытии панели, потоки и scopes
+    из него;
+  - scopes выбираются галочками; срок токена (`expires_in`) показывается,
+    есть «Log out»;
+  - токен, обмен кода и discovery идут через `send`, как и try-it: с прокси
+    хоста CORS у IdP не нужен.
+- **Хранение учётных данных** — по выбору хоста (`persistCredentials`:
+  session/local), по спецификации, ключ
+  `dsk-openapi:credentials:{specId}:{info.title}`. Хранятся ключи, токены со
+  сроком, логины basic; не хранятся пароли basic, client id/secret, пароли
+  потока password.
 
-Отправка идёт через `send(request) → Promise<HttpResponse>`. По умолчанию это
-`fetch`; хост подменяет её прокси.
+Отправка идёт через `send(request, { signal }) → Promise<HttpResponse>`. По
+умолчанию это `fetch`; хост подменяет её прокси. «Cancel» обрывает запрос
+через `signal`; хост-транспорт должен пробрасывать его дальше.
+
+Предзаполненные ссылки (`#{anchor}?f={payload}` или `?oa-f=`) только
+заполняют форму и показывают уведомление — ничего не отправляют. Формат v1
+стабилен, описан в `src/links/prefill.ts` и в `docs/*/links.md`; его же
+строит laravel-api на PHP.
 
 ## Vue
 
 - `OpenApiReference` — просмотрщик спецификации:
-  - навигация по тегам и операциям, схемы, поиск;
-  - операция: параметры, тело, ответы, дерево схемы, примеры, сниппеты;
-  - try-it-панель;
+  - навигация по тегам и операциям, схемы;
+  - полнотекстовый поиск по открытой спецификации (операции, теги, схемы,
+    заголовки описания; все слова обязательны, ранжирование по полю и
+    качеству совпадения), список результатов с клавиатурой, `/` и Ctrl/Cmd+K;
+  - операция: параметры, тело, ответы, дерево схемы, именованные примеры
+    (чипы, описание, ссылка на `externalValue`), сниппеты;
+  - try-it-панель: формы, файлы, отмена, размер ответа, pretty/raw, превью
+    картинок, скачивание; «Copy link» с предзаполнением;
+  - «Download spec» — исходный документ в JSON или YAML;
+  - несколько спецификаций (`specs`) с переключателем и ленивой загрузкой;
   - вебхуки и колбэки;
-  - глубокие ссылки `#operation/{id}`;
+  - глубокие ссылки `[{spec}/]operation/{id}`, `schema/{name}`,
+    `tag/{name}` и алиасы Scalar (`{doc}/tag/{tag}/{METHOD}{path}`,
+    `model/{name}`) — со сдвигом на base path сервера и откатом к тегу;
   - темы через токены кита.
+- `OpenApiPage` — справочник целой страницей: липкая панель с заголовком,
+  переключатели темы (light/dark/system, `data-theme` на `<html>`) и языка;
+  высота панели уходит в `--oa-sticky-top`.
 - `OpenApiEditor` — конструктор:
   - визуальные формы для info, servers, tags, paths и операций, параметров,
     тел, ответов, components (схемы через конструктор схем),
@@ -157,6 +217,15 @@ JSON Pointer (`/paths/~1pets/get`), а `Position` — `{ line, column }` нач�
   грузятся.
 - Try-it не отправляет куки на чужой домен (`credentials: 'same-origin'` по
   умолчанию).
+- Ссылки из спецификации (контакт, лицензия, условия, `externalDocs`,
+  `externalValue`) проходят `safeHref`: только http(s), mailto и
+  относительные адреса.
+- Ссылка ничего не отправляет сама; учётные данные попадают в неё только по
+  галочке «Include credentials»; после заполнения адрес заменяется чистым
+  якорем. Полезная нагрузка — не больше 1 МБ после распаковки.
+- OAuth: проверка `state`, PKCE, relay только к opener'у того же origin,
+  приём сообщения только с origin redirect URI.
+- Хранение учётных данных — только по явному `persistCredentials`.
 
 ## Тесты
 
@@ -165,4 +234,5 @@ JSON Pointer (`/paths/~1pets/get`), а `Position` — `{ line, column }` нач�
   реальный пример, крайние случаи YAML.
 - Проверка сниппетов снапшотами.
 - Браузерная проверка компонентов (Playwright) со скриншотами светлой и тёмной
-  темы.
+  темы. Перед проверкой собирается `dist/standalone.js`;
+  `OA_CHECK_SKIP_BUILD=1` берёт уже собранный, `OA_CHECK_PORT` задаёт порт.

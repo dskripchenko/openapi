@@ -4,7 +4,8 @@
  * choice is shared by every operation on the page.
  */
 import { computed } from 'vue'
-import { UidCode, UidSelect } from '@dskripchenko/ui'
+import { UidSelect } from '@dskripchenko/ui'
+import OaCodeBlock from './OaCodeBlock.vue'
 import { generateSnippet, SNIPPET_TARGETS, type SnippetTarget } from '../snippets'
 import { useReference } from './context'
 import type { OperationDraft } from './draft'
@@ -44,6 +45,6 @@ function choose(value: unknown): void {
         @update:model-value="choose"
       />
     </header>
-    <UidCode class="oa-samples__code" :code="code" :language="info.language" copy max-height="420px" />
+    <OaCodeBlock class="oa-samples__code" :code="code" :language="info.language" />
   </section>
 </template>

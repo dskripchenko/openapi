@@ -40,6 +40,19 @@ const specs: SpecSource[] = [
 </template>
 ```
 
+Or, without a build step, one script on any page — the same `sources` shape
+as Scalar's `createApiReference`:
+
+```html
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@dskripchenko/openapi/dist/standalone.js"></script>
+<script>
+  DskOpenApi.createApiReference('#app', {
+    sources: [{ url: '/openapi.json', title: 'API', slug: 'api' }],
+  })
+</script>
+```
+
 ## What is inside
 
 - **`@dskripchenko/openapi`** — the core, plain TypeScript without the DOM:
@@ -47,19 +60,29 @@ const specs: SpecSource[] = [
   2.0 and 3.0 documents to the 3.1 shape, `$ref` resolution, structural
   validation with line numbers, schema samples (JSON and XML), a JSON Schema
   validator, request building by `style` / `explode` and security schemes,
-  and code samples in 13 languages.
-- **`@dskripchenko/openapi/vue`** — two components:
-  - `OpenApiReference` — navigation with search, operations by tag, schema
-    trees, examples, request samples, a try-it panel with credentials and
-    OAuth2 token fetching, webhooks, deep links `#operation/{id}` and
-    `#schema/{name}`; several specs on one page with a switcher, each loaded
-    when first opened;
+  code samples in 13 languages, OAuth2 helpers (PKCE, token requests,
+  OpenID Connect discovery) and the deep-link and prefilled-link formats.
+- **`@dskripchenko/openapi/vue`** — the components:
+  - `OpenApiReference` — navigation with full-text search (`/`, Ctrl/Cmd+K),
+    operations by tag, schema trees, named examples, request samples, a
+    try-it panel with forms, file uploads, cancel and a response viewer
+    (images, downloads), an authentication panel with every OAuth2 flow
+    (authorization code with PKCE and implicit in a popup, client
+    credentials, password, OpenID Connect discovery) and opt-in remembered
+    credentials, webhooks, deep links (Scalar's links too) and prefilled
+    links that open an operation with its form filled; several specs on one
+    page with a switcher, each loaded when first opened;
+  - `OpenApiPage` — the reference as a whole page, with a title bar and
+    light / dark / system theme and language switchers;
   - `OpenApiEditor` — visual forms for info, servers, tags, security
     schemes, paths, operations and schemas, the source with problems by
     line, and a preview. `v-model` is the text, and its format is kept.
+- **`dist/standalone.js`** — `OpenApiPage` with Vue, the kit and the styles in
+  one script (global `DskOpenApi`), for a page without a build step; a
+  drop-in for Scalar's `createApiReference` with an optional try-it proxy.
 
-Both follow the kit's light and dark themes; the interface ships in English
-and Russian.
+The components follow the kit's light and dark themes; the interface ships in
+English and Russian.
 
 ## Documentation
 
@@ -67,6 +90,8 @@ and Russian.
 |---|---|---|---|---|
 | Getting started | [en](docs/en/getting-started.md) | [ru](docs/ru/getting-started.md) | [de](docs/de/getting-started.md) | [zh](docs/zh/getting-started.md) |
 | OpenApiReference | [en](docs/en/reference.md) | [ru](docs/ru/reference.md) | [de](docs/de/reference.md) | [zh](docs/zh/reference.md) |
+| Standalone page and OpenApiPage | [en](docs/en/standalone.md) | [ru](docs/ru/standalone.md) | [de](docs/de/standalone.md) | [zh](docs/zh/standalone.md) |
+| Deep links and prefilled links | [en](docs/en/links.md) | [ru](docs/ru/links.md) | [de](docs/de/links.md) | [zh](docs/zh/links.md) |
 | OpenApiEditor | [en](docs/en/editor.md) | [ru](docs/ru/editor.md) | [de](docs/de/editor.md) | [zh](docs/zh/editor.md) |
 | Core API | [en](docs/en/core.md) | [ru](docs/ru/core.md) | [de](docs/de/core.md) | [zh](docs/zh/core.md) |
 | Code samples | [en](docs/en/snippets.md) | [ru](docs/ru/snippets.md) | [de](docs/de/snippets.md) | [zh](docs/zh/snippets.md) |

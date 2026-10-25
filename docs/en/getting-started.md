@@ -22,6 +22,11 @@ npm install vue @dskripchenko/ui
 Both entry points are ES modules with a CommonJS build beside them and their
 own type definitions. If you only use the core, you do not need Vue or the kit.
 
+For a documentation page without a build step there is also a standalone
+bundle: one `<script>` with Vue, the kit and the styles inside, started with
+`DskOpenApi.createApiReference('#app', { sources })`. See
+[standalone page and OpenApiPage](standalone.md).
+
 ## Styles
 
 The components use the kit's design tokens and components, so the kit's
@@ -143,8 +148,12 @@ of the input. See [the core API](core.md).
 
 ## Next
 
-- [OpenApiReference](reference.md) — props, try-it, a server-side proxy,
-  authentication, servers, languages
+- [OpenApiReference](reference.md) — props, search, try-it, a server-side
+  proxy, authentication and OAuth, servers, languages
+- [Standalone page and OpenApiPage](standalone.md) — one script on any page,
+  migrating from Scalar, the page component
+- [Deep links and prefilled links](links.md) — anchors, Scalar's links, links
+  that fill the try-it form
 - [OpenApiEditor](editor.md) — the three views, what the forms cover, Swagger
   2.0 documents
 - [Core API](core.md) — every function of `@dskripchenko/openapi`

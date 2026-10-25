@@ -327,7 +327,7 @@ const request = buildRequest({
 | `server` | Базовый URL, уже разрешённый через `serverUrl`; может быть относительным. |
 | `parameters` | Разыменованные параметры операции (`OperationEntry.parameters`). |
 | `values` | Значения по месту и имени: `{ path?, query?, header?, cookie? }`. |
-| `body` | `{ mediaType, value, encoding? }` — объект для структурированных типов содержимого или текст как набран. |
+| `body` | `{ mediaType, value, encoding? }` — объект для структурированных типов содержимого, текст как набран или, для любого другого типа содержимого, файловое значение `{ filename, contentType?, data? }`, которое и есть всё тело. |
 | `security` | `AppliedSecurity[]`: `{ scheme, value }` — ключ или токен, либо `{ username, password }` для basic. |
 
 Функция следует правилам спецификации:
@@ -347,7 +347,11 @@ const request = buildRequest({
 - тело JSON сериализуется, urlencoded-тело кодируется по своему
   `encoding`, а тело multipart хранит файловые поля как
   `{ filename, contentType?, data? }` (`data` — `Blob` или строка); объекты в
-  полях multipart становятся JSON, массивы повторяют поле.
+  полях multipart становятся JSON, массивы повторяют поле;
+- файловое значение в качестве тела другого типа содержимого (`image/png`,
+  `application/octet-stream`, …) становится `body.file` —
+  `{ filename, contentType?, data? }`, где `data` — `Blob`; без `data` запрос
+  не несёт байтов, а примеры читают файл по имени.
 
 ### Параметры и серверы по отдельности
 
@@ -381,7 +385,9 @@ value, { style, explode, allowReserved, raw })` — то же без объек�
 значение заголовка `Basic …`. Небольшие кодировщики, которые использует
 сборщик, тоже экспортируются: `encodeComponent`, `encodeCookie`,
 `base64Utf8`, `baseMediaType`, `isJsonMediaType`, `isFormUrlEncoded`,
-`isMultipart`.
+`isMultipart` и `isTextualMediaType` — читается ли ответ такого типа как
+текст (пустой тип, `text/*`, JSON, urlencoded и подтипы `xml`, `yaml`,
+`javascript`, `ndjson`, `graphql`, `csv`) или сохраняется как байты.
 
 ### Отправка
 
@@ -391,24 +397,29 @@ import { sendRequest } from '@dskripchenko/openapi'
 const response = await sendRequest(request, { credentials: 'same-origin' })
 response.status     // 0 when there was no response
 response.error      // the reason in that case: network, CORS
-response.body       // the body as text
+response.body       // the body of a textual response
+response.blob       // the body of any other response (images, archives, …)
 response.duration   // milliseconds
 ```
 
 `sendRequest(request, { fetch?, signal?, credentials? })` отправляет через
-`fetch` (глобальный, если не передан другой) и читает тело как текст.
-Функция никогда не бросает исключений: сбой до ответа возвращается как
+`fetch` (глобальный, если не передан другой). Ответ с текстовым
+`Content-Type` (`isTextualMediaType`) читается в `body`; любой другой
+сохраняется в `blob`, а `body` остаётся пустым. Функция никогда не бросает
+исключений: сбой до ответа возвращается как
 `status: 0` с заполненным `error`. `credentials` по умолчанию
 `'same-origin'`, поэтому куки никогда не уходят на чужой API. Для тела
 multipart она убирает `Content-Type`, чтобы `fetch` поставил его с
 boundary. В браузере заголовки, которые браузер запрещает (`Cookie`,
 `Host`, `Origin`, …), отбрасывает сам браузер.
 
-`toFetchBody(request)` даёт тело для `fetch` отдельно: `FormData` для
-multipart, `URLSearchParams` для urlencoded-форм, иначе текст.
+`toFetchBody(request)` даёт тело для `fetch` отдельно: `Blob` файла для
+бинарного тела, `FormData` для multipart, `URLSearchParams` для
+urlencoded-форм, иначе текст.
 
-`SendFn` — `(request: HttpRequest) => Promise<HttpResponse>` — тип
-транспорта, который принимает справочник; см.
+`SendFn` — `(request: HttpRequest, options?: SendFnOptions) => Promise<HttpResponse>`,
+где `SendFnOptions` — это `{ signal?: AbortSignal }`, — тип транспорта,
+который принимает справочник; см.
 [отправку через свой сервер](reference.md#отправка-через-свой-сервер).
 
 ### Токены OAuth2
@@ -433,6 +444,65 @@ token.expiresIn     // seconds, when the server says so
 Basic; без него `client_id` уходит в форму. Параметры принимают также
 `fetch` и `signal`. При неудаче промис отклоняется с ошибкой, содержащей
 `error_description` или `error` сервера либо HTTP-статус.
+
+Потоки с редиректом собираются из частей; панель авторизации справочника
+использует именно их:
+
+```ts
+import {
+  buildAuthorizeUrl,
+  codeChallenge,
+  createCodeVerifier,
+  exchangeAuthorizationCode,
+  parseCallbackUrl,
+  randomToken,
+} from '@dskripchenko/openapi'
+
+const state = randomToken(16)
+const verifier = createCodeVerifier()
+const url = buildAuthorizeUrl({
+  authorizationUrl: 'https://auth.example.com/authorize',
+  responseType: 'code',
+  clientId: 'my-client',
+  redirectUri: 'https://example.com/docs',
+  scopes: ['pets:read'],
+  state,
+  codeChallenge: await codeChallenge(verifier),
+})
+// … the user signs in at `url` and comes back to the redirect URI …
+const callback = parseCallbackUrl(location.href)
+if (callback?.code && callback.state === state) {
+  const token = await exchangeAuthorizationCode({
+    tokenUrl: 'https://auth.example.com/token',
+    code: callback.code,
+    redirectUri: 'https://example.com/docs',
+    clientId: 'my-client',
+    codeVerifier: verifier,
+  })
+}
+```
+
+| | |
+|---|---|
+| `randomToken(bytes = 32)` | Случайная строка, безопасная для URL (Web Crypto), для `state`. |
+| `createCodeVerifier()` | Code verifier PKCE (RFC 7636 §4.1): 43 символа. |
+| `codeChallenge(verifier)` | Его challenge S256: base64url от SHA-256. Асинхронная. |
+| `base64Url(bytes)` | Base64url без дополнения. |
+| `buildAuthorizeUrl(options)` | URL запроса авторизации: `{ authorizationUrl, responseType: 'code' \| 'token', clientId, redirectUri, scopes?, state, codeChallenge? }`. Query, уже имеющийся в URL, сохраняется. |
+| `parseCallbackUrl(url)` | Ответ на redirect URL — `{ state?, code?, accessToken?, tokenType?, expiresIn?, error?, errorDescription? }` — из query и fragment (query важнее); `null`, если ответа нет. |
+| `exchangeAuthorizationCode(options)` | Обменивает код на токен (RFC 6749 §4.1.3): `{ tokenUrl, code, redirectUri, clientId, clientSecret?, codeVerifier?, fetch?, signal? }`. `client_secret`, если передан, уходит в форму. |
+| `fetchOpenIdConfiguration(url, { fetch?, signal? })` | Читает discovery-документ OpenID Connect: `{ authorizationEndpoint?, tokenEndpoint?, scopesSupported, responseTypesSupported, grantTypesSupported }`. |
+
+Типы — `AuthorizeUrlOptions`, `OAuthCallback`, `CodeExchangeOptions` и
+`OpenIdConfiguration`.
+
+## Глубокие ссылки
+
+`splitLink`, `pickSpec`, `resolveSection`, `scalarSlug`,
+`scalarDocumentSlug`, `encodePrefill`, `decodePrefill`, `prefillHash` и
+`PREFILL_VERSION` читают и строят глубокие ссылки справочника, ссылки Scalar
+и предзаполненные ссылки try-it. Они описаны вместе с форматами в разделе
+[глубокие ссылки и предзаполненные ссылки](links.md).
 
 ## Примеры кода
 

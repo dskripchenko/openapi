@@ -21,6 +21,10 @@ npm install vue @dskripchenko/ui
 两个入口都是 ES 模块，附带 CommonJS 构建和自带的类型定义。如果只使用核心，
 则不需要 Vue，也不需要组件库（kit）。
 
+对于不经过构建步骤的文档页面，还有一个独立包：一个内含 Vue、kit 和样式的 `<script>`，
+通过 `DskOpenApi.createApiReference('#app', { sources })` 启动。见
+[独立页面与 OpenApiPage](standalone.md)。
+
 ## 样式
 
 组件使用 kit 的设计令牌（design tokens）和组件，因此先引入 kit 的样式表，再引入本包自己的样式：
@@ -136,7 +140,9 @@ Swagger 或 OpenAPI 规范的文档，抛出 `OpenApiError`。无论输入是哪
 
 ## 接下来
 
-- [OpenApiReference](reference.md) —— prop、try-it、服务端代理、认证、服务器、语言
+- [OpenApiReference](reference.md) —— prop、搜索、try-it、服务端代理、认证与 OAuth、服务器、语言
+- [独立页面与 OpenApiPage](standalone.md) —— 在任意页面上用一个脚本、从 Scalar 迁移、页面组件
+- [深层链接与预填链接](links.md) —— 锚点、Scalar 的链接、填写 try-it 表单的链接
 - [OpenApiEditor](editor.md) —— 三个视图、表单覆盖的内容、Swagger 2.0 文档
 - [核心 API](core.md) —— `@dskripchenko/openapi` 的所有函数
 - [代码示例](snippets.md) —— 13 个目标及其运行要求

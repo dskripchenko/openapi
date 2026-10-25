@@ -60,11 +60,17 @@ fetch 和 axios 用对象字面量）；否则保持为文本。含有超出 dou
   Go 的 `mime/multipart`、C# 的 `MultipartFormDataContent`、OkHttp 的
   `MultipartBody`、PowerShell 的 `-Form`。没有 multipart 构建器的 Java 和 Swift
   会用 boundary 手工拼装请求体。
+- **二进制请求体**（`body.file`：图片、`application/octet-stream`……）—— 文件本身，
+  连同其 `Content-Type`：curl 的 `--data-binary '@rex.png'`、PowerShell 的 `-InFile`、
+  作为 Guzzle `body` 的 `fopen`、Laravel 的 `withBody(file_get_contents(…))`、requests 的
+  `data=open(…, 'rb')`、axios 的 `readFile`、Go 的 `os.Open`、Java 的
+  `BodyPublishers.ofFile`、C# 的 `ByteArrayContent`、OkHttp 的 `asRequestBody`、
+  Swift 的 `Data(contentsOf:)`，fetch 则使用文件输入框中的文件。
 
 ## 文件
 
-multipart 请求体中的文件字段——请求中的 `{ filename, contentType? }`——按文件名引用文件，
-即脚本旁边的一个路径：
+文件——multipart 请求体的字段或二进制请求体，在请求中为 `{ filename, contentType? }`——
+按文件名引用，即脚本旁边的一个路径。对 multipart 字段：
 
 - curl：`-F 'photo=@rex.png;type=image/png'`；
 - PHP：`fopen('rex.png', 'r')`；Python：`open('rex.png', 'rb')`；

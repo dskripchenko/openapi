@@ -294,7 +294,7 @@ const request = buildRequest({
 | `server` | 基础 URL，已用 `serverUrl` 解析；可以是相对地址。 |
 | `parameters` | 操作已解引用的参数（`OperationEntry.parameters`）。 |
 | `values` | 按位置和名称给出的值：`{ path?, query?, header?, cookie? }`。 |
-| `body` | `{ mediaType, value, encoding? }` —— 结构化媒体类型用对象，否则为输入的文本。 |
+| `body` | `{ mediaType, value, encoding? }` —— 结构化媒体类型用对象，或输入的文本；对其他任何媒体类型，也可以是一个文件值 `{ filename, contentType?, data? }`，作为整个请求体。 |
 | `security` | `AppliedSecurity[]`：`{ scheme, value }` —— 密钥或令牌，basic 方案则为 `{ username, password }`。 |
 
 它遵循规范中的规则：
@@ -309,7 +309,10 @@ const request = buildRequest({
 - `Content-Type` 根据请求体的媒体类型设置，multipart 除外——由 HTTP 客户端连同 boundary 一起添加；
 - JSON 请求体会被序列化，urlencoded 请求体按其 `encoding` 编码，multipart 请求体中的文件字段保持为
   `{ filename, contentType?, data? }`（`data` 是 `Blob` 或字符串）；multipart 字段中的对象变为 JSON，
-  数组则重复该字段。
+  数组则重复该字段；
+- 作为其他媒体类型（`image/png`、`application/octet-stream`……）请求体的文件值变为 `body.file`
+  —— `{ filename, contentType?, data? }`，`data` 为 `Blob`；没有 `data` 时请求不携带任何字节，
+  示例则按文件名读取文件。
 
 ### 单独处理参数和服务器
 
@@ -337,7 +340,9 @@ query 和 cookie 键值对；`undefined` 表示"省略该参数"。`serializeVal
 `applySecurity(list)` 把 `AppliedSecurity[]` 转换为 `{ headers, query, cookies }`，
 `basicAuth(username, password)` 给出 `Basic …` 请求头的值。构建器使用的小型编码函数也已导出：
 `encodeComponent`、`encodeCookie`、`base64Utf8`、`baseMediaType`、`isJsonMediaType`、
-`isFormUrlEncoded`、`isMultipart`。
+`isFormUrlEncoded`、`isMultipart`，以及 `isTextualMediaType` —— 判断该类型的响应是按文本读取
+（空类型、`text/*`、JSON、urlencoded，以及 `xml`、`yaml`、`javascript`、`ndjson`、`graphql`、
+`csv` 子类型），还是保留为字节。
 
 ### 发送
 
@@ -347,20 +352,23 @@ import { sendRequest } from '@dskripchenko/openapi'
 const response = await sendRequest(request, { credentials: 'same-origin' })
 response.status     // 0 when there was no response
 response.error      // the reason in that case: network, CORS
-response.body       // the body as text
+response.body       // the body of a textual response
+response.blob       // the body of any other response (images, archives, …)
 response.duration   // milliseconds
 ```
 
 `sendRequest(request, { fetch?, signal?, credentials? })` 用 `fetch`（除非你传入另一个，
-否则为全局的 `fetch`）发送请求，并以文本形式读取响应体。它从不抛出异常：在得到响应之前的失败会以
+否则为全局的 `fetch`）发送请求。`Content-Type` 为文本类型（`isTextualMediaType`）的响应读入
+`body`；其他响应保留在 `blob` 中，`body` 为空。它从不抛出异常：在得到响应之前的失败会以
 `status: 0` 并设置 `error` 的形式返回。`credentials` 默认为 `'same-origin'`，因此 cookie
 绝不会发给外部 API。对 multipart 请求体，它会移除 `Content-Type`，以便 `fetch` 连同 boundary
 一起设置。在浏览器中，浏览器禁止的请求头（`Cookie`、`Host`、`Origin`……）会被浏览器自身丢弃。
 
-`toFetchBody(request)` 单独给出 `fetch` 的请求体：multipart 为 `FormData`，urlencoded
-表单为 `URLSearchParams`，其他情况为文本。
+`toFetchBody(request)` 单独给出 `fetch` 的请求体：二进制请求体为文件的 `Blob`，multipart 为
+`FormData`，urlencoded 表单为 `URLSearchParams`，其他情况为文本。
 
-`SendFn` —— `(request: HttpRequest) => Promise<HttpResponse>` —— 是参考页所接受的传输函数的类型；
+`SendFn` —— `(request: HttpRequest, options?: SendFnOptions) => Promise<HttpResponse>`，
+其中 `SendFnOptions` 为 `{ signal?: AbortSignal }` —— 是参考页所接受的传输函数的类型；
 见 [通过你的服务器发送](reference.md#通过你的服务器发送)。
 
 ### OAuth2 令牌
@@ -383,6 +391,63 @@ token.expiresIn     // seconds, when the server says so
 `password`（§4.3，选项中需提供 `username` 和 `password`）授权方式请求令牌。有 client secret
 时客户端使用 HTTP Basic 认证；没有时 `client_id` 放入表单。选项还接受 `fetch` 和 `signal`。
 失败时它以一个错误拒绝（reject），错误中带有服务器的 `error_description` 或 `error`，或 HTTP 状态码。
+
+基于重定向的流程由若干部件组合而成；参考页的认证面板用的正是这些部件：
+
+```ts
+import {
+  buildAuthorizeUrl,
+  codeChallenge,
+  createCodeVerifier,
+  exchangeAuthorizationCode,
+  parseCallbackUrl,
+  randomToken,
+} from '@dskripchenko/openapi'
+
+const state = randomToken(16)
+const verifier = createCodeVerifier()
+const url = buildAuthorizeUrl({
+  authorizationUrl: 'https://auth.example.com/authorize',
+  responseType: 'code',
+  clientId: 'my-client',
+  redirectUri: 'https://example.com/docs',
+  scopes: ['pets:read'],
+  state,
+  codeChallenge: await codeChallenge(verifier),
+})
+// … the user signs in at `url` and comes back to the redirect URI …
+const callback = parseCallbackUrl(location.href)
+if (callback?.code && callback.state === state) {
+  const token = await exchangeAuthorizationCode({
+    tokenUrl: 'https://auth.example.com/token',
+    code: callback.code,
+    redirectUri: 'https://example.com/docs',
+    clientId: 'my-client',
+    codeVerifier: verifier,
+  })
+}
+```
+
+| | |
+|---|---|
+| `randomToken(bytes = 32)` | 随机的 URL 安全字符串（Web Crypto），用作 `state`。 |
+| `createCodeVerifier()` | PKCE code verifier（RFC 7636 §4.1）：43 个字符。 |
+| `codeChallenge(verifier)` | 其 S256 challenge：SHA-256 的 base64url。异步。 |
+| `base64Url(bytes)` | 不带填充的 base64url。 |
+| `buildAuthorizeUrl(options)` | 授权请求 URL：`{ authorizationUrl, responseType: 'code' \| 'token', clientId, redirectUri, scopes?, state, codeChallenge? }`。URL 中已有的 query 会被保留。 |
+| `parseCallbackUrl(url)` | 重定向 URL 上的响应——`{ state?, code?, accessToken?, tokenType?, expiresIn?, error?, errorDescription? }`——从 query 和 fragment 中读取（query 优先）；没有响应时为 `null`。 |
+| `exchangeAuthorizationCode(options)` | 用授权码换取令牌（RFC 6749 §4.1.3）：`{ tokenUrl, code, redirectUri, clientId, clientSecret?, codeVerifier?, fetch?, signal? }`。给出 `client_secret` 时，它放入表单。 |
+| `fetchOpenIdConfiguration(url, { fetch?, signal? })` | 读取 OpenID Connect discovery 文档：`{ authorizationEndpoint?, tokenEndpoint?, scopesSupported, responseTypesSupported, grantTypesSupported }`。 |
+
+类型为 `AuthorizeUrlOptions`、`OAuthCallback`、`CodeExchangeOptions` 和
+`OpenIdConfiguration`。
+
+## 链接
+
+`splitLink`、`pickSpec`、`resolveSection`、`scalarSlug`、`scalarDocumentSlug`、
+`encodePrefill`、`decodePrefill`、`prefillHash` 和 `PREFILL_VERSION` 用于读取和构建参考页的
+深层链接、Scalar 的链接以及预填的 try-it 链接。它们连同格式一起在
+[深层链接与预填链接](links.md) 中说明。
 
 ## 代码示例
 

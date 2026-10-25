@@ -13,12 +13,19 @@ import { OpenApiReference } from '@dskripchenko/openapi/vue'
 </template>
 ```
 
-The page has two columns. On the left, a navigation: a search field, the
+The page has two columns. On the left, a navigation: a full-text search, the
 operations grouped by tag, the webhooks and the schemas. On the right, the
-document: its title, version and description, the server and credentials
-panels, then every operation with its parameters, request body, responses
-(as schema trees with examples), callbacks, request samples and a "Try it"
-panel, and at the end the schemas of `components.schemas`.
+document: its title, version and description, a "Download spec" control, the
+server and credentials panels, then every operation with its parameters,
+request body, responses (as schema trees with their examples), callbacks,
+request samples and a "Try it" panel, and at the end the schemas of
+`components.schemas`.
+
+"Download spec" saves the document as it was given — not the normalized 3.1
+copy — as JSON or YAML, named `{title}-{version}.json` / `.yaml`.
+
+For a whole page with a title bar and theme and language switchers, or for a
+page without a build step, see [standalone page and OpenApiPage](standalone.md).
 
 Links from the spec — the contact, license and terms-of-service URLs of
 `info` and an operation's `externalDocs` — are shown only when they are
@@ -43,6 +50,8 @@ description; below 760 px the navigation moves above the document.
 | `baseUrl` | `string` | the page origin | The base a relative server URL is resolved against. |
 | `external` | `(url: string) => unknown \| undefined` | — | Loads external `$ref` documents. None are loaded without it. |
 | `hashNavigation` | `boolean` | `true` | Write `location.hash` when an item is opened from the navigation. |
+| `persistCredentials` | `boolean \| 'session' \| 'local'` | `false` | Keep API keys and tokens between visits; see [keeping credentials](#keeping-credentials). |
+| `oauthRedirectUrl` | `string` | the page URL | The OAuth redirect URI; see [OAuth2 and OpenID Connect](#oauth2-and-openid-connect). |
 
 With a function, the spec is loaded when it is first shown; a spinner shows
 meanwhile. The spec is loaded again when `spec` or `external` changes. Both
@@ -66,7 +75,7 @@ Through a template ref:
 
 | | |
 |---|---|
-| `go(anchor: string): Promise<void>` | Scrolls to `'operation/{id}'`, `'schema/{name}'` or `'tag/{name}'` in the open spec, marks it in the navigation and, with `hashNavigation`, writes the hash. |
+| `go(anchor: string, options?: { tryIt?: boolean }): Promise<void>` | Scrolls to `'operation/{id}'`, `'schema/{name}'` or `'tag/{name}'` in the open spec — with `tryIt: true`, to the operation's try-it panel — marks it in the navigation and, with `hashNavigation`, writes the hash. |
 | `open(id: string): Promise<void>` | Opens another spec of `specs`, loading it if needed. |
 | `spec` | The `LoadedSpec` of the open spec, or `null` while it loads or when it could not be read. |
 | `active` | The id of the open spec. |
@@ -88,25 +97,60 @@ const openPets = () => reference.value?.go('operation/listPets')
 
 ## Deep links
 
-Every operation has the anchor `#operation/{id}` and every schema of
-`components.schemas` the anchor `#schema/{name}`. The id is the
-`operationId`; an operation without one (or whose `operationId` is already
-taken) gets a slug of its method and path, such as `get-pets-id` for
-`GET /pets/{id}`. Webhook operations get `webhook-{method}-{name}`.
+Every operation has the anchor `#operation/{id}`, every schema of
+`components.schemas` the anchor `#schema/{name}`, and every tag `#tag/{name}`.
+The id is the `operationId`; an operation without one (or whose
+`operationId` is already taken) gets a slug of its method and path, such as
+`get-pets-id` for `GET /pets/{id}`. Webhook operations get
+`webhook-{method}-{name}`. An operation with several tags is shown in the
+section of each tag; only its first copy carries the anchor, so a deep link
+lands on that one.
 
-An operation with several tags is shown in the section of each tag; only
-its first copy carries the anchor, so a deep link lands on that one.
-
-Tags have the anchor `#tag/{name}`. When the page opens with one of these
-anchors in `location.hash`, and whenever the hash changes to one later, the
-reference scrolls to it. With `hashNavigation` (the default) a click in the
-navigation replaces the hash, so the address can be copied and shared. Turn
-it off when the reference sits inside a page that uses the hash for its own
-routing:
+When the page opens with one of these anchors in `location.hash`, and
+whenever the hash changes to one later, the reference scrolls to it. With
+`hashNavigation` (the default) a click in the navigation replaces the hash,
+so the address can be copied and shared; each operation header also has a
+button that copies the link to it. Turn it off when the reference sits inside
+a page that uses the hash for its own routing:
 
 ```vue
 <OpenApiReference :spec="text" :hash-navigation="false" />
 ```
+
+Links built for Scalar (`#{doc}/tag/{tag}/{METHOD}{path}`, `#model/{name}`)
+open the same sections, and a link can carry a filled try-it form. Both are
+described in [deep links and prefilled links](links.md).
+
+## Search
+
+The search field at the top of the navigation looks through the open spec:
+operations (summary, path, operation id, method, tags, parameter names and
+descriptions, the description, the property names of their bodies and
+responses), tags (name and description), schemas (name, title, description,
+property names) and the headings of the document's description. Every word
+of the query has to match; results rank by where a word matched — a title or
+path counts more than a description — and by how: the whole field, the start
+of a word, or anywhere.
+
+While typing, the navigation narrows to the matching items and a list of the
+best results opens under the field, with the matched words marked. **↑** and
+**↓** move through the list, **Enter** opens the chosen result, **Esc** closes
+the list and, pressed again, clears the field. **/** (outside a text field)
+and **Ctrl+K** / **⌘K** put the cursor into the search. With several specs
+the search covers the open one.
+
+## Examples
+
+Where a media type has several named examples — in the request body and in
+each response — they appear as chips above the example; the chosen one shows
+its description, and an example given by `externalValue` is a link to it
+(never fetched). Without examples, the request body shows a sample generated
+from its schema.
+
+In try-it, a body with several examples gets an "Example" select ("Generated
+sample" first); choosing one replaces the body text. A parameter's named
+examples appear as chips next to it, and clicking one with a simple value
+puts it into the try-it field.
 
 ## Several specs
 
@@ -175,28 +219,49 @@ behaves like `spec`: no switcher, no id in anchors.
 ## Try it
 
 Each operation (webhooks excepted) has a "Try it" panel: a field per
-parameter, grouped by `path`, `query`, `header` and `cookie`, a text area for
-the body with a media type selector, and "Send". The fields start with the
-parameter's `example`, `default`, or — for required parameters — a value
-sampled from the schema; the body starts with the media type's example or a
-sample generated from its schema.
+parameter, grouped by `path`, `query`, `header` and `cookie`, the body with a
+media type selector, and "Send". The fields start with the parameter's
+`example`, `default`, or — for required parameters — a value sampled from the
+schema; the body starts with the media type's first example or a sample
+generated from its schema.
 
 What is typed is read according to the parameter's schema: numbers and
 booleans are converted, arrays and objects are read as JSON (an array may
-also be typed as `a, b, c`). The body is sent as typed; for a JSON media type
-an invalid body shows a warning but is still sent. For
-`application/x-www-form-urlencoded` and `multipart/form-data` bodies, type
-the fields as a JSON object. The text area has no file picker: a file field of
-a multipart body is sent without content.
+also be typed as `a, b, c`).
+
+**The body** depends on the media type:
+
+- **JSON, XML, text** — a text area; the body is sent as typed. For a JSON
+  media type an invalid body shows a warning but is still sent.
+- **`multipart/form-data`** and **`application/x-www-form-urlencoded`** with
+  an object schema — a form with a field per property (`readOnly` ones
+  excepted). In multipart, a property of `format: binary` (or with a
+  `contentMediaType`) gets a file picker, and an array of such takes several
+  files; the accepted types come from the `encoding` or the schema. "Raw JSON"
+  switches to the fields as JSON text, "Form" back.
+- **A binary body** — `application/octet-stream`, images, audio, video, PDF,
+  a `format: binary` schema — a single file picker; the file is the whole
+  body.
+
+While the request is in flight, "Send" shows "Sending…" and a "Cancel"
+button appears; cancelling aborts the request (see the `signal`
+[below](#sending-through-your-server)), drops a late answer and says
+"Cancelled".
+
+**The response** shows the status, the time, the size, the headers and the
+body. A JSON body is pretty-printed, with a "Pretty" / "Raw" toggle. A
+non-textual body (`HttpResponse.blob`) is an image preview for `image/*` and
+a "Download" button otherwise, named from `Content-Disposition` or
+`response.{subtype}`. When the request does not reach the server — a network
+error, or the browser blocking a cross-origin request — the panel says so
+with the browser's message.
 
 The request samples next to the panel print the same request that "Send"
-makes, with the values typed and the credentials entered. The language
-chosen in one operation is used by all of them.
+makes, with the values typed, the files chosen (by name) and the credentials
+entered. The language chosen in one operation is used by all of them.
 
-The response shows the status, the time, the headers and the body; a JSON
-body is pretty-printed. When the request does not reach the server — a
-network error, or the browser blocking a cross-origin request — the panel
-says so with the browser's message.
+The panel's "Copy link" makes a link that opens this operation with the form
+as it is; see [prefilled links](links.md#prefilled-links).
 
 ### Credentials and cookies
 
@@ -215,7 +280,11 @@ Pass `send` to route try-it through your own backend. It receives the
 request the panel built and returns the response:
 
 ```ts
-type SendFn = (request: HttpRequest) => Promise<HttpResponse>
+type SendFn = (request: HttpRequest, options?: SendFnOptions) => Promise<HttpResponse>
+
+interface SendFnOptions {
+  signal?: AbortSignal                // aborted when the user presses "Cancel"
+}
 
 interface HttpRequest {
   method: string                      // 'GET', 'POST', …
@@ -225,6 +294,7 @@ interface HttpRequest {
     mediaType: string
     text?: string                     // JSON, XML, plain text
     form?: [string, FormValue][]      // urlencoded and multipart fields, in order
+    file?: { filename: string; contentType?: string; data?: Blob } // a binary body
   }
 }
 
@@ -234,7 +304,8 @@ interface HttpResponse {
   status: number
   statusText: string
   headers: [string, string][]
-  body: string
+  body: string                        // the body of a textual response
+  blob?: Blob                         // the body of any other response
   duration: number                    // milliseconds
   error?: string                      // set when there was no response at all
 }
@@ -245,7 +316,7 @@ In the page, a function that posts the request to your backend as JSON:
 ```ts
 import type { HttpResponse, SendFn } from '@dskripchenko/openapi'
 
-const send: SendFn = async (request) => {
+const send: SendFn = async (request, options) => {
   const started = performance.now()
   try {
     const response = await fetch('/internal/api-proxy', {
@@ -253,6 +324,7 @@ const send: SendFn = async (request) => {
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
       body: JSON.stringify(request),
+      signal: options?.signal,
     })
     if (!response.ok) throw new Error(`Proxy answered ${response.status}`)
     return (await response.json()) as HttpResponse
@@ -273,10 +345,18 @@ const send: SendFn = async (request) => {
 <OpenApiReference :spec="text" :send="send" />
 ```
 
+Forward `options.signal` to your own `fetch`, as above, so "Cancel" also
+stops the request to your backend. Files (`data` of form fields and of
+`body.file`) are `Blob`s and do not survive `JSON.stringify`: a proxy that
+must carry them sends the request as `multipart/form-data` instead. A JSON
+answer has no `blob` either, so images and downloads of binary responses need
+a transport that returns one.
+
 The URL is always absolute: a relative server URL, and `/` for a document
-without `servers`, is resolved against `baseUrl`. On the backend, the endpoint reads the `HttpRequest`, checks that its URL
-points at a host you allow, performs it and answers with an `HttpResponse`.
-In Node 20+ the core's own `sendRequest` does the sending part:
+without `servers`, is resolved against `baseUrl`. On the backend, the
+endpoint reads the `HttpRequest`, checks that its URL points at a host you
+allow, performs it and answers with an `HttpResponse`. In Node 20+ the core's
+own `sendRequest` does the sending part:
 
 ```ts
 import { sendRequest, type HttpRequest, type HttpResponse } from '@dskripchenko/openapi'
@@ -295,13 +375,14 @@ export async function proxy(request: HttpRequest): Promise<HttpResponse> {
 Protect the endpoint as you protect the rest of your back office: a proxy that
 calls any host on behalf of anyone is an open relay. A server is not bound by
 the browser's forbidden-header list, so through it the `Cookie` and other
-headers the spec declares do reach the API. File fields arrive as
-`{ filename, contentType }` without data, since the panel has none to send.
+headers the spec declares do reach the API.
 
-`send` that throws is treated like a network error. The "Get token" requests
-of the [authentication panel](#fetching-an-oauth2-token) go through `send`
-too: a proxy has to let the token endpoint's host through as well. `send` is
-also passed on by [`OpenApiEditor`](editor.md) to its preview.
+`send` that throws is treated like a network error. The token and discovery
+requests of the [authentication panel](#oauth2-and-openid-connect) go through
+`send` too: a proxy has to let those hosts through as well. `send` is also
+passed on by [`OpenApiEditor`](editor.md) to its preview. The standalone
+bundle has a ready-made transport of this kind, with a fixed contract: see
+[the proxy](standalone.md#the-proxy).
 
 ## Authentication
 
@@ -314,7 +395,7 @@ has an "Authentication" panel with a field for each scheme:
 - **http bearer** and other http schemes — the token, sent as
   `Authorization: Bearer …` (or with the scheme's name);
 - **oauth2** and **openIdConnect** — the access token, sent as
-  `Authorization: Bearer …`.
+  `Authorization: Bearer …`, typed in or obtained in the panel.
 
 `mutualTLS` schemes are not shown: a browser cannot present a client
 certificate from a script.
@@ -325,24 +406,76 @@ document's), and uses the first requirement whose schemes all have a value.
 An operation with an empty requirement (`security: [{}]` or `security: []`)
 is sent without credentials.
 
-### Fetching an OAuth2 token
+### OAuth2 and OpenID Connect
 
-For an oauth2 scheme with a `clientCredentials` or `password` flow that has a
-`tokenUrl`, the panel also has "Client ID", "Client secret" (and, for
-`password`, "Username" and "Password") fields and a "Get token" button. The
-button posts a token request to the `tokenUrl` (RFC 6749 §4.3 and §4.4) with
-every scope the flow declares; the access token that comes back fills the
-scheme's token field. With a client secret the client authenticates with
-HTTP Basic; without one, `client_id` goes into the form. When the scheme has
-both flows, `clientCredentials` is used.
+For an oauth2 scheme the panel offers the flows the scheme declares — a
+switch when there are several: "Authorization code" (needs
+`authorizationUrl` and `tokenUrl`), "Implicit" (`authorizationUrl`),
+"Client credentials" and "Password" (`tokenUrl`). An openIdConnect scheme
+reads its discovery document (`openIdConnectUrl`) when the panel opens and
+offers the flows it supports, with `scopes_supported` as the scopes.
 
-The token request goes through `send`, like try-it. With the default
-transport the token endpoint has to accept a cross-origin request from the
-page; with a [proxy](#sending-through-your-server) it goes through your
-server and needs no CORS. For
-the `implicit` and `authorizationCode` flows, obtain a token elsewhere and
-paste it into the token field. The same request is available outside the
-component as [`fetchOAuthToken`](core.md#oauth2-tokens).
+Each flow lists its scopes as checkboxes, all ticked at first; the token is
+requested for the ticked ones.
+
+- **Client credentials** and **Password**: "Client ID", "Client secret" (and
+  "Username" / "Password") and "Get token". The token request goes to the
+  `tokenUrl` (RFC 6749 §4.4, §4.3); with a client secret the client
+  authenticates with HTTP Basic, without one `client_id` goes into the form.
+- **Authorization code** (with PKCE, S256) and **Implicit**: "Client ID"
+  (and an optional "Client secret" for the code flow), the "Redirect URI",
+  and "Authorize". A sign-in window opens at the identity provider; when it
+  comes back, the reference checks the `state`, and for the code flow
+  exchanges the code at the `tokenUrl`, with `client_secret` in the form when
+  one was typed (a public client relies on PKCE alone).
+
+The token fills the scheme's field. When the server says how long it lives
+(`expires_in`), the panel shows "expires in N min", then "expired"; "Log out"
+clears it.
+
+Token, code-exchange and discovery requests go through `send`, like try-it.
+With the default transport those endpoints must accept a cross-origin
+request from the page; with a [proxy](#sending-through-your-server) they go
+through your server and need no CORS. The sign-in window itself is a normal
+browser window at the identity provider.
+
+**The redirect URI** is `oauthRedirectUrl`, by default the page's own
+address without query and fragment; it can be changed in the panel. The
+identity provider must allow it. The sign-in result reaches the reference in
+one of two ways, whichever comes first:
+
+- the reference watches the window and reads the response once it lands back
+  on the redirect URI (same origin as the page);
+- the page at the redirect URI posts the response to the window that opened
+  it and closes itself. An `OpenApiReference` does this on mount, so the
+  documentation page itself works as the redirect URI. A dedicated redirect
+  page calls `relayOAuthCallback()` from `@dskripchenko/openapi/vue`; it posts
+  a message of type `OAUTH_MESSAGE` to a same-origin opener only.
+
+The browser blocks windows not opened by a click; the panel reports a blocked
+or closed window and a `state` that does not match. The same requests are
+available outside the component: [`fetchOAuthToken`](core.md#oauth2-tokens),
+`buildAuthorizeUrl`, `exchangeAuthorizationCode` and the rest.
+
+### Keeping credentials
+
+By default credentials live in memory for the page's lifetime. With
+`persistCredentials` they are kept between visits:
+
+| Value | Kept in |
+|---|---|
+| `false` | nowhere (default) |
+| `true` or `'session'` | `sessionStorage` — until the tab is closed |
+| `'local'` | `localStorage` — until removed |
+
+They are stored per spec, under the key
+`dsk-openapi:credentials:{specId}:{info.title}` (`specId` is `spec` with a
+single spec). Kept: API keys, bearer tokens, OAuth and OpenID Connect access
+tokens with their expiry (an expired one is not restored), and basic-auth
+usernames. Never kept: basic-auth passwords, client IDs and secrets, and
+password-flow passwords. With persistence on, the panel says "Saved in this
+browser" and has a "Forget" button that clears the credentials of the open
+spec, in memory and in storage.
 
 ## Servers
 
@@ -403,6 +536,107 @@ const de: OpenApiLabels = { ...en, search: 'Suche', tryIt: 'Ausprobieren', send:
 
 `en`, `ru` and `LOCALES` (`{ en, ru }`) are exported from
 `@dskripchenko/openapi/vue`.
+
+### All strings
+
+The keys of `OpenApiLabels` with their English text. `expiresIn` takes the
+number of minutes in place of `{n}`. [`OpenApiPage`](standalone.md#openapipage)
+uses `theme`, `themeLight`, `themeDark`, `themeSystem` and `language` for its
+bar.
+
+| Key | English |
+|---|---|
+| `search` | Search |
+| `operations` | Operations |
+| `schemas` | Schemas |
+| `webhooks` | Webhooks |
+| `servers` | Server |
+| `authentication` | Authentication |
+| `noAuth` | No authentication |
+| `parameters` | Parameters |
+| `requestBody` | Request body |
+| `responses` | Responses |
+| `headers` | Headers |
+| `required` | required |
+| `deprecated` | deprecated |
+| `default` | Default |
+| `example` | Example |
+| `examples` | Examples |
+| `schema` | Schema |
+| `enum` | Allowed values |
+| `noBody` | No body |
+| `samples` | Request samples |
+| `tryIt` | Try it |
+| `send` | Send |
+| `sending` | Sending… |
+| `response` | Response |
+| `status` | Status |
+| `time` | Time |
+| `body` | Body |
+| `clear` | Clear |
+| `invalidJson` | The body is not valid JSON; it is sent as typed. |
+| `networkError` | The request did not reach the server |
+| `token` | Token |
+| `username` | Username |
+| `password` | Password |
+| `getToken` | Get token |
+| `clientId` | Client ID |
+| `clientSecret` | Client secret |
+| `scopes` | Scopes |
+| `loadError` | The specification could not be read |
+| `issues` | Problems in the specification |
+| `callbacks` | Callbacks |
+| `links` | Links |
+| `externalDocs` | More |
+| `terms` | Terms of service |
+| `specs` | API |
+| `noResults` | Nothing found |
+| `version` | Version |
+| `copy` | Copy |
+| `show` | Show |
+| `hide` | Hide |
+| `copyLink` | Copy link |
+| `linkCopied` | Copied |
+| `includeCredentials` | Include credentials |
+| `credentialsWarning` | The link will carry your keys and passwords: anyone who gets it can use them. |
+| `prefilled` | Form filled from a link — check the values before sending |
+| `theme` | Theme |
+| `themeLight` | Light |
+| `themeDark` | Dark |
+| `themeSystem` | System |
+| `language` | Language |
+| `generatedSample` | Generated sample |
+| `externalExample` | Open the example |
+| `useExample` | Put into try-it |
+| `searchResults` | Search results |
+| `tag` | Tag |
+| `section` | Section |
+| `authorize` | Authorize |
+| `redirectUri` | Redirect URI |
+| `redirectHint` | The identity provider must allow this redirect URI. |
+| `flowAuthorizationCode` | Authorization code |
+| `flowImplicit` | Implicit |
+| `flowClientCredentials` | Client credentials |
+| `flowPassword` | Password |
+| `logOut` | Log out |
+| `forget` | Forget |
+| `savedInBrowser` | Saved in this browser |
+| `expiresIn` | expires in {n} min |
+| `tokenExpired` | expired |
+| `popupBlocked` | The browser blocked the sign-in window. Allow pop-ups for this page and try again. |
+| `popupClosed` | The sign-in window was closed before it finished. |
+| `stateMismatch` | The sign-in response does not match the request. Try again. |
+| `formView` | Form |
+| `rawJson` | Raw JSON |
+| `file` | File |
+| `cancel` | Cancel |
+| `cancelled` | Cancelled |
+| `pretty` | Pretty |
+| `raw` | Raw |
+| `download` | Download |
+| `downloadSpec` | Download spec |
+| `copyOperationLink` | Copy link to this operation |
+| `operationLinkCopied` | Link copied |
 
 ### The kit's own strings
 
@@ -471,8 +705,9 @@ scroll to the same offset:
 }
 ```
 
-The other variables — navigation width, gaps, method colours — are listed in
-[theming](theming.md).
+[`OpenApiPage`](standalone.md#openapipage) sets it to the height of its own
+bar. The other variables — navigation width, gaps, method colours — are listed
+in [theming](theming.md).
 
 ## The context
 

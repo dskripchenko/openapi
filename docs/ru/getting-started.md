@@ -23,6 +23,11 @@ npm install vue @dskripchenko/ui
 определениями типов. Если вы используете только ядро, ни Vue, ни кит не
 нужны.
 
+Для страницы документации без шага сборки есть ещё отдельная сборка: один
+`<script>`, внутри которого Vue, кит и стили; запускается вызовом
+`DskOpenApi.createApiReference('#app', { sources })`. См.
+[отдельная страница и OpenApiPage](standalone.md).
+
 ## Стили
 
 Компоненты используют дизайн-токены и компоненты кита, поэтому сначала
@@ -147,8 +152,12 @@ console.log(generateSnippet('curl', request))
 
 ## Дальше
 
-- [OpenApiReference](reference.md) — свойства, try-it, прокси на сервере,
-  авторизация, серверы, языки
+- [OpenApiReference](reference.md) — свойства, поиск, try-it, прокси на
+  сервере, авторизация и OAuth, серверы, языки
+- [Отдельная страница и OpenApiPage](standalone.md) — один скрипт на любой
+  странице, переход со Scalar, компонент страницы
+- [Глубокие ссылки и предзаполненные ссылки](links.md) — якоря, ссылки
+  Scalar, ссылки, заполняющие форму try-it
 - [OpenApiEditor](editor.md) — три режима, что покрывают формы, документы
   Swagger 2.0
 - [API ядра](core.md) — все функции `@dskripchenko/openapi`

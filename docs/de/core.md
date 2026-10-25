@@ -329,7 +329,7 @@ const request = buildRequest({
 | `server` | Die Basis-URL, bereits mit `serverUrl` aufgelöst; darf relativ sein. |
 | `parameters` | Die dereferenzierten Parameter der Operation (`OperationEntry.parameters`). |
 | `values` | Werte nach Ort und Name: `{ path?, query?, header?, cookie? }`. |
-| `body` | `{ mediaType, value, encoding? }` — ein Objekt für strukturierte Media Types oder der eingegebene Text. |
+| `body` | `{ mediaType, value, encoding? }` — ein Objekt für strukturierte Media Types, der eingegebene Text oder, bei jedem anderen Media Type, ein Dateiwert `{ filename, contentType?, data? }`, der der ganze Body ist. |
 | `security` | `AppliedSecurity[]`: `{ scheme, value }` — ein Schlüssel oder Token oder `{ username, password }` für Basic. |
 
 Dabei gelten die Regeln der Spezifikation:
@@ -351,7 +351,12 @@ Dabei gelten die Regeln der Spezifikation:
   `encoding` kodiert, und ein Multipart-Body behält Dateifelder als
   `{ filename, contentType?, data? }` (`data` ist ein `Blob` oder ein
   String); Objekte in Multipart-Feldern werden zu JSON, Arrays wiederholen
-  das Feld.
+  das Feld;
+- ein Dateiwert als Body eines anderen Media Types (`image/png`,
+  `application/octet-stream`, …) wird zu `body.file` —
+  `{ filename, contentType?, data? }`, `data` ein `Blob`; ohne `data` trägt
+  die Anfrage keine Bytes, und die Beispiele lesen die Datei über ihren
+  Namen.
 
 ### Parameter und Server einzeln
 
@@ -384,7 +389,10 @@ dazwischen und lässt eine relative Basis relativ.
 den Header-Wert `Basic …`. Die kleinen Encoder, die der Builder verwendet,
 werden ebenfalls exportiert: `encodeComponent`, `encodeCookie`,
 `base64Utf8`, `baseMediaType`, `isJsonMediaType`, `isFormUrlEncoded`,
-`isMultipart`.
+`isMultipart` und `isTextualMediaType` — ob eine Antwort dieses Typs als Text
+gelesen (ein leerer Typ, `text/*`, JSON, urlencoded sowie die Subtypen
+`xml`, `yaml`, `javascript`, `ndjson`, `graphql`, `csv`) oder als Bytes
+behalten wird.
 
 ### Senden
 
@@ -394,23 +402,27 @@ import { sendRequest } from '@dskripchenko/openapi'
 const response = await sendRequest(request, { credentials: 'same-origin' })
 response.status     // 0 when there was no response
 response.error      // the reason in that case: network, CORS
-response.body       // the body as text
+response.body       // the body of a textual response
+response.blob       // the body of any other response (images, archives, …)
 response.duration   // milliseconds
 ```
 
 `sendRequest(request, { fetch?, signal?, credentials? })` sendet mit `fetch`
-(dem globalen, sofern Sie kein anderes übergeben) und liest den Body als
-Text. Die Funktion wirft nie: Ein Fehlschlag vor einer Antwort kommt als
+(dem globalen, sofern Sie kein anderes übergeben). Eine Antwort, deren
+`Content-Type` textuell ist (`isTextualMediaType`), wird in `body` gelesen;
+jede andere bleibt in `blob`, mit leerem `body`. Die Funktion wirft nie: Ein Fehlschlag vor einer Antwort kommt als
 `status: 0` mit gesetztem `error` zurück. `credentials` ist standardmäßig
 `'same-origin'`, Cookies werden also nie an eine fremde API gesendet. Bei
 einem Multipart-Body entfernt sie `Content-Type`, damit `fetch` ihn mit der
 Boundary setzt. Im Browser verwirft der Browser selbst die Header, die er
 verbietet (`Cookie`, `Host`, `Origin`, …).
 
-`toFetchBody(request)` liefert den `fetch`-Body allein: `FormData` für
-Multipart, `URLSearchParams` für urlencoded Formulare, sonst den Text.
+`toFetchBody(request)` liefert den `fetch`-Body allein: den `Blob` der Datei
+bei einem binären Body, `FormData` für Multipart, `URLSearchParams` für
+urlencoded Formulare, sonst den Text.
 
-`SendFn` — `(request: HttpRequest) => Promise<HttpResponse>` — ist der Typ des
+`SendFn` — `(request: HttpRequest, options?: SendFnOptions) => Promise<HttpResponse>`,
+wobei `SendFnOptions` `{ signal?: AbortSignal }` ist — ist der Typ des
 Transports, den die Referenz annimmt; siehe
 [Senden über Ihren Server](reference.md#senden-über-ihren-server).
 
@@ -437,6 +449,65 @@ sich der Client per HTTP Basic; ohne eines geht `client_id` ins Formular. Die
 Optionen nehmen außerdem `fetch` und `signal`. Bei einem Fehlschlag wird mit
 einem Fehler abgelehnt, der `error_description` oder `error` des Servers
 oder den HTTP-Status enthält.
+
+Die Redirect-basierten Flows sind Bausteine, die Sie zusammensetzen; das
+Anmelde-Panel der Referenz verwendet genau diese:
+
+```ts
+import {
+  buildAuthorizeUrl,
+  codeChallenge,
+  createCodeVerifier,
+  exchangeAuthorizationCode,
+  parseCallbackUrl,
+  randomToken,
+} from '@dskripchenko/openapi'
+
+const state = randomToken(16)
+const verifier = createCodeVerifier()
+const url = buildAuthorizeUrl({
+  authorizationUrl: 'https://auth.example.com/authorize',
+  responseType: 'code',
+  clientId: 'my-client',
+  redirectUri: 'https://example.com/docs',
+  scopes: ['pets:read'],
+  state,
+  codeChallenge: await codeChallenge(verifier),
+})
+// … the user signs in at `url` and comes back to the redirect URI …
+const callback = parseCallbackUrl(location.href)
+if (callback?.code && callback.state === state) {
+  const token = await exchangeAuthorizationCode({
+    tokenUrl: 'https://auth.example.com/token',
+    code: callback.code,
+    redirectUri: 'https://example.com/docs',
+    clientId: 'my-client',
+    codeVerifier: verifier,
+  })
+}
+```
+
+| | |
+|---|---|
+| `randomToken(bytes = 32)` | Eine zufällige URL-sichere Zeichenkette (Web Crypto), für `state`. |
+| `createCodeVerifier()` | Ein PKCE-Code-Verifier (RFC 7636 §4.1): 43 Zeichen. |
+| `codeChallenge(verifier)` | Seine S256-Challenge: base64url von SHA-256. Asynchron. |
+| `base64Url(bytes)` | Base64url ohne Padding. |
+| `buildAuthorizeUrl(options)` | Die URL der Autorisierungsanfrage: `{ authorizationUrl, responseType: 'code' \| 'token', clientId, redirectUri, scopes?, state, codeChallenge? }`. Eine bereits in der URL vorhandene Query bleibt erhalten. |
+| `parseCallbackUrl(url)` | Die Antwort auf einer Redirect-URL — `{ state?, code?, accessToken?, tokenType?, expiresIn?, error?, errorDescription? }` —, gelesen aus Query und Fragment (die Query gewinnt); `null`, wenn keine vorhanden ist. |
+| `exchangeAuthorizationCode(options)` | Tauscht einen Code gegen ein Token (RFC 6749 §4.1.3): `{ tokenUrl, code, redirectUri, clientId, clientSecret?, codeVerifier?, fetch?, signal? }`. `client_secret` geht, wenn angegeben, ins Formular. |
+| `fetchOpenIdConfiguration(url, { fetch?, signal? })` | Liest ein OpenID-Connect-Discovery-Dokument: `{ authorizationEndpoint?, tokenEndpoint?, scopesSupported, responseTypesSupported, grantTypesSupported }`. |
+
+Die Typen heißen `AuthorizeUrlOptions`, `OAuthCallback`, `CodeExchangeOptions`
+und `OpenIdConfiguration`.
+
+## Links
+
+`splitLink`, `pickSpec`, `resolveSection`, `scalarSlug`,
+`scalarDocumentSlug`, `encodePrefill`, `decodePrefill`, `prefillHash` und
+`PREFILL_VERSION` lesen und bauen die Deep Links der Referenz, die von Scalar
+und vorausgefüllte Try-it-Links. Sie sind mit den Formaten unter
+[Deep Links und vorausgefüllte Links](links.md) beschrieben.
 
 ## Codebeispiele
 

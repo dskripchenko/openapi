@@ -6,7 +6,8 @@
  * sample from the schema instead.
  */
 import { computed, ref, watch } from 'vue'
-import { UidCode, UidMarkdown } from '@dskripchenko/ui'
+import { UidMarkdown } from '@dskripchenko/ui'
+import OaCodeBlock from './OaCodeBlock.vue'
 import { useReference } from './context'
 import { GENERATED_EXAMPLE, exampleText, namedExamples, type ExampleHolder, type NamedExample } from './draft'
 import { safeHref } from './safe'
@@ -55,13 +56,6 @@ const code = computed(() => (current.value ? exampleText(props.media, current.va
       <a v-if="safeHref(current.externalValue)" :href="safeHref(current.externalValue)" target="_blank" rel="noopener noreferrer">{{ labels.externalExample }}</a>
       <code v-else>{{ current.externalValue }}</code>
     </p>
-    <UidCode
-      v-else-if="code"
-      class="oa-response__example"
-      :code="code"
-      :language="/json/i.test(mediaType) ? 'json' : undefined"
-      copy
-      max-height="320px"
-    />
+    <OaCodeBlock v-else-if="code" class="oa-response__example" :code="code" :language="/json/i.test(mediaType) ? 'json' : undefined" />
   </div>
 </template>

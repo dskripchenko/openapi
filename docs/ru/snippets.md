@@ -66,11 +66,19 @@ axios); иначе остаётся текстом. Тело с целыми, с
   `mime/multipart` в Go, `MultipartFormDataContent` в C#, `MultipartBody` в
   OkHttp, `-Form` в PowerShell. Java и Swift, где построителя multipart нет,
   собирают тело с boundary вручную.
+- **Бинарное тело** (`body.file`: картинка, `application/octet-stream`, …) —
+  сам файл со своим `Content-Type`: `--data-binary '@rex.png'` для curl,
+  `-InFile` для PowerShell, `fopen` как `body` Guzzle,
+  `withBody(file_get_contents(…))` Laravel, `data=open(…, 'rb')` для
+  requests, `readFile` для axios, `os.Open` в Go, `BodyPublishers.ofFile` в
+  Java, `ByteArrayContent` в C#, `asRequestBody` в OkHttp,
+  `Data(contentsOf:)` в Swift и файл из поля выбора файла для fetch.
 
 ## Файлы
 
-Файловое поле тела multipart — `{ filename, contentType? }` в запросе —
-ссылается на файл по имени, как на путь рядом со скриптом:
+На файл — поле тела multipart или бинарное тело, `{ filename,
+contentType? }` в запросе, — ссылаются по имени, как на путь рядом со
+скриптом. Для полей multipart:
 
 - curl: `-F 'photo=@rex.png;type=image/png'`;
 - PHP: `fopen('rex.png', 'r')`; Python: `open('rex.png', 'rb')`;

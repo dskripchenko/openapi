@@ -25,6 +25,11 @@ Beide Einstiegspunkte sind ES-Module mit einem CommonJS-Build daneben und
 eigenen Typdefinitionen. Wer nur den Kern verwendet, braucht weder Vue noch
 das Kit.
 
+Für eine Dokumentationsseite ohne Build-Schritt gibt es außerdem ein
+eigenständiges Bundle: ein `<script>` mit Vue, dem Kit und den Styles darin,
+gestartet mit `DskOpenApi.createApiReference('#app', { sources })`. Siehe
+[Eigenständige Seite und OpenApiPage](standalone.md).
+
 ## Styles
 
 Die Komponenten verwenden die Design-Tokens und Komponenten des Kits; daher
@@ -150,8 +155,12 @@ von OpenAPI 3.1, unabhängig von der Version der Eingabe. Siehe
 
 ## Weiter
 
-- [OpenApiReference](reference.md) — Props, Try-it, ein serverseitiger
-  Proxy, Authentifizierung, Server, Sprachen
+- [OpenApiReference](reference.md) — Props, Suche, Try-it, ein
+  serverseitiger Proxy, Authentifizierung und OAuth, Server, Sprachen
+- [Eigenständige Seite und OpenApiPage](standalone.md) — ein Skript auf
+  jeder Seite, Umstieg von Scalar, die Seitenkomponente
+- [Deep Links und vorausgefüllte Links](links.md) — Anker, die Links von
+  Scalar, Links, die das Try-it-Formular ausfüllen
 - [OpenApiEditor](editor.md) — die drei Ansichten, was die Formulare abdecken,
   Swagger-2.0-Dokumente
 - [Kern-API](core.md) — alle Funktionen von `@dskripchenko/openapi`

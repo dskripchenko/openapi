@@ -31,6 +31,8 @@ Einige paketeigene Dinge sind CSS Custom Properties.
 |---|---|---|
 | `--oa-sticky-top` | `0px` | Den Abstand der sticky Navigation, der Beispielspalte und des Editor-Baums von oben sowie der Scrollposition der Anker — setzen Sie ihn auf die Höhe einer festen Kopfzeile. |
 | `--oa-source-height` | `560px` | Die Höhe der Quelltext-Ansicht des Editors. |
+| `--oa-page-width` | `1440px` | [`OpenApiPage`](standalone.md#openapipage): die maximale Breite des Inhalts. |
+| `--oa-page-padding` | `24px` | `OpenApiPage`: der seitliche Abstand von Leiste und Inhalt (16px unter 640px Breite). |
 | `--oa-nav-width` | `272px` | Die Breite der Navigationsspalte der Referenz. |
 | `--oa-gap` | `24px` | Den Abstand zwischen den Spalten und zwischen den Blöcken einer Operation. |
 | `--oa-radius` | `8px` | Den Eckenradius von Panels. |

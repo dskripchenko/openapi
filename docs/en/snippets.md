@@ -66,11 +66,19 @@ lost.
   requests, `mime/multipart` in Go, `MultipartFormDataContent` in C#,
   `MultipartBody` in OkHttp, `-Form` in PowerShell. Java and Swift, which
   have no multipart builder, assemble the body with a boundary by hand.
+- **A binary body** (`body.file`: an image, `application/octet-stream`, …) —
+  the file itself, with its `Content-Type`: `--data-binary '@rex.png'` for
+  curl, `-InFile` for PowerShell, `fopen` as Guzzle's `body`, Laravel's
+  `withBody(file_get_contents(…))`, `data=open(…, 'rb')` for requests,
+  `readFile` for axios, `os.Open` in Go, `BodyPublishers.ofFile` in Java,
+  `ByteArrayContent` in C#, `asRequestBody` in OkHttp, `Data(contentsOf:)` in
+  Swift, and the file input's file for fetch.
 
 ## Files
 
-A file field of a multipart body — `{ filename, contentType? }` in the
-request — refers to the file by its name, as a path next to the script:
+A file — a field of a multipart body or a binary body, `{ filename,
+contentType? }` in the request — is referred to by its name, as a path next
+to the script. For multipart fields:
 
 - curl: `-F 'photo=@rex.png;type=image/png'`;
 - PHP: `fopen('rex.png', 'r')`; Python: `open('rex.png', 'rb')`;
