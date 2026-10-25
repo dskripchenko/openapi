@@ -10,7 +10,7 @@ import type { HttpResponse, ParameterIn, RequestBody } from '../core/types'
 import type { OperationEntry } from '../model'
 import { stringifyJson } from '../json'
 import { useReference } from './context'
-import { mediaTypes, sampleBody, type OperationDraft } from './draft'
+import { defaultExample, exampleText, mediaTypes, namedExamples, sampleBody, type OperationDraft } from './draft'
 import OaShareLink from './OaShareLink.vue'
 
 const props = defineProps<{
@@ -35,6 +35,20 @@ function chooseMediaType(value: unknown): void {
   if (typeof value !== 'string') return
   props.draft.mediaType = value
   props.draft.bodyText = sampleBody(body.value?.content[value], ctx, value)
+  bodyExample.value = defaultExample(body.value?.content[value], ctx)
+}
+
+/** The body's examples, "generated" first; choosing one replaces the body text. */
+const bodyExamples = computed(() =>
+  namedExamples(body.value?.content[props.draft.mediaType], ctx, true)
+    .filter((e) => e.externalValue === undefined)
+    .map((e) => ({ value: e.name, label: e.label })),
+)
+const bodyExample = ref(defaultExample(body.value?.content[props.draft.mediaType], ctx))
+function chooseExample(value: unknown): void {
+  if (typeof value !== 'string') return
+  bodyExample.value = value
+  props.draft.bodyText = exampleText(body.value?.content[props.draft.mediaType], value, ctx, props.draft.mediaType)
 }
 
 const sending = ref(false)
@@ -107,6 +121,17 @@ const showHeaders = ref(false)
             @update:model-value="chooseMediaType"
           />
           <span v-else class="oa-tryit__media-one">{{ draft.mediaType }}</span>
+        </div>
+        <div v-if="bodyExamples.length > 1" class="oa-tryit__example">
+          <span>{{ labels.example }}:</span>
+          <UidSelect
+            class="oa-tryit__media"
+            size="sm"
+            :options="bodyExamples"
+            :model-value="bodyExample"
+            :aria-label="labels.example"
+            @update:model-value="chooseExample"
+          />
         </div>
         <textarea
           v-model="draft.bodyText"

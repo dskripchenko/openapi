@@ -255,11 +255,11 @@ try {
   check('standalone: setTheme() from the API', (await html('data-theme')) === 'light')
 
   await sa.locator('[data-locale-option="ru"]').click()
-  check('standalone: the language switch changes the labels', (await sa.locator('.oa-nav__search input').getAttribute('placeholder')) === 'Поиск' && (await html('lang')) === 'ru')
+  check('standalone: the language switch changes the labels', (await sa.locator('.oa-nav__search input').getAttribute('placeholder'))?.startsWith('Поиск') && (await html('lang')) === 'ru')
   check('standalone: the bar follows the language', (await sa.locator('.oa-page__theme').getAttribute('aria-label')) === 'Тема')
   await sa.evaluate(() => window.__reference.setLocale('en'))
   await sa.waitForTimeout(50)
-  check('standalone: setLocale() from the API', (await sa.locator('.oa-nav__search input').getAttribute('placeholder')) === 'Search')
+  check('standalone: setLocale() from the API', (await sa.locator('.oa-nav__search input').getAttribute('placeholder'))?.startsWith('Search'))
 
   await sa.locator('.oa-nav__specs').click()
   await sa.locator('[role="option"]', { hasText: 'Kitchen Sink' }).click()
@@ -284,6 +284,75 @@ try {
   check('standalone: try-it posts the HttpRequest to the proxy', !!proxied && typeof proxied.method === 'string' && /^https?:\/\//.test(proxied.url) && Array.isArray(proxied.headers), proxied?.url)
   check('standalone: try-it shows the proxied response', (await pop.locator('.oa-tryit__response .oa-status').innerText()).startsWith('202'))
   await px.close()
+  // Search and named examples.
+  const sp = await browser.newPage({ viewport: { width: 1440, height: 1200 } })
+  const spErrors = []
+  sp.on('pageerror', (e) => spErrors.push(String(e)))
+  await sp.goto(`${base}?spec=kitchen`)
+  await sp.waitForSelector('.oa-op')
+  await sp.locator('.oa-intro h1').click()
+  await sp.keyboard.press('Control+k')
+  const focused = await sp.evaluate(() => document.activeElement?.closest('.oa-nav__search') !== null && document.activeElement?.tagName === 'INPUT')
+  check('search: Ctrl+K focuses the search', focused)
+  await sp.locator('.oa-intro h1').click()
+  await sp.keyboard.press('/')
+  check('search: / focuses the search', await sp.evaluate(() => !!document.activeElement?.closest('.oa-nav__search')))
+  // "tokenized" is only in the description of "Pay for an order".
+  await sp.keyboard.type('tokenized')
+  await sp.waitForSelector('.oa-search__hit')
+  const firstHit = await sp.locator('.oa-search__hit').first().innerText()
+  check('search: a word of a description finds its operation', firstHit.includes('Pay for an order') && (await sp.locator('.oa-search__hit mark').first().innerText()) === 'tokenized', firstHit)
+  check('search: the navigation keeps the operation', (await sp.locator('.oa-nav__op').allInnerTexts()).some((t) => t.includes('Pay for an order')))
+  await sp.screenshot({ path: `${out}/search.png` })
+  await sp.keyboard.press('Enter')
+  await sp.waitForTimeout(600)
+  const payTarget = sp.locator('[id="operation/createPayment"]')
+  const box = await payTarget.boundingBox()
+  check('search: Enter opens the operation', !!box && box.y >= -2 && box.y < 200 && (await sp.locator('.oa-search__results').count()) === 0, JSON.stringify(box))
+
+  // A response with named examples: the chips switch the code.
+  const list = sp.locator('[id="operation/listOrders"]')
+  await list.scrollIntoViewIfNeeded()
+  await list.locator('.oa-response__example').first().waitFor()
+  // The code block fills in after it mounts: wait for its text.
+  const exampleCode = async () => {
+    const code = list.locator('.oa-response .oa-response__example').first()
+    for (let i = 0; i < 20; i++) {
+      const t = await code.innerText()
+      if (t.includes('{')) return t
+      await sp.waitForTimeout(100)
+    }
+    return code.innerText()
+  }
+  const firstExample = await exampleCode()
+  await list.locator('.oa-response .oa-examples__names .oa-chip', { hasText: 'No orders yet' }).click()
+  const emptyExample = await exampleCode()
+  check('examples: a named response example can be chosen', firstExample.includes('6f1c1b7e') && !emptyExample.includes('6f1c1b7e') && emptyExample.includes('"data"'), JSON.stringify([firstExample.slice(0, 80), emptyExample.slice(0, 80)]))
+  check('examples: the example description is shown', (await list.locator('.oa-response .oa-examples').first().innerText()).includes('cursor'))
+  await list.locator('.oa-response .oa-examples__names .oa-chip', { hasText: 'Archived orders' }).click()
+  check('examples: an external example is a link', (await list.locator('.oa-examples__external a').getAttribute('href')) === 'https://example.com/examples/orders-archive.json')
+
+  // Try it: the example select replaces the body.
+  const pay = sp.locator('[id="operation/createPayment"]')
+  await pay.scrollIntoViewIfNeeded()
+  const textarea = pay.locator('.oa-tryit__textarea')
+  check('examples: try-it starts with the first example', (await textarea.inputValue()).includes('4242424242424242'))
+  await pay.locator('.oa-tryit__example .uid-select').click()
+  await sp.locator('[role="option"]', { hasText: 'Bank transfer' }).click()
+  check('examples: try-it example select replaces the body', (await textarea.inputValue()).includes('DE89370400440532013000'))
+  await pay.locator('.oa-tryit__example .uid-select').click()
+  await sp.locator('[role="option"]', { hasText: 'Generated sample' }).click()
+  check('examples: try-it offers the generated sample', !(await textarea.inputValue()).includes('DE89370400440532013000'))
+
+  // A parameter's examples fill its try-it field.
+  const styleOp = sp.locator('[id="operation/paramStyles"]')
+  await styleOp.scrollIntoViewIfNeeded()
+  await styleOp.locator('.oa-param__examples .oa-chip', { hasText: 'long' }).click()
+  const traceValue = await styleOp.locator('.oa-tryit .uid-input-field', { hasText: 'X-Trace' }).locator('input').inputValue()
+  check('examples: a parameter example fills try-it', traceValue === 'abcdef0123456789', traceValue)
+  await sp.screenshot({ path: `${out}/examples.png` })
+  check('search and examples: no page errors', spErrors.length === 0, spErrors.join('; '))
+  await sp.close()
 
   // The editor: visual edits land in the text, the source view reports problems.
   const ed = await browser.newPage({ viewport: { width: 1440, height: 1200 } })

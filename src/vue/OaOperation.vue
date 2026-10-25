@@ -4,13 +4,13 @@
  * how to call it on the right (samples, try-it). Both sides share one draft.
  */
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
-import { UidCode, UidMarkdown } from '@dskripchenko/ui'
+import { UidMarkdown } from '@dskripchenko/ui'
 import type { Header, MediaType, Parameter, ParameterIn, RequestBody, Response } from '../core/types'
 import type { OperationEntry } from '../model'
-import { stringifyJson } from '../json'
-import { describe as describeSchema, sample } from '../schema'
+import { describe as describeSchema } from '../schema'
 import { useReference } from './context'
-import { createDraft, mediaTypes, type OperationDraft } from './draft'
+import { createDraft, mediaTypes, namedExamples, type OperationDraft } from './draft'
+import OaExamples from './OaExamples.vue'
 import OaSamples from './OaSamples.vue'
 import OaSchema from './OaSchema.vue'
 import OaTryIt from './OaTryIt.vue'
@@ -75,12 +75,12 @@ function responseMedia(code: string, r: Response | undefined): { type: string; m
   const type = responseType.value[code] && types.includes(responseType.value[code]!) ? responseType.value[code]! : (types.find((t) => /json/i.test(t)) ?? types[0]!)
   return { type, media: r!.content![type]! }
 }
-function exampleOf(media: MediaType, mode: 'request' | 'response'): string {
-  let value: unknown = media.example
-  if (value === undefined && media.examples) value = deref<{ value?: unknown }>(Object.values(media.examples)[0])?.value
-  if (value === undefined && media.schema) value = sample(media.schema, { resolve: resolveRef, mode })
-  if (value === undefined) return ''
-  return typeof value === 'string' ? value : stringifyJson(value, 2)
+/** A parameter's named examples; a simple one fills its try-it field on click. */
+const paramExamples = (p: Parameter) => (p.examples ? namedExamples(p, ctx) : [])
+const fillable = (value: unknown): value is string | number =>
+  ctx.tryIt.value && !props.entry.webhook && (typeof value === 'string' || typeof value === 'number')
+function useParamExample(p: Parameter, value: string | number): void {
+  if (draft.value) draft.value.values[p.in][p.name] = String(value)
 }
 const tone = (code: string): string =>
   code.startsWith('2') ? 'success' : code.startsWith('3') ? 'info' : code.startsWith('4') || code.startsWith('5') ? 'danger' : 'neutral'
@@ -142,6 +142,19 @@ watch(
                 <span class="oa-schema__label">{{ labels.default }}:</span>
                 <code>{{ JSON.stringify(p.schema.default) }}</code>
               </div>
+              <div v-if="paramExamples(p).length" class="oa-schema__enum oa-param__examples">
+                <span class="oa-schema__label">{{ labels.examples }}:</span>
+                <template v-for="ex in paramExamples(p)" :key="ex.name">
+                  <button
+                    v-if="fillable(ex.value)"
+                    type="button"
+                    class="oa-chip"
+                    :title="`${labels.useExample}: ${String(ex.value)}`"
+                    @click="useParamExample(p, ex.value)"
+                  >{{ ex.label }}</button>
+                  <code v-else :title="ex.value !== undefined ? JSON.stringify(ex.value) : ex.externalValue">{{ ex.label }}</code>
+                </template>
+              </div>
             </div>
           </div>
         </div>
@@ -162,6 +175,7 @@ watch(
             </span>
           </h4>
           <UidMarkdown v-if="body.description" class="oa-md oa-md--small" :source="body.description" />
+          <OaExamples v-if="bodyMedia" :key="bodyType" :media="bodyMedia" :media-type="bodyType" mode="request" />
           <OaSchema v-if="bodyMedia?.schema" :schema="bodyMedia.schema" mode="request" />
         </div>
 
@@ -200,13 +214,12 @@ watch(
                   >{{ t }}</button>
                 </div>
                 <OaSchema v-if="responseMedia(code, response)!.media.schema" :schema="responseMedia(code, response)!.media.schema!" mode="response" />
-                <UidCode
-                  v-if="exampleOf(responseMedia(code, response)!.media, 'response')"
-                  class="oa-response__example"
-                  :code="exampleOf(responseMedia(code, response)!.media, 'response')"
-                  :language="/json/i.test(responseMedia(code, response)!.type) ? 'json' : undefined"
-                  copy
-                  max-height="320px"
+                <OaExamples
+                  :key="responseMedia(code, response)!.type"
+                  :media="responseMedia(code, response)!.media"
+                  :media-type="responseMedia(code, response)!.type"
+                  mode="response"
+                  generated
                 />
               </template>
             </div>

@@ -4,7 +4,7 @@
  * request that "Send" would make.
  */
 import { computed, reactive, toRefs } from 'vue'
-import type { HttpRequest, MediaType, ParameterIn, RequestBody, SecurityScheme } from '../core/types'
+import type { Example, HttpRequest, MaybeRef, MediaType, ParameterIn, RequestBody, Schema, SecurityScheme } from '../core/types'
 import type { OperationEntry } from '../model'
 import { buildRequest, serverUrl, joinUrl } from '../request'
 import type { AppliedSecurity } from '../request/security'
@@ -28,19 +28,93 @@ export function mediaTypes(body: RequestBody | undefined): string[] {
   return types.sort((a, b) => Number(!/json/i.test(a)) - Number(!/json/i.test(b)))
 }
 
-/** The sample body text for a media type: the example or a generated one. */
-export function sampleBody(media: MediaType | undefined, ctx: ReferenceContext, mediaType: string): string {
-  if (!media) return ''
-  const resolve = (ref: string) => ctx.spec.value.resolver.get(ref) as never
-  let value: unknown = media.example
-  if (value === undefined && media.examples) {
-    const first = Object.values(media.examples)[0]
-    value = first ? (ctx.spec.value.resolver.deref(first) as { value?: unknown } | undefined)?.value : undefined
+/** The name of a media type's single `example` among the named ones. */
+export const INLINE_EXAMPLE = '#example'
+/** The name of the sample generated from the schema. */
+export const GENERATED_EXAMPLE = '#generated'
+
+/** One example of a media type or parameter, as a selector offers it. */
+export interface NamedExample {
+  /** The key in `examples`, INLINE_EXAMPLE or GENERATED_EXAMPLE. */
+  name: string
+  /** The example's summary, else its key. */
+  label: string
+  /** Markdown. */
+  description?: string
+  value?: unknown
+  /** A link to an example kept outside the spec; it is not fetched. */
+  externalValue?: string
+}
+
+/** What carries examples: a media type, a parameter or a header. */
+export interface ExampleHolder {
+  schema?: Schema
+  example?: unknown
+  examples?: Record<string, MaybeRef<Example>>
+}
+
+/**
+ * The examples a spec gives: the single `example` first, then the `examples`
+ * map in order (refs followed). With `generated`, a sample from the schema
+ * leads the list when there is a schema.
+ */
+export function namedExamples(holder: ExampleHolder | undefined, ctx: ReferenceContext, generated = false): NamedExample[] {
+  if (!holder) return []
+  const out: NamedExample[] = []
+  if (generated && holder.schema) out.push({ name: GENERATED_EXAMPLE, label: ctx.labels.value.generatedSample })
+  if (holder.example !== undefined) out.push({ name: INLINE_EXAMPLE, label: ctx.labels.value.example, value: holder.example })
+  for (const [name, raw] of Object.entries(holder.examples ?? {})) {
+    const ex = ctx.spec.value.resolver.deref(raw) as Example | undefined
+    if (typeof ex !== 'object' || ex === null) continue
+    const item: NamedExample = { name, label: typeof ex.summary === 'string' && ex.summary.trim() ? ex.summary : name }
+    if (typeof ex.description === 'string' && ex.description) item.description = ex.description
+    if (ex.value !== undefined) item.value = ex.value
+    else if (typeof ex.externalValue === 'string') item.externalValue = ex.externalValue
+    out.push(item)
   }
-  if (value === undefined && media.schema) value = sample(media.schema, { resolve, mode: 'request' })
+  return out
+}
+
+/** The names of a media type's examples, the generated sample first when there is a schema. */
+export function exampleNames(media: ExampleHolder | undefined, ctx: ReferenceContext): string[] {
+  return namedExamples(media, ctx, true).map((e) => e.name)
+}
+
+/** The example shown by default: the first one with a value, else the generated sample. */
+export function defaultExample(media: ExampleHolder | undefined, ctx: ReferenceContext): string {
+  return namedExamples(media, ctx).find((e) => e.value !== undefined)?.name ?? GENERATED_EXAMPLE
+}
+
+/** A body value as text for its media type: strings as they are, else JSON. */
+function bodyText(value: unknown, mediaType: string): string {
   if (value === undefined) return ''
   if (typeof value === 'string') return value
   return /json/i.test(mediaType) || !/xml|text/i.test(mediaType) ? stringifyJson(value, 2) : String(value)
+}
+
+/**
+ * The text of one example by name; GENERATED_EXAMPLE samples the schema. An
+ * external or unknown example gives ''.
+ */
+export function exampleText(
+  media: ExampleHolder | undefined,
+  name: string,
+  ctx: ReferenceContext,
+  mediaType: string,
+  mode: 'request' | 'response' = 'request',
+): string {
+  if (!media) return ''
+  if (name === GENERATED_EXAMPLE) {
+    if (!media.schema) return ''
+    const resolve = (ref: string) => ctx.spec.value.resolver.get(ref) as never
+    return bodyText(sample(media.schema, { resolve, mode }), mediaType)
+  }
+  return bodyText(namedExamples(media, ctx).find((e) => e.name === name)?.value, mediaType)
+}
+
+/** The sample body text for a media type: the first example or a generated one. */
+export function sampleBody(media: MediaType | undefined, ctx: ReferenceContext, mediaType: string): string {
+  return exampleText(media, defaultExample(media, ctx), ctx, mediaType)
 }
 
 /** Parses a typed parameter value: JSON for arrays/objects, else the string. */

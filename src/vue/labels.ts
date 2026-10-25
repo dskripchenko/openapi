@@ -64,6 +64,13 @@ export interface OpenApiLabels {
   themeDark: string
   themeSystem: string
   language: string
+  // search
+  generatedSample: string
+  externalExample: string
+  useExample: string
+  searchResults: string
+  tag: string
+  section: string
 }
 
 export const en: OpenApiLabels = {
@@ -128,6 +135,13 @@ export const en: OpenApiLabels = {
   themeDark: 'Dark',
   themeSystem: 'System',
   language: 'Language',
+  // search
+  generatedSample: 'Generated sample',
+  externalExample: 'Open the example',
+  useExample: 'Put into try-it',
+  searchResults: 'Search results',
+  tag: 'Tag',
+  section: 'Section',
 }
 
 export const ru: OpenApiLabels = {
@@ -192,6 +206,13 @@ export const ru: OpenApiLabels = {
   themeDark: 'Тёмная',
   themeSystem: 'Как в системе',
   language: 'Язык',
+  // search
+  generatedSample: 'Сгенерированный пример',
+  externalExample: 'Открыть пример',
+  useExample: 'Подставить в «Попробовать»',
+  searchResults: 'Результаты поиска',
+  tag: 'Тег',
+  section: 'Раздел',
 }
 
 export const LOCALES: Record<string, OpenApiLabels> = { en, ru }
