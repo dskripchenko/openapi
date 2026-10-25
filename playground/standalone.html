@@ -1,0 +1,30 @@
+<!doctype html>
+<!--
+  The standalone bundle as laravel-api's page uses it: one script, two specs
+  fetched by URL. Needs dist/standalone.js — run `pnpm build` first, then
+  open /standalone.html (`pnpm dev`). ?proxy=/path sends try-it through a proxy.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenAPI standalone</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="/standalone/standalone.js"></script>
+    <script>
+      const params = new URLSearchParams(location.search)
+      window.__reference = DskOpenApi.createApiReference('#app', {
+        title: 'Example APIs',
+        locale: params.get('locale') || 'en',
+        theme: params.get('theme') || 'light',
+        proxy: params.get('proxy') || undefined,
+        sources: [
+          { url: '/fixtures/petstore-30.yaml', title: 'Petstore', slug: 'petstore' },
+          { url: '/fixtures/kitchen-sink-31.json', title: 'Kitchen Sink', slug: 'kitchen' },
+        ],
+      })
+    </script>
+  </body>
+</html>

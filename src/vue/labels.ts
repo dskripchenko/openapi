@@ -58,6 +58,12 @@ export interface OpenApiLabels {
   includeCredentials: string
   credentialsWarning: string
   prefilled: string
+  // standalone
+  theme: string
+  themeLight: string
+  themeDark: string
+  themeSystem: string
+  language: string
 }
 
 export const en: OpenApiLabels = {
@@ -116,6 +122,12 @@ export const en: OpenApiLabels = {
   includeCredentials: 'Include credentials',
   credentialsWarning: 'The link will carry your keys and passwords: anyone who gets it can use them.',
   prefilled: 'Form filled from a link — check the values before sending',
+  // standalone
+  theme: 'Theme',
+  themeLight: 'Light',
+  themeDark: 'Dark',
+  themeSystem: 'System',
+  language: 'Language',
 }
 
 export const ru: OpenApiLabels = {
@@ -174,6 +186,12 @@ export const ru: OpenApiLabels = {
   includeCredentials: 'Включить учётные данные',
   credentialsWarning: 'Ссылка унесёт ваши ключи и пароли: ими сможет воспользоваться любой, кто её получит.',
   prefilled: 'Форма заполнена по ссылке — проверьте значения перед отправкой',
+  // standalone
+  theme: 'Тема',
+  themeLight: 'Светлая',
+  themeDark: 'Тёмная',
+  themeSystem: 'Как в системе',
+  language: 'Язык',
 }
 
 export const LOCALES: Record<string, OpenApiLabels> = { en, ru }
