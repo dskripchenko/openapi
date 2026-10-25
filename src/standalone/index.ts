@@ -10,15 +10,21 @@
  * Vue, the kit and all styles are inside; the script injects the CSS itself
  * (dist/standalone.css is the same CSS, for a page that prefers a <link>).
  */
-import '@dskripchenko/ui/styles/all.css'
+// The kit's tokens, themes and components; its page-wide reset comes scoped, in standalone.css.
+import '@dskripchenko/ui/styles/tokens.css'
+import '@dskripchenko/ui/styles/themes.css'
+import '@dskripchenko/ui/styles/index.css'
 import './standalone.css'
 import { createApp, h, reactive, watchEffect, type App } from 'vue'
 import OpenApiPage from '../vue/OpenApiPage.vue'
 import { resolveLocale, type PageTheme } from '../vue/page'
+import { autoMountOnLoad } from './embed'
 import { toSpecSources, type StandaloneOptions } from './options'
 import { proxySend } from './proxy'
 
 export type { StandaloneOptions, StandaloneSource } from './options'
+export type { OperationEmbed, OperationEmbedOptions } from './embed'
+export { autoMount, mountOperation } from './embed'
 export { proxySend } from './proxy'
 
 export interface ApiReference {
@@ -67,3 +73,8 @@ export function createApiReference(target: string | Element, options: Standalone
     setLocale: (l) => void (state.locale = l),
   }
 }
+
+// A script tag with `data-auto` mounts the page's `[data-openapi-operation]`
+// elements itself once the document is parsed (see ./embed). Read now: the
+// current script is known only while it runs.
+if (typeof document !== 'undefined') autoMountOnLoad(document.currentScript)

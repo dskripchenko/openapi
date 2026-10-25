@@ -1140,3 +1140,55 @@
 .oa-types__code { border: 0; border-radius: 0; }
 /* In the tabbed side column the tab names the panel. */
 .oa-side-tabs ~ .oa-types > .oa-panel__head { display: none; }
+
+/* --------------------------------- embed --------------------------------- */
+/* One operation inside someone else's page: a card of its own, laid out by its own width. */
+.oa-reference.oa-embed { display: block; min-height: 0; margin: 16px 0; container-type: inline-size; }
+.oa-embed__card {
+  padding: 18px 20px;
+  border: 1px solid var(--uid-border-subtle);
+  border-radius: 12px;
+  background: var(--uid-surface-raised);
+  box-shadow: var(--uid-shadow-sm);
+}
+.oa-embed__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--uid-border-subtle);
+}
+.oa-embed__heading { flex: 1 1 240px; min-width: 0; }
+.oa-embed__title { margin: 6px 0 0; font-size: 16px; }
+.oa-embed__card.oa-op--deprecated .oa-embed__title { text-decoration: line-through; color: var(--uid-text-secondary); }
+.oa-embed__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.oa-embed__settings { height: 30px; max-width: 220px; }
+.oa-embed__ref { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--uid-accent); text-decoration: none; }
+.oa-embed__ref:hover { text-decoration: underline; }
+/* The operation inside the card: no second card, columns by the container, not the window. */
+.oa-op.oa-op--compact {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  content-visibility: visible;
+  container-type: inline-size;
+}
+.oa-op.oa-op--compact .oa-op__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+@container (max-width: 899px) {
+  .oa-op.oa-op--compact .oa-op__grid { grid-template-columns: minmax(0, 1fr); }
+}
+@container (max-width: 480px) {
+  .oa-embed__card { padding: 14px 12px; }
+  .oa-embed__settings .oa-header__host { display: none; }
+}
+/* The operation header's print button shows with the copy-link one. */
+.oa-op__pdf { flex: none; margin-top: -3px; opacity: 0; transition: opacity 0.12s; }
+.oa-op__head:hover .oa-op__pdf,
+.oa-op__head:focus-within .oa-op__pdf { opacity: 1; }
+@media (hover: none) { .oa-op__pdf { opacity: 1; } }
+.oa-settings__print { display: flex; }

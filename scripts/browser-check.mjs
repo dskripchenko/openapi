@@ -816,6 +816,124 @@ try {
   await closeSettings(ty)
   check('types: no page errors', tyErrors.length === 0, tyErrors.join('; '))
   await ty.close()
+  // Embedded operations and printing. window.print of the print frame is replaced, so no dialog opens:
+  // the call is recorded with the frame's title instead.
+  const stubPrint = () => {
+    const get = Object.getOwnPropertyDescriptor(window.HTMLIFrameElement.prototype, 'contentWindow').get
+    Object.defineProperty(window.HTMLIFrameElement.prototype, 'contentWindow', {
+      configurable: true,
+      get() {
+        const win = get.call(this)
+        if (win && this.hasAttribute('data-oa-print')) win.print = () => (window.__printed = (window.__printed ?? 0) + 1)
+        return win
+      },
+    })
+  }
+  const printFrame = async (pg) => {
+    await pg.waitForFunction(() => window.__printed > 0)
+    return pg.evaluate(() => {
+      const doc = document.querySelector('iframe[data-oa-print]').contentDocument
+      return { title: doc.title, text: doc.body.innerText, html: doc.documentElement.outerHTML, ops: doc.querySelectorAll('.oap-op').length, tryIt: doc.querySelectorAll('.oa-tryit, button, input').length }
+    })
+  }
+
+  const em = await browser.newPage({ viewport: { width: 1280, height: 1200 } })
+  await em.addInitScript(stubPrint)
+  const emErrors = []
+  em.on('pageerror', (e) => emErrors.push(String(e)))
+  em.on('console', (m) => m.type() === 'error' && emErrors.push(m.text()))
+  // The kitchen spec's OpenID Connect scheme reads its discovery document when the drawer opens.
+  await em.route('https://auth.example.com/**', (route) => route.fulfill({ contentType: 'application/json', body: '{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}' }))
+  let specFetches = 0
+  em.on('request', (r) => r.url().includes('/fixtures/kitchen-sink-31.json') && specFetches++)
+  await em.goto(`${base}embed.html`)
+  await em.waitForFunction(() => document.querySelectorAll('.oa-embed__card').length === 3)
+  check('embed: three operations mount (two by attributes, one by mountOperation)', (await em.locator('.oa-embed__card').count()) === 3)
+  check('embed: no header, navigation or footer', (await em.locator('.oa-header, .oa-nav, .oa-footer, .oa-intro').count()) === 0)
+  check('embed: embeds of one URL fetch it once', specFetches === 1, `${specFetches} requests`)
+  const hostLook = await em.evaluate(() => ({
+    theme: document.documentElement.getAttribute('data-theme'),
+    p: window.getComputedStyle(document.querySelector('.article p')).marginBottom,
+    h2: window.getComputedStyle(document.querySelector('.article h2')).marginTop,
+    font: window.getComputedStyle(document.querySelector('.article p')).fontFamily,
+  }))
+  check('embed: the host page keeps its theme and typography', hostLook.theme === null && hostLook.p === '14px' && hostLook.h2 === '40px' && /Georgia/.test(hostLook.font), JSON.stringify(hostLook))
+  const create = em.locator('#create')
+  check('embed: names an operation by METHOD /path', (await em.locator('#get .oa-embed__title').innerText()) === 'Get an order')
+  check('embed: "Open in reference" links the canonical anchor', (await create.locator('.oa-embed__ref').getAttribute('href')) === '/standalone.html#kitchen/operation/createOrder')
+  check('embed: try-it can be turned off', (await em.locator('#get .oa-tryit').count()) === 0 && (await em.locator('#get .oa-samples').count()) === 1)
+  let embedSent = null
+  await em.route('**/v2/orders**', async (route) => {
+    embedSent = { method: route.request().method(), url: route.request().url() }
+    await route.fulfill({ status: 201, contentType: 'application/json', body: '{"id":"o-9"}' })
+  })
+  await create.locator('.oa-tryit button', { hasText: 'Send' }).click()
+  await create.locator('.oa-tryit__response .oa-status').waitFor()
+  check('embed: try-it sends', embedSent?.method === 'POST' && /\/v2\/orders$/.test(embedSent.url), embedSent?.url)
+  await create.locator('.oa-embed__settings').click()
+  await em.locator('.oa-settings .oa-servers').waitFor()
+  check('embed: the settings drawer has the servers and credentials', (await em.locator('.oa-settings .oa-auth').count()) === 1)
+  await em.keyboard.press('Escape')
+  await em.locator('.oa-settings').waitFor({ state: 'detached' }).catch(() => {})
+  await create.screenshot({ path: `${out}/embed.png` })
+
+  // A narrow container: one column, nothing sideways.
+  await em.locator('.aside').evaluate((el) => (el.style.width = '380px'))
+  await em.waitForTimeout(150)
+  const narrow = await em.locator('#list .oa-embed').evaluate((el) => {
+    const right = el.getBoundingClientRect().right
+    const outside = [...el.querySelectorAll('*')].filter((n) => n.getClientRects().length && n.getBoundingClientRect().right > right + 1 && !n.closest('.oa-preview__line')).map((n) => n.className)
+    const grid = el.querySelector('.oa-op__grid')
+    return { scroll: el.scrollWidth - el.clientWidth, outside: outside.slice(0, 5), columns: window.getComputedStyle(grid).gridTemplateColumns.split(' ').length }
+  })
+  check('embed at 380px: one column, no horizontal overflow', narrow.scroll <= 0 && narrow.outside.length === 0 && narrow.columns === 1, JSON.stringify(narrow))
+  await em.locator('#list').screenshot({ path: `${out}/embed-narrow.png` })
+
+  // PDF from the embed: the print frame holds the operation, expanded, without try-it.
+  await create.locator('.oa-embed__pdf').click()
+  const printed = await printFrame(em)
+  check('print: the document title names the API and the operation', printed.title === 'Kitchen Sink API — Create an order', printed.title)
+  check('print: the request schema is expanded (a nested property)', /amount/.test(printed.text) && /currency/.test(printed.text), printed.text.slice(0, 200))
+  check('print: cycles point up', printed.text.includes('→ Order'))
+  check('print: no try-it, no controls', printed.tryIt === 0)
+  check('print: a sample and the operation URL', printed.text.includes('curl') && printed.text.includes('/standalone.html#kitchen/operation/createOrder'))
+  check('print: the host page is untouched', (await em.locator('.oa-embed__card').first().isVisible()) && (await em.evaluate(() => document.querySelectorAll('iframe[data-oa-print]').length)) === 1)
+  const pdfPage = await browser.newPage()
+  await pdfPage.setContent(printed.html)
+  await pdfPage.emulateMedia({ media: 'print' })
+  const pdf = await pdfPage.pdf({ path: `${out}/operation.pdf`, format: 'A4', preferCSSPageSize: true })
+  check('print: a PDF comes out', pdf.length > 1000, `${pdf.length} bytes`)
+  await pdfPage.close()
+  check('embed: no page errors', emErrors.length === 0, emErrors.join('; '))
+  await em.close()
+
+  // The Vue component on its own; an unknown operation is reported in place.
+  const ev = await browser.newPage({ viewport: { width: 1280, height: 1200 } })
+  await ev.addInitScript(stubPrint)
+  const evErrors = []
+  ev.on('pageerror', (e) => evErrors.push(String(e)))
+  await ev.goto(`${base}?mode=embed&op=createOrder`)
+  await ev.locator('.oa-embed__card').waitFor()
+  check('embed (Vue): renders the operation side by side when wide', (await ev.locator('.oa-op__grid').evaluate((g) => window.getComputedStyle(g).gridTemplateColumns.split(' ').length)) === 2)
+  await ev.goto(`${base}?mode=embed&op=nope`)
+  await ev.locator('.oa-embed .uid-alert').waitFor()
+  check('embed (Vue): an unknown operation shows an alert', (await ev.locator('.oa-embed .uid-alert').innerText()).includes('nope'))
+  // The reference: PDF next to "Copy link", and the whole spec from the settings drawer.
+  await ev.goto(`${base}?spec=kitchen#operation/getOrder`)
+  const go2 = ev.locator('[id="operation/getOrder"]')
+  await go2.locator('.oa-tryit').waitFor()
+  await go2.locator('.oa-op__head').hover()
+  await go2.locator('.oa-op__pdf').click()
+  const one = await printFrame(ev)
+  check('print (reference): one operation', one.ops === 1 && one.title === 'Kitchen Sink API — Get an order', one.title)
+  await ev.evaluate(() => (window.__printed = 0))
+  await openSettings(ev)
+  await ev.locator('.oa-settings__print button').click()
+  const all = await printFrame(ev)
+  check('print (reference): the whole spec, every operation and the schemas', all.ops >= 9 && all.text.includes('Order') && all.title.startsWith('Kitchen Sink API'), `${all.ops} operations`)
+  check('print (reference): one frame at a time', (await ev.evaluate(() => document.querySelectorAll('iframe[data-oa-print]').length)) === 1)
+  check('embed (Vue) and print: no page errors', evErrors.length === 0, evErrors.join('; '))
+  await ev.close()
 
   // The editor: visual edits land in the text, the source view reports problems.
   const ed = await browser.newPage({ viewport: { width: 1440, height: 1200 } })

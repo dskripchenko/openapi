@@ -1,2 +1,32 @@
-/* The standalone page owns the window: no default body margin around it. */
-body { margin: 0; }
+/*
+ * The kit's reset and base text (its reset.css and global.css), kept to our
+ * own elements: an embedded operation lives in someone else's page, whose
+ * paragraphs, headings and images must stay as they are. Zero specificity,
+ * as the originals are element selectors: component styles still win.
+ * Overlays (drawers, menus) are teleported to <body>, hence the uid-* match.
+ */
+:where(.oa-reference, .oa-page, [class^='uid-'], [class*=' uid-']),
+:where(.oa-reference, .oa-page, [class^='uid-'], [class*=' uid-']) *,
+:where(.oa-reference, .oa-page, [class^='uid-'], [class*=' uid-']) *::before,
+:where(.oa-reference, .oa-page, [class^='uid-'], [class*=' uid-']) *::after { box-sizing: border-box; }
+
+:where(.oa-reference, .oa-page, [class^='uid-'], [class*=' uid-']) :where(img, svg) { display: block; max-width: 100%; }
+:where(.oa-reference, .oa-page, [class^='uid-'], [class*=' uid-']) :where(button, input, textarea, select) { font: inherit; }
+:where(.oa-reference, .oa-page, [class^='uid-'], [class*=' uid-']) :where(p, h1, h2, h3, h4) { margin: 0; overflow-wrap: break-word; }
+
+/* The base text on our roots only (the rest inherits): the reference, and overlays teleported to <body>. */
+:where(.oa-reference, .oa-page, body > [class^='uid-'], body > [class*=' uid-']) {
+  font-family: var(--uid-font-family-sans);
+  font-size: var(--uid-font-size-md);
+  line-height: var(--uid-line-height-normal);
+  color: var(--uid-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+:where([class^='uid-'], [class*=' uid-']):focus-visible {
+  outline: 2px solid var(--uid-color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* A whole reference page owns the window: no default body margin around it, the kit's background. */
+body:has(> * > .oa-page, > .oa-page) { margin: 0; background: var(--uid-surface-base); }
