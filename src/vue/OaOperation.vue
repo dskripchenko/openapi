@@ -33,6 +33,10 @@ const resolveRef = (r: string) => ctx.spec.value.resolver.get(r) as never
 
 const op = computed(() => props.entry.operation)
 
+/** The right column shows one thing at a time: try-it, or the request as code. */
+const canTry = computed(() => ctx.tryIt.value && !props.entry.webhook)
+const sideTab = ref<'try' | 'code'>('try')
+
 /**
  * A large spec has hundreds of operations: each one builds its draft, samples
  * and forms only when it comes near the viewport, and keeps them after.
@@ -116,6 +120,7 @@ watch(
     show()
     applyPrefill(draft.value!, p.data, props.entry, ctx)
     prefilled.value = true
+    sideTab.value = 'try'
   },
   { immediate: true },
 )
@@ -269,8 +274,21 @@ watch(
       </div>
 
       <aside class="oa-op__side">
-        <OaSamples :draft="draft" />
-        <OaTryIt v-if="ctx.tryIt.value && !entry.webhook" :entry="entry" :draft="draft" :prefilled="prefilled" @dismiss="prefilled = false" />
+        <div v-if="canTry" class="oa-side-tabs" role="tablist">
+          <button
+            v-for="t in (['try', 'code'] as const)"
+            :key="t"
+            type="button"
+            role="tab"
+            class="oa-side-tabs__tab"
+            :class="{ 'is-active': sideTab === t }"
+            :aria-selected="sideTab === t"
+            :data-tab="t"
+            @click="sideTab = t"
+          >{{ t === 'try' ? labels.tryIt : labels.samples }}</button>
+        </div>
+        <OaTryIt v-if="canTry" v-show="sideTab === 'try'" :entry="entry" :draft="draft" :prefilled="prefilled" @dismiss="prefilled = false" />
+        <OaSamples v-show="!canTry || sideTab === 'code'" :draft="draft" />
       </aside>
     </div>
   </section>

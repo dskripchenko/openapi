@@ -16,7 +16,8 @@
  * (see `../links/prefill` for the format); nothing is sent by itself.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, shallowRef, watch } from 'vue'
-import { UidAlert, UidInput, UidLocaleProvider, UidMarkdown, UidSelect, UidSpinner, en as uidEn, ru as uidRu } from '@dskripchenko/ui'
+import { UidAlert, UidButton, UidDrawer, UidInput, UidLocaleProvider, UidMarkdown, UidSelect, UidSpinner, en as uidEn, ru as uidRu } from '@dskripchenko/ui'
+import { Download, KeyRound, Menu, Settings2 } from '@dskripchenko/ui/icons'
 import { decodePrefill, pickSpec, resolveSection, splitLink } from '../links'
 import { loadSpec } from '../load'
 import type { LoadedSpec } from '../model'
@@ -25,7 +26,11 @@ import { sendRequest, type SendFn } from '../request'
 import { SNIPPET_TARGETS, type SnippetTarget } from '../snippets'
 import { referenceKey, type ReferenceContext, type SpecInput, type SpecSource } from './context'
 import { LOCALES, en, type OpenApiLabels } from './labels'
+import { downloadSpec } from './download'
+import { currentServer } from './draft'
+import OaAuth from './OaAuth.vue'
 import OaIntro from './OaIntro.vue'
+import OaServers from './OaServers.vue'
 import OaOperation from './OaOperation.vue'
 import OaSchema from './OaSchema.vue'
 import { buildSearchIndex, fold, type SearchHit, type SearchIndex } from './search'
@@ -65,6 +70,8 @@ const props = withDefaults(
     external?: ResolverOptions['external']
     /** Updates `location.hash` when an operation is opened from the navigation. */
     hashNavigation?: boolean
+    /** The header's title; the open spec's own by default. */
+    title?: string
     /**
      * Keeps API keys and tokens between visits, per spec: `'session'` (or
      * `true`) in sessionStorage, `'local'` in localStorage. Off by default.
@@ -86,6 +93,7 @@ const props = withDefaults(
     baseUrl: undefined,
     external: undefined,
     hashNavigation: true,
+    title: undefined,
     persistCredentials: false,
     oauthRedirectUrl: undefined,
   },
@@ -406,6 +414,61 @@ const firstGroupOf = computed(() => {
 })
 const tagIntro = (name: string) => loaded.value?.groups.find((g) => g.name === name)
 
+/* -------------------------------- the shell -------------------------------- */
+
+const settingsOpen = ref(false)
+const navOpen = ref(false)
+const headerTitle = computed(() => props.title ?? loaded.value?.document.info.title ?? '')
+const headerSummary = computed(() => {
+  const info = loaded.value?.document.info
+  const text = info?.summary ?? info?.description?.split(/\n\s*\n/)[0]?.replace(/[#*_`>\[\]]/g, '') ?? ''
+  return text.length > 160 ? `${text.slice(0, 157)}…` : text
+})
+/** The host the requests go to, for the settings button. */
+const serverHost = computed(() => {
+  if (!loaded.value) return ''
+  const url = currentServer(ctx)
+  try {
+    return new URL(url, ctx.baseUrl.value).host
+  } catch {
+    return url
+  }
+})
+const hasSchemes = computed(() => Object.keys(loaded.value?.document.components?.securitySchemes ?? {}).length > 0)
+const signedIn = computed(() => Object.values(ctx.credentials).some((v) => (typeof v === 'string' ? v !== '' : !!v && !!(v as { username?: string }).username)))
+
+/** Picking a section on a phone closes the navigation drawer. */
+async function goFromNav(local: string): Promise<void> {
+  navOpen.value = false
+  await go(local)
+}
+
+/* Scroll spy: the navigation follows the section in view. */
+let spy: IntersectionObserver | null = null
+function watchSections(): void {
+  spy?.disconnect()
+  if (typeof IntersectionObserver === 'undefined' || !root.value) return
+  const visible = new Map<string, number>()
+  spy = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) visible.set(e.target.id, e.boundingClientRect.top)
+        else visible.delete(e.target.id)
+      }
+      const top = [...visible.entries()].sort((a, b) => a[1] - b[1])[0]?.[0]
+      if (!top || top === active.value) return
+      active.value = top
+      const link = root.value?.querySelector<HTMLElement>(`.oa-nav [href="#${CSS.escape(top)}"]`)
+      link?.scrollIntoView({ block: 'nearest' })
+    },
+    { rootMargin: '-15% 0px -70% 0px' },
+  )
+  for (const el of root.value.querySelectorAll<HTMLElement>('.oa-op[id], .oa-model[id]')) spy.observe(el)
+}
+watch(loaded, () => void nextTick(watchSections), { flush: 'post' })
+onMounted(() => void nextTick(watchSections))
+onBeforeUnmount(() => spy?.disconnect())
+
 defineExpose({ go, open, spec: loaded, active: activeId })
 </script>
 
@@ -419,10 +482,18 @@ defineExpose({ go, open, spec: loaded, active: activeId })
     <div v-if="loading" class="oa-loading"><UidSpinner /></div>
     <UidAlert v-else-if="loadError" variant="danger" :title="labels.loadError">{{ loadError }}</UidAlert>
     <template v-else-if="loaded">
-      <nav class="oa-nav" :aria-label="labels.operations">
+      <header class="oa-header">
+        <button type="button" class="oa-header__icon oa-header__menu" :aria-label="labels.operations" :aria-expanded="navOpen" @click="navOpen = !navOpen">
+          <Menu :size="18" aria-hidden="true" />
+        </button>
+        <div class="oa-header__title" :title="headerSummary || headerTitle">
+          <span class="oa-header__name">{{ headerTitle }}</span>
+          <span class="oa-chip-static">{{ loaded.document.info.version }}</span>
+          <span v-if="headerSummary" class="oa-header__summary">{{ headerSummary }}</span>
+        </div>
         <UidSelect
           v-if="multi"
-          class="oa-nav__specs"
+          class="oa-header__specs oa-nav__specs"
           size="sm"
           searchable
           :options="switcher"
@@ -430,13 +501,13 @@ defineExpose({ go, open, spec: loaded, active: activeId })
           :aria-label="labels.specs"
           @update:model-value="(v: unknown) => open(String(v))"
         />
-        <div class="oa-search">
+        <div class="oa-search oa-header__search">
           <UidInput
             :model-value="query"
             size="sm"
             type="search"
             :placeholder="searchPlaceholder"
-            class="oa-nav__search"
+            class="oa-header__search-input oa-nav__search"
             role="combobox"
             autocomplete="off"
             :aria-label="labels.search"
@@ -479,6 +550,32 @@ defineExpose({ go, open, spec: loaded, active: activeId })
             <p v-if="!hits.length" class="oa-nav__empty">{{ labels.noResults }}</p>
           </div>
         </div>
+        <div class="oa-header__actions">
+          <div class="oa-header__downloads" role="group" :aria-label="labels.downloadSpec">
+            <button
+              v-for="f in (['yaml', 'json'] as const)"
+              :key="f"
+              type="button"
+              class="oa-header__download"
+              :data-format="f"
+              :title="`${labels.downloadSpec} (${f.toUpperCase()})`"
+              @click="downloadSpec(loaded, f)"
+            >
+              <Download :size="14" aria-hidden="true" />{{ f.toUpperCase() }}
+            </button>
+          </div>
+          <button type="button" class="oa-header__settings" :aria-label="labels.settings" :aria-expanded="settingsOpen" @click="settingsOpen = true">
+            <Settings2 :size="16" aria-hidden="true" />
+            <span class="oa-header__host">{{ serverHost || labels.servers }}</span>
+            <KeyRound v-if="hasSchemes" :size="15" class="oa-header__key" :class="{ 'is-on': signedIn }" aria-hidden="true" />
+          </button>
+          <slot name="actions" />
+        </div>
+      </header>
+
+      <div class="oa-body">
+        <div v-if="navOpen" class="oa-nav__overlay" @click="navOpen = false" />
+        <nav class="oa-nav" :class="{ 'is-open': navOpen }" :aria-label="labels.operations">
         <div class="oa-nav__scroll">
           <div v-for="g in groups" :key="g.name" class="oa-nav__group">
             <div class="oa-nav__tag">{{ g.displayName }}</div>
@@ -488,7 +585,7 @@ defineExpose({ go, open, spec: loaded, active: activeId })
               :href="`#${anchorOf(`operation/${e.id}`)}`"
               class="oa-nav__op"
               :class="{ 'is-active': active === anchorOf(`operation/${e.id}`), 'is-deprecated': e.deprecated }"
-              @click.prevent="go(`operation/${e.id}`)"
+              @click.prevent="goFromNav(`operation/${e.id}`)"
             >
               <span class="oa-method oa-method--small" :class="`oa-method--${e.method}`">{{ e.method === 'delete' ? 'DEL' : e.method.toUpperCase() }}</span>
               <span class="oa-nav__label">{{ e.operation.summary || e.path }}</span>
@@ -501,7 +598,7 @@ defineExpose({ go, open, spec: loaded, active: activeId })
               :key="e.id"
               :href="`#${anchorOf(`operation/${e.id}`)}`"
               class="oa-nav__op"
-              @click.prevent="go(`operation/${e.id}`)"
+              @click.prevent="goFromNav(`operation/${e.id}`)"
             >
               <span class="oa-method oa-method--small" :class="`oa-method--${e.method}`">{{ e.method.toUpperCase() }}</span>
               <span class="oa-nav__label">{{ e.operation.summary || e.path }}</span>
@@ -515,16 +612,16 @@ defineExpose({ go, open, spec: loaded, active: activeId })
               :href="`#${anchorOf(`schema/${n}`)}`"
               class="oa-nav__op"
               :class="{ 'is-active': active === anchorOf(`schema/${n}`) }"
-              @click.prevent="go(`schema/${n}`)"
+              @click.prevent="goFromNav(`schema/${n}`)"
             >
               <span class="oa-nav__label">{{ n }}</span>
             </a>
           </div>
           <p v-if="nothing" class="oa-nav__empty">{{ labels.noResults }}</p>
         </div>
-      </nav>
+        </nav>
 
-      <main class="oa-main">
+        <main class="oa-main">
         <OaIntro />
         <section v-for="g in loaded.groups" :key="g.name" class="oa-tag">
           <h2 :id="anchorOf(`tag/${g.name}`)" class="oa-tag__title">{{ g.displayName }}</h2>
@@ -549,6 +646,32 @@ defineExpose({ go, open, spec: loaded, active: activeId })
           </div>
         </section>
       </main>
+      </div>
+
+      <footer class="oa-footer">
+        <span>{{ loaded.document.info.title }} · {{ loaded.document.info.version }}</span>
+        <span>OpenAPI {{ loaded.source.version }}</span>
+        <slot name="footer" />
+      </footer>
+
+      <UidDrawer v-model="settingsOpen" side="right" width="420px" :title="labels.settings">
+        <div class="oa-settings">
+          <section class="oa-settings__section">
+            <h3 class="oa-settings__title">{{ labels.servers }}</h3>
+            <OaServers />
+          </section>
+          <section v-if="hasSchemes" class="oa-settings__section">
+            <h3 class="oa-settings__title">{{ labels.authentication }}</h3>
+            <OaAuth embedded />
+          </section>
+          <section class="oa-settings__section oa-settings__downloads">
+            <h3 class="oa-settings__title">{{ labels.downloadSpec }}</h3>
+            <div class="oa-settings__row">
+              <UidButton v-for="f in (['yaml', 'json'] as const)" :key="f" variant="secondary" size="sm" :icon="Download" :data-format="f" @click="downloadSpec(loaded, f)">{{ f.toUpperCase() }}</UidButton>
+            </div>
+          </section>
+        </div>
+      </UidDrawer>
     </template>
   </div>
   </component>

@@ -31,6 +31,15 @@ const check = (name, ok, detail = '') => {
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`)
   if (!ok) failures.push(name)
 }
+// Server and credentials live in the header's settings drawer.
+const openSettings = async (pg) => {
+  await pg.locator('.oa-header__settings').click()
+  await pg.locator('.oa-settings').waitFor()
+}
+const closeSettings = async (pg) => {
+  await pg.keyboard.press('Escape')
+  await pg.locator('.oa-settings').waitFor({ state: 'detached' }).catch(() => {})
+}
 
 try {
   for (const spec of ['petstore', 'kitchen', 'swagger']) {
@@ -61,9 +70,11 @@ try {
 
   // Samples follow the chosen language on every operation.
   const op = page.locator('.oa-op').filter({ hasText: 'Create an order' }).first()
+  await op.locator('.oa-side-tabs__tab[data-tab="code"]').click()
   await op.locator('.oa-samples .uid-select').first().click()
   await page.locator('[role="option"]', { hasText: 'Python' }).first().click()
   const python = await op.locator('.oa-samples').innerText()
+  await op.locator('.oa-side-tabs__tab[data-tab="try"]').click()
   check('samples switch to Python', python.includes('import requests') && python.includes('requests.post('))
 
   // Try it against a mocked API: the request carries the body and the header.
@@ -97,18 +108,20 @@ try {
   await mp.waitForSelector('.oa-nav__specs')
   await mp.waitForSelector('.oa-op')
   check('several specs: the first opens', (await mp.locator('.oa-intro h1').innerText()).includes('Petstore'))
-  await mp.locator('.oa-auth .oa-panel__head').click()
+  await openSettings(mp)
   await mp.locator('.oa-auth input').first().fill('pets-token')
+  await closeSettings(mp)
   await mp.locator('.oa-nav__specs').click()
   await mp.locator('[role="option"]', { hasText: 'Swagger 2.0' }).click()
   await mp.waitForSelector('.oa-op')
-  check('several specs: a loader spec opens on demand', (await mp.locator('.oa-intro__spec').innerText()).includes('2.0'))
+  check('several specs: a loader spec opens on demand', (await mp.locator('.oa-intro .oa-chip-static--muted').innerText()).includes('2.0'))
   check('several specs: deep links carry the spec id', (await mp.locator('.oa-op').first().getAttribute('id'))?.startsWith('legacy/operation/') === true)
   await mp.locator('.oa-nav__specs').click()
   await mp.locator('[role="option"]').first().click()
   await mp.waitForSelector('.oa-op')
-  await mp.locator('.oa-auth .oa-panel__head').click()
+  await openSettings(mp)
   check('several specs: credentials are kept per spec', (await mp.locator('.oa-auth input').first().inputValue()) === 'pets-token')
+  await closeSettings(mp)
   await mp.goto(`${base}?multi=1#shop/schema/Order`)
   await mp.waitForTimeout(1200)
   check('several specs: a prefixed deep link opens its spec and section', await mp.locator('[id="shop/schema/Order"]').isVisible())
@@ -161,7 +174,9 @@ try {
   await lp.waitForTimeout(800)
   check('prefilled link: the header value is filled', (await created.locator('.oa-tryit__group input').first().inputValue()) === 'from-link')
   check('prefilled link: the body is filled', (await created.locator('.oa-tryit__textarea').inputValue()) === order.body)
+  await created.locator('.oa-side-tabs__tab[data-tab="code"]').click()
   check('prefilled link: the server variable is applied', (await created.locator('.oa-samples').innerText()).includes('us.api.example.com'))
+  await created.locator('.oa-side-tabs__tab[data-tab="try"]').click()
   check('prefilled link: the try-it panel is in view', await created.locator('.oa-tryit').evaluate((el) => {
     const r = el.getBoundingClientRect()
     return r.top > -20 && r.top < window.innerHeight
@@ -189,8 +204,9 @@ try {
   await cp.goto(`${base}?multi=1#shop/operation/createOrder`)
   const source = cp.locator('[id="shop/operation/createOrder"]')
   await source.locator('.oa-tryit').waitFor()
-  await cp.locator('.oa-auth .oa-panel__head').click()
+  await openSettings(cp)
   await cp.locator('.oa-auth input').first().fill('secret-token')
+  await closeSettings(cp)
   await source.locator('.oa-tryit__group input').first().fill('copied-key')
   await source.locator('.oa-tryit__textarea').fill('{"copied": true}')
   await source.locator('.oa-share__copy').click()
@@ -203,8 +219,9 @@ try {
   await target.locator('.oa-tryit__prefilled').waitFor()
   check('copy link: the header comes back', (await target.locator('.oa-tryit__group input').first().inputValue()) === 'copied-key')
   check('copy link: the body comes back', (await target.locator('.oa-tryit__textarea').inputValue()) === '{"copied": true}')
-  await cp2.locator('.oa-auth .oa-panel__head').click()
+  await openSettings(cp2)
   check('copy link: credentials are left out by default', (await cp2.locator('.oa-auth input').first().inputValue()) === '')
+  await closeSettings(cp2)
   await source.locator('.oa-share__creds').click()
   check('copy link: a warning goes with credentials', (await source.locator('.oa-share .oa-tryit__warn').count()) === 1)
   await source.locator('.oa-share__copy').click()
@@ -213,8 +230,9 @@ try {
   await cp2.goto('about:blank')
   await cp2.goto(withCreds)
   await cp2.locator('[id="shop/operation/createOrder"] .oa-tryit__prefilled').waitFor()
-  await cp2.locator('.oa-auth .oa-panel__head').click()
+  await openSettings(cp2)
   check('copy link: credentials travel when ticked', (await cp2.locator('.oa-auth input').first().inputValue()) === 'secret-token')
+  await closeSettings(cp2)
   await cc.close()
   // The standalone bundle (built above) in a plain page: one script, two specs by URL.
   const sa = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
@@ -226,15 +244,15 @@ try {
   await sa.goto(`${base}standalone.html`)
   await sa.waitForSelector('.oa-op')
   check('standalone: renders from one script', (await sa.locator('.oa-intro h1').innerText()).includes('Petstore'))
-  check('standalone: the title goes to the bar and the document', (await sa.locator('.oa-page__title').innerText()) === 'Example APIs' && (await sa.title()) === 'Example APIs')
+  check('standalone: the title goes to the bar and the document', (await sa.locator('.oa-header__name').innerText()) === 'Example APIs' && (await sa.title()) === 'Example APIs')
   check('standalone: the styles are injected', (await sa.locator('style[data-dsk-openapi]').count()) === 1)
-  const barHeight = await sa.locator('.oa-page__bar').evaluate((el) => el.offsetHeight)
+  const barHeight = await sa.locator('.oa-header').evaluate((el) => el.offsetHeight)
   const stickyTop = await sa.locator('.oa-nav').evaluate((el) => window.getComputedStyle(el).top)
   check('standalone: the navigation sticks below the bar', barHeight > 0 && stickyTop === `${barHeight}px`, `${stickyTop} vs ${barHeight}px`)
   await sa.mouse.wheel(0, 1500)
   await sa.waitForTimeout(200)
   const navTop = await sa.locator('.oa-nav').evaluate((el) => el.getBoundingClientRect().top)
-  check('standalone: the bar stays on top while scrolling', Math.round(navTop) === barHeight && (await sa.locator('.oa-page__bar').evaluate((el) => el.getBoundingClientRect().top)) === 0, `nav at ${navTop}`)
+  check('standalone: the bar stays on top while scrolling', Math.round(navTop) === barHeight && (await sa.locator('.oa-header').evaluate((el) => el.getBoundingClientRect().top)) === 0, `nav at ${navTop}`)
   await sa.screenshot({ path: `${out}/standalone-light.png` })
 
   const lightBg = await pageBg()
@@ -396,11 +414,14 @@ try {
     idp.api.push(route.request().headers())
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' })
   })
+  // Sends from the page with the settings drawer closed, then opens it again.
   const sendFrom = async (summary) => {
+    await closeSettings(op2)
     const o = op2.locator('.oa-op').filter({ hasText: summary }).first()
     const n = idp.api.length
     await o.locator('.oa-tryit button', { hasText: 'Send' }).click()
     for (let i = 0; i < 50 && idp.api.length === n; i++) await op2.waitForTimeout(100)
+    await openSettings(op2)
     return idp.api.length > n ? idp.api[idp.api.length - 1].authorization : undefined
   }
   const waitToken = async (scheme) => {
@@ -410,7 +431,7 @@ try {
   }
   await op2.goto(`${base}?spec=oauth`)
   await op2.waitForSelector('.oa-op')
-  await op2.locator('.oa-auth .oa-panel__head').click()
+  await openSettings(op2)
   const oauthBox = op2.locator('.oa-auth__scheme[data-scheme="oauth"]')
   await oauthBox.locator('.oa-auth__oauth input').first().fill('docs-app')
   await oauthBox.locator('.uid-checkbox', { hasText: 'orders' }).locator('.uid-checkbox__label').click()
@@ -489,7 +510,7 @@ try {
   const keyInput = () => pp.locator('.oa-auth__scheme[data-scheme="apiKey"] .oa-auth__token input')
   const openAuth = async () => {
     await pp.waitForSelector('.oa-op')
-    await pp.locator('.oa-auth .oa-panel__head').click()
+    await openSettings(pp)
   }
   await pp.goto(`${base}?spec=oauth&persist=local`)
   await openAuth()
@@ -524,7 +545,9 @@ try {
   const fileBytes = Buffer.concat([Buffer.from('\x89PNG-FILE-BYTES-'), Buffer.from([0, 1, 2, 255])])
   await up.locator('.oa-tryit__file[data-field="file"] input[type="file"]').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: fileBytes })
   await up.locator('input[data-field="alt"], [data-field="alt"] input').first().fill('A red mug')
+  await up.locator('.oa-side-tabs__tab[data-tab="code"]').click()
   check('files: the sample names the chosen file', (await up.locator('.oa-samples').innerText()).includes('photo.png'))
+  await up.locator('.oa-side-tabs__tab[data-tab="try"]').click()
   let upload = null
   await fp.route('**/catalog/images**', async (route) => {
     const r = route.request()
@@ -554,9 +577,12 @@ try {
   await up.locator('.oa-tryit__response .oa-status').waitFor()
   check('files: a binary body is sent as the file', raw?.type === 'application/octet-stream' && !!raw && raw.body.equals(fileBytes), raw?.type)
   check('files: curl prints --data-binary', await (async () => {
+    await up.locator('.oa-side-tabs__tab[data-tab="code"]').click()
     await up.locator('.oa-samples .uid-select').first().click()
     await fp.locator('[role="option"]', { hasText: 'cURL' }).first().click()
-    return (await up.locator('.oa-samples').innerText()).includes("--data-binary '@blob.bin'")
+    const text = await up.locator('.oa-samples').innerText()
+    await up.locator('.oa-side-tabs__tab[data-tab="try"]').click()
+    return text.includes("--data-binary '@blob.bin'")
   })())
   // An image response is previewed.
   await up.locator('.oa-tryit__image').waitFor()
@@ -587,10 +613,10 @@ try {
 
   // The spec downloads as the source document.
   await fp.evaluate(() => window.scrollTo(0, 0))
-  const [yamlDl] = await Promise.all([fp.waitForEvent('download'), fp.locator('.oa-intro__download [data-format="yaml"]').click()])
+  const [yamlDl] = await Promise.all([fp.waitForEvent('download'), fp.locator('.oa-header__download[data-format="yaml"]').click()])
   const yamlText = await readFile(await yamlDl.path(), 'utf8')
   check('download spec: YAML', yamlDl.suggestedFilename() === 'kitchen-sink-api-2.3.0.yaml' && yamlText.startsWith('openapi'), yamlDl.suggestedFilename())
-  const [jsonDl] = await Promise.all([fp.waitForEvent('download'), fp.locator('.oa-intro__download [data-format="json"]').click()])
+  const [jsonDl] = await Promise.all([fp.waitForEvent('download'), fp.locator('.oa-header__download[data-format="json"]').click()])
   const jsonText = await readFile(await jsonDl.path(), 'utf8')
   check('download spec: JSON', jsonDl.suggestedFilename().endsWith('.json') && JSON.parse(jsonText).openapi === '3.1.0')
 

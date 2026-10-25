@@ -307,17 +307,19 @@ function expiryText(name: string): string {
   return minutes <= 0 ? labels.value.tokenExpired : labels.value.expiresIn.replace('{n}', String(minutes))
 }
 
-const open = ref(false)
+/** In the header's settings drawer the panel is always open and has no head of its own. */
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
+const open = ref(props.embedded)
 watch(open, (v) => {
   if (!v) return
   now.value = Date.now()
   for (const { name, scheme } of schemes.value) if (scheme.type === 'openIdConnect') void discover(name, scheme)
-})
+}, { immediate: true })
 </script>
 
 <template>
-  <section v-if="schemes.length" class="oa-panel oa-auth">
-    <button type="button" class="oa-panel__head oa-panel__head--button" :aria-expanded="open" @click="open = !open">
+  <section v-if="schemes.length" class="oa-auth" :class="embedded ? 'oa-auth--embedded' : 'oa-panel'">
+    <button v-if="!embedded" type="button" class="oa-panel__head oa-panel__head--button" :aria-expanded="open" @click="open = !open">
       <span class="oa-panel__title">{{ labels.authentication }}</span>
       <span class="oa-auth__names">{{ schemes.map((s) => s.name).join(', ') }}</span>
       <span class="oa-schema__chevron" :class="{ 'is-open': open }" aria-hidden="true">›</span>

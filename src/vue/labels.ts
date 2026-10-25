@@ -52,6 +52,9 @@ export interface OpenApiLabels {
   copy: string
   show: string
   hide: string
+  // shell
+  settings: string
+  customServer: string
   // links
   copyLink: string
   linkCopied: string
@@ -156,6 +159,9 @@ export const en: OpenApiLabels = {
   copy: 'Copy',
   show: 'Show',
   hide: 'Hide',
+  // shell
+  settings: 'Server and authentication',
+  customServer: 'Another URL…',
   // links
   copyLink: 'Copy link',
   linkCopied: 'Copied',
@@ -255,6 +261,9 @@ export const ru: OpenApiLabels = {
   copy: 'Копировать',
   show: 'Показать',
   hide: 'Скрыть',
+  // shell
+  settings: 'Сервер и авторизация',
+  customServer: 'Другой адрес…',
   // links
   copyLink: 'Скопировать ссылку',
   linkCopied: 'Скопировано',
