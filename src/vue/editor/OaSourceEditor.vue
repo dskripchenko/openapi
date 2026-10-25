@@ -8,13 +8,22 @@ import { computed, h, nextTick, ref, type VNode } from 'vue'
 import { tokenize } from '@dskripchenko/ui'
 import type { DocumentIssue } from '../../validate'
 
-const props = defineProps<{
-  modelValue: string
-  language: 'yaml' | 'json'
-  issues: DocumentIssue[]
-  parseError: { message: string; line?: number; column?: number } | null
-  labels: { issues: string; noIssues: string; parseError: string }
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: string
+    language: 'yaml' | 'json'
+    issues?: DocumentIssue[]
+    parseError?: { message: string; line?: number; column?: number } | null
+    labels?: { issues: string; noIssues: string; parseError: string }
+    /** Without the problem list under the text (the host shows its own). */
+    bare?: boolean
+    /** Grows with the text between these line counts instead of the fixed --oa-source-height. */
+    fit?: { min: number; max: number }
+    /** The textarea's accessible name. */
+    ariaLabel?: string
+  }>(),
+  { issues: () => [], parseError: null, labels: () => ({ issues: '', noIssues: '', parseError: '' }), bare: false, fit: undefined, ariaLabel: undefined },
+)
 const emit = defineEmits<{ 'update:modelValue': [text: string] }>()
 
 const textarea = ref<HTMLTextAreaElement | null>(null)
@@ -31,6 +40,10 @@ const lineCount = computed(() => {
 })
 /** One text node for all the numbers: a node per line would be tens of thousands. */
 const numbers = computed(() => Array.from({ length: lineCount.value }, (_, i) => i + 1).join('\n'))
+/* 1.6em a line plus the frame's padding and border; the em is the frame's, where the height applies. */
+const fitStyle = computed(() =>
+  props.fit ? { '--oa-source-height': `calc(${Math.min(props.fit.max, Math.max(props.fit.min, lineCount.value))} * 1.6em + 22px)` } : undefined,
+)
 const errorLines = computed(() => {
   const lines = new Set<number>()
   for (const i of props.issues) if (i.severity === 'error' && i.line) lines.add(i.line)
@@ -84,7 +97,7 @@ defineExpose({ goToLine })
 </script>
 
 <template>
-  <div class="oa-source" :class="{ 'oa-source--plain': plain }">
+  <div class="oa-source" :class="{ 'oa-source--plain': plain }" :style="fitStyle">
     <div class="oa-source__frame">
       <div ref="gutter" class="oa-source__gutter" aria-hidden="true">
         <div class="oa-source__gutter-inner">
@@ -102,13 +115,14 @@ defineExpose({ goToLine })
           autocapitalize="off"
           autocomplete="off"
           wrap="off"
+          :aria-label="ariaLabel"
           @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
           @scroll="sync"
           @keydown="onKeydown"
         />
       </div>
     </div>
-    <div class="oa-source__issues">
+    <div v-if="!bare" class="oa-source__issues">
       <button v-if="parseError" type="button" class="oa-source__issue is-error" @click="goToLine(parseError.line, parseError.column)">
         <span class="oa-source__where">{{ parseError.line ? `${parseError.line}:${parseError.column ?? 1}` : '—' }}</span>
         {{ labels.parseError }}: {{ parseError.message }}

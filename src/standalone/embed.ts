@@ -70,7 +70,7 @@ function loaderFor(url: string): () => Promise<string> {
 /* The theme on <html>, set only on request; 'system' follows the browser live. */
 let themeMedia: MediaQueryList | null = null
 let themeListener: (() => void) | null = null
-function applyTheme(theme: PageTheme): void {
+export function applyTheme(theme: PageTheme): void {
   if (themeMedia && themeListener) themeMedia.removeEventListener('change', themeListener)
   themeMedia = themeListener = null
   const set = (t: 'light' | 'dark'): void => void (document.documentElement.dataset.theme = t)
@@ -84,7 +84,7 @@ function applyTheme(theme: PageTheme): void {
 }
 
 /** The kit's light theme for a page that sets no <html data-theme>: once, as custom properties only. */
-function lightFallback(): void {
+export function lightFallback(): void {
   if (document.querySelector('style[data-dsk-openapi-light]')) return
   const block = /:root\[data-theme='light'\]\s*\{[^}]*\}/.exec(kitThemes)?.[0]
   if (!block) return
@@ -169,9 +169,9 @@ export function autoMount(root: ParentNode = document): OperationEmbed[] {
   return out
 }
 
-/** `<script src=".../standalone.js" data-auto>`: mount the page's embeds once it is parsed. */
-export function autoMountOnLoad(script: HTMLOrSVGScriptElement | null): void {
+/** `<script src=".../standalone.js" data-auto>`: mount the page's embeds (or run `run`) once it is parsed. */
+export function autoMountOnLoad(script: HTMLOrSVGScriptElement | null, run: () => void = () => void autoMount()): void {
   if (!script?.hasAttribute('data-auto')) return
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => void autoMount(), { once: true })
-  else autoMount()
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true })
+  else run()
 }

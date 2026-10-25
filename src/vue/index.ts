@@ -13,3 +13,16 @@ export { default as OpenApiPage } from './OpenApiPage.vue'
 export { PAGE_THEMES, resolveLocale, type PageTheme } from './page'
 export { printDocument, printOperation, type PrintDocumentOptions, type PrintOptions } from './print'
 export { findOperation } from './embed'
+export { default as OpenApiBlock, type BlockTab } from './OpenApiBlock.vue'
+export { blockEn, blockRu, BLOCK_LOCALES, type BlockLabels } from './blocks/labels'
+export {
+  mountOpenApiBlock,
+  openApiBlockRenderer,
+  type MountOpenApiBlockOptions,
+  type OpenApiBlockHandle,
+  type OpenApiBlockOptions,
+  type BlockRenderer,
+  type BlockRenderResult,
+  type BlockMountContext,
+  type BlockMountHandle,
+} from './blocks/mount'

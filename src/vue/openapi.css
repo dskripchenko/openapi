@@ -1192,3 +1192,133 @@
 .oa-op__head:focus-within .oa-op__pdf { opacity: 1; }
 @media (hover: none) { .oa-op__pdf { opacity: 1; } }
 .oa-settings__print { display: flex; }
+
+/* ---------------------------------- blocks ---------------------------------- */
+/* An API block in rich content: the cards, or tabs over them, the source and a form. */
+.oa-bk {
+  margin: 16px 0;
+  container-type: inline-size;
+  color: var(--uid-text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.oa-bk--editable {
+  padding: 2px 14px 14px;
+  border: 1px solid var(--uid-border-subtle);
+  border-radius: 12px;
+  background: var(--uid-color-bg-subtle);
+}
+.oa-bk__tabs .uid-tabs__list { align-items: center; }
+.oa-bk__tabs .uid-tab-panel { padding-bottom: 0; }
+.oa-bk__format { flex: none; margin-left: auto; }
+.oa-bk__format .oa-segmented__item { padding: 2px 8px; font-size: 11px; }
+.oa-bk__dot { display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--uid-danger); }
+
+.oa-bk__preview { display: flex; flex-direction: column; gap: 12px; }
+.oa-bk__preview .oa-reference.oa-embed { margin: 0; }
+.oa-bk__heading { display: flex; flex-direction: column; gap: 4px; }
+.oa-bk__title { margin: 0; font-size: 17px; font-weight: 600; }
+.oa-bk__empty { margin: 0; color: var(--uid-text-secondary); }
+.oa-bk__where { font-family: var(--oa-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); font-size: 12px; color: var(--uid-text-secondary); }
+
+.oa-bk__form { display: flex; flex-direction: column; gap: 4px; }
+.oa-bk__section { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--uid-border-subtle); }
+.oa-bk__form > .oa-bk__section:first-child { padding-top: 0; border-top: 0; }
+.oa-bk__section-title { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--uid-text-tertiary); }
+.oa-bk__section > .uid-button,
+.oa-bk__footer > .uid-button,
+.oa-bk__mode { align-self: flex-start; }
+.oa-bk__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.oa-bk__line { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.oa-bk__line--top { align-items: flex-start; }
+.oa-bk__method { flex: none; width: 116px; }
+.oa-bk__url { flex: 1 1 260px; min-width: 0; }
+.oa-bk__url input,
+.oa-bk__param-name input,
+.oa-bk__status input,
+.oa-bk__mono textarea { font-family: var(--oa-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); font-size: 12.5px; }
+.oa-bk__grow { flex: 1 1 160px; min-width: 0; }
+
+/* The requests of a block: method and path chips. */
+.oa-bk__requests { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-bottom: 12px; }
+.oa-bk__request {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--uid-border-default);
+  border-radius: 8px;
+  background: var(--uid-surface-raised);
+  color: var(--uid-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.oa-bk__request:hover { border-color: var(--uid-text-tertiary); }
+.oa-bk__request.is-active { border-color: var(--uid-accent); box-shadow: 0 0 0 1px var(--uid-accent); }
+.oa-bk__request:focus-visible { outline: 2px solid var(--uid-focus-ring, var(--uid-accent)); outline-offset: 1px; }
+.oa-bk__request-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--oa-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); font-size: 12px; }
+
+/* Parameters: location, name, type, required, remove; description and example under them. */
+.oa-bk__params { display: flex; flex-direction: column; gap: 6px; }
+.oa-bk__param {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--uid-border-subtle);
+  border-radius: 8px;
+  background: var(--uid-surface-raised);
+}
+.oa-bk__param-main {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) minmax(120px, 180px) auto auto;
+  grid-template-areas: 'in name type req end';
+  align-items: center;
+  gap: 6px;
+}
+.oa-bk__param-in { grid-area: in; }
+.oa-bk__param-name { grid-area: name; min-width: 0; }
+.oa-bk__param-type { grid-area: type; min-width: 0; }
+.oa-bk__param-req { grid-area: req; white-space: nowrap; }
+.oa-bk__param-main > .oa-icon-button,
+.oa-bk__param-tag { grid-area: end; justify-self: end; }
+.oa-bk__param-tag { font-size: 11px; color: var(--uid-text-tertiary); white-space: nowrap; }
+.oa-bk__param-more { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+.oa-bk .uid-select__value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.oa-bk__auth { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); align-items: start; gap: 8px; }
+.oa-bk__wide { grid-column: 1 / -1; }
+
+.oa-bk__media { flex: 0 1 300px; min-width: 0; }
+.oa-bk__body-req { padding-bottom: 6px; }
+.oa-bk__body-remove { margin-left: auto; }
+.oa-bk__error { margin: 0; font-size: 12px; color: var(--uid-danger); }
+
+.oa-bk__response { display: flex; flex-direction: column; gap: 6px; }
+.oa-bk__response-main { display: flex; align-items: center; gap: 6px; }
+.oa-bk__status { flex: none; width: 84px; }
+.oa-bk__footer { display: flex; justify-content: flex-end; padding-top: 4px; }
+
+/* The format switch: in the tab bar, or heading the panel where the bar has no room. */
+.oa-bk__format--panel { display: none; }
+.oa-bk__form .uid-checkbox__text { font-size: 13px; }
+.oa-bk__example-toggle { color: var(--uid-text-tertiary); }
+.oa-bk__example-toggle.is-on { color: var(--uid-accent); }
+
+@container (max-width: 520px) {
+  .oa-bk__format--bar { display: none; }
+  .oa-bk__format--panel { display: flex; width: max-content; margin: 0 0 10px auto; }
+}
+@container (max-width: 560px) {
+  .oa-bk__param-main {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-areas: 'name name end' 'in type req';
+  }
+  .oa-bk__param-more { grid-template-columns: minmax(0, 1fr); }
+  .oa-bk__method { width: 100%; }
+}
+@media (max-width: 480px) {
+  .oa-bk--editable { padding: 2px 10px 10px; }
+}

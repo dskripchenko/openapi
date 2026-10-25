@@ -17,14 +17,18 @@ import '@dskripchenko/ui/styles/index.css'
 import './standalone.css'
 import { createApp, h, reactive, watchEffect, type App } from 'vue'
 import OpenApiPage from '../vue/OpenApiPage.vue'
-import { resolveLocale, type PageTheme } from '../vue/page'
-import { autoMountOnLoad } from './embed'
+import { isPageTheme, resolveLocale, type PageTheme } from '../vue/page'
+import { renderBlocks, type RenderBlocksOptions } from './blocks'
+import { autoMount, autoMountOnLoad } from './embed'
 import { toSpecSources, type StandaloneOptions } from './options'
 import { proxySend } from './proxy'
 
 export type { StandaloneOptions, StandaloneSource } from './options'
 export type { OperationEmbed, OperationEmbedOptions } from './embed'
+export type { RenderBlocksOptions, RenderedBlock } from './blocks'
 export { autoMount, mountOperation } from './embed'
+export { renderBlocks } from './blocks'
+export { mountOpenApiBlock } from '../vue/blocks/mount'
 export { proxySend } from './proxy'
 
 export interface ApiReference {
@@ -77,6 +81,24 @@ export function createApiReference(target: string | Element, options: Standalone
 }
 
 // A script tag with `data-auto` mounts the page's `[data-openapi-operation]`
-// elements itself once the document is parsed (see ./embed). Read now: the
-// current script is known only while it runs.
-if (typeof document !== 'undefined') autoMountOnLoad(document.currentScript)
+// elements (see ./embed) and renders its ```openapi code blocks (./blocks)
+// once the document is parsed; the tag's data-openapi-theme / -locale /
+// -proxy apply to the blocks. Read now: the current script is known only
+// while it runs.
+if (typeof document !== 'undefined') {
+  const script = document.currentScript
+  autoMountOnLoad(script, () => {
+    autoMount()
+    renderBlocks(document, blockOptions(script))
+  })
+}
+
+function blockOptions(script: HTMLOrSVGScriptElement | null): RenderBlocksOptions {
+  const d = (script as HTMLElement | null)?.dataset ?? {}
+  const locale = d.openapiLocale
+  return {
+    ...(isPageTheme(d.openapiTheme) ? { theme: d.openapiTheme } : {}),
+    ...(locale === 'en' || locale === 'ru' || locale === 'auto' ? { locale } : {}),
+    ...(d.openapiProxy ? { proxy: d.openapiProxy } : {}),
+  }
+}
