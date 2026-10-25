@@ -1,1 +1,8 @@
-export {}
+/**
+ * @dskripchenko/openapi/vue — the reference and editor components, built on
+ * @dskripchenko/ui. Import the styles once: `@dskripchenko/openapi/style.css`.
+ */
+export { default as OpenApiReference } from './OpenApiReference.vue'
+export { default as OaSchema } from './OaSchema.vue'
+export { en, ru, LOCALES, type OpenApiLabels } from './labels'
+export { referenceKey, useReference, type ReferenceContext, type ServerState } from './context'

@@ -165,7 +165,19 @@ export interface Parameter {
   [extension: string]: unknown
 }
 
-export type Header = Omit<Parameter, 'name' | 'in'>
+/** A header object: a parameter without `name` and `in` (spelled out — Omit drops fields of an indexed type). */
+export interface Header {
+  description?: string
+  required?: boolean
+  deprecated?: boolean
+  style?: string
+  explode?: boolean
+  schema?: Schema
+  example?: unknown
+  examples?: Record<string, MaybeRef<Example>>
+  content?: Record<string, MediaType>
+  [extension: string]: unknown
+}
 
 export interface RequestBody {
   description?: string
