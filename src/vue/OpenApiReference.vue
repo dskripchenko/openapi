@@ -6,15 +6,19 @@
  * by tag with a search, documents each one (parameters, body, responses as
  * schema trees, examples), prints the request in 13 languages and sends it
  * from "Try it". Deep links: `#operation/{id}` and `#schema/{name}`.
+ *
+ * Several specs — APIs or versions — go in `specs`: a switcher above the
+ * navigation picks one, each loads when first opened (text, object or an
+ * async loader), and deep links carry its id: `#{id}/operation/{op}`.
  */
-import { computed, nextTick, onMounted, provide, reactive, ref, shallowRef, watch } from 'vue'
-import { UidAlert, UidInput, UidLocaleProvider, UidMarkdown, en as uidEn, ru as uidRu } from '@dskripchenko/ui'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, shallowRef, watch } from 'vue'
+import { UidAlert, UidInput, UidLocaleProvider, UidMarkdown, UidSelect, UidSpinner, en as uidEn, ru as uidRu } from '@dskripchenko/ui'
 import { loadSpec } from '../load'
 import type { LoadedSpec } from '../model'
 import type { ResolverOptions } from '../model'
 import { sendRequest, type SendFn } from '../request'
 import { SNIPPET_TARGETS, type SnippetTarget } from '../snippets'
-import { referenceKey, type ReferenceContext } from './context'
+import { referenceKey, type ReferenceContext, type SpecInput, type SpecSource } from './context'
 import { LOCALES, en, type OpenApiLabels } from './labels'
 import OaIntro from './OaIntro.vue'
 import OaOperation from './OaOperation.vue'
@@ -22,8 +26,12 @@ import OaSchema from './OaSchema.vue'
 
 const props = withDefaults(
   defineProps<{
-    /** The spec: YAML or JSON text, or a parsed object. */
-    spec: string | object
+    /** The spec: YAML or JSON text, or a parsed object. Use `specs` for several. */
+    spec?: SpecInput
+    /** Several specs on one page, with a switcher. */
+    specs?: SpecSource[]
+    /** The id of the open spec (`v-model:active`); the first by default. */
+    active?: string
     /** Sends try-it requests; `fetch` from the page by default. Pass a proxy for foreign APIs. */
     send?: SendFn
     /** Turns "Try it" off (samples stay). */
@@ -48,6 +56,9 @@ const props = withDefaults(
     hashNavigation?: boolean
   }>(),
   {
+    spec: undefined,
+    specs: undefined,
+    active: undefined,
     send: undefined,
     tryIt: true,
     locale: undefined,
@@ -60,24 +71,94 @@ const props = withDefaults(
   },
 )
 
-const emit = defineEmits<{ loaded: [spec: LoadedSpec]; error: [error: Error] }>()
+const emit = defineEmits<{
+  loaded: [spec: LoadedSpec, id: string]
+  error: [error: Error, id: string]
+  'update:active': [id: string]
+}>()
 
+/* ------------------------------ the specs ------------------------------- */
+
+const SINGLE = 'spec'
+const sources = computed<SpecSource[]>(() => props.specs ?? (props.spec !== undefined ? [{ id: SINGLE, spec: props.spec }] : []))
+const multi = computed(() => !!props.specs && props.specs.length > 1)
+
+const activeId = ref<string>(props.active ?? sources.value[0]?.id ?? SINGLE)
+watch(
+  () => props.active,
+  (id) => {
+    if (id !== undefined && id !== activeId.value) void open(id)
+  },
+)
+
+/** Loaded specs by id, kept while their source stays the same. */
+const cache = new Map<string, { input: SpecInput; spec: LoadedSpec }>()
 const loaded = shallowRef<LoadedSpec | null>(null)
 const loadError = ref<string | null>(null)
+const loading = ref(false)
+let ticket = 0
 
-function load(): void {
-  try {
-    loaded.value = loadSpec(props.spec, props.external ? { external: props.external } : {})
+async function load(id: string): Promise<void> {
+  const source = sources.value.find((s) => s.id === id)
+  const my = ++ticket
+  if (!source) {
+    loaded.value = null
+    return
+  }
+  const hit = cache.get(id)
+  if (hit && hit.input === source.spec) {
+    loaded.value = hit.spec
     loadError.value = null
-    emit('loaded', loaded.value)
+    return
+  }
+  try {
+    let input: string | object = source.spec as string | object
+    if (typeof source.spec === 'function') {
+      loading.value = true
+      input = await (source.spec as () => Promise<string | object>)()
+      if (my !== ticket) return
+    }
+    const spec = loadSpec(input, props.external ? { external: props.external } : {})
+    cache.set(id, { input: source.spec, spec })
+    loaded.value = spec
+    loadError.value = null
+    emit('loaded', spec, id)
   } catch (error) {
+    if (my !== ticket) return
     loaded.value = null
     loadError.value = error instanceof Error ? error.message : String(error)
-    emit('error', error instanceof Error ? error : new Error(String(error)))
+    emit('error', error instanceof Error ? error : new Error(String(error)), id)
+  } finally {
+    if (my === ticket) loading.value = false
   }
 }
-load()
-watch(() => [props.spec, props.external], load)
+
+/** Credentials typed per spec, kept across switches. */
+const savedCredentials = new Map<string, Record<string, unknown>>()
+
+async function open(id: string): Promise<void> {
+  if (!sources.value.some((s) => s.id === id)) return
+  savedCredentials.set(activeId.value, { ...ctx.credentials })
+  for (const k of Object.keys(ctx.credentials)) delete ctx.credentials[k]
+  Object.assign(ctx.credentials, savedCredentials.get(id) ?? {})
+  activeId.value = id
+  query.value = ''
+  emit('update:active', id)
+  await load(id)
+}
+
+watch(
+  () => [sources.value, props.external],
+  () => {
+    if (props.external) cache.clear()
+    if (!sources.value.some((s) => s.id === activeId.value)) activeId.value = sources.value[0]?.id ?? SINGLE
+    void load(activeId.value)
+  },
+)
+
+const switcher = computed(() =>
+  sources.value.map((s) => ({ value: s.id, label: s.name ?? cache.get(s.id)?.spec.document.info.title ?? s.id })),
+)
 
 const labels = computed<OpenApiLabels>(() => ({ ...(LOCALES[props.locale ?? 'en'] ?? en), ...props.labels }))
 const kitLocale = computed(() => (props.locale === 'ru' ? uidRu : props.locale === 'en' ? uidEn : undefined))
@@ -93,8 +174,10 @@ const ctx: ReferenceContext = {
   send: computed(() => props.send ?? defaultSend),
   tryIt: computed(() => props.tryIt),
   baseUrl: computed(() => props.baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : undefined)),
+  anchorPrefix: computed(() => (multi.value ? `${activeId.value}/` : '')),
 }
 provide(referenceKey, ctx)
+void load(activeId.value)
 
 watch(
   loaded,
@@ -142,8 +225,12 @@ const nothing = computed(() => !groups.value.length && !webhooks.value.length &&
 
 const active = ref('')
 const root = ref<HTMLElement | null>(null)
+/** The element id of a section: prefixed with the spec's id when there are several. */
+const anchorOf = (local: string): string => ctx.anchorPrefix.value + local
 
-async function go(anchor: string): Promise<void> {
+/** Opens a section by its local anchor (`operation/{id}`, `schema/{name}`) in the open spec. */
+async function go(local: string): Promise<void> {
+  const anchor = anchorOf(local)
   active.value = anchor
   await nextTick()
   const el = root.value?.querySelector<HTMLElement>(`[id="${CSS.escape(anchor)}"]`)
@@ -159,10 +246,29 @@ async function go(anchor: string): Promise<void> {
   if (props.hashNavigation && typeof history !== 'undefined') history.replaceState(null, '', `#${anchor}`)
 }
 
+/** Opens what the address names: the spec (when there are several), then the section. */
+async function followHash(): Promise<void> {
+  let hash = decodeURIComponent(window.location.hash.slice(1))
+  if (multi.value) {
+    const slash = hash.indexOf('/')
+    const id = slash === -1 ? hash : hash.slice(0, slash)
+    if (sources.value.some((s) => s.id === id)) {
+      if (id !== activeId.value) await open(id)
+      else await load(id)
+      hash = slash === -1 ? '' : hash.slice(slash + 1)
+    }
+  }
+  if (hash.startsWith('operation/') || hash.startsWith('schema/') || hash.startsWith('tag/')) {
+    if (!loaded.value) await load(activeId.value)
+    if (anchorOf(hash) !== active.value) void go(hash)
+  }
+}
+const onHashChange = (): void => void followHash()
 onMounted(() => {
-  const hash = decodeURIComponent(window.location.hash.slice(1))
-  if (hash.startsWith('operation/') || hash.startsWith('schema/')) void go(hash)
+  void followHash()
+  window.addEventListener('hashchange', onHashChange)
 })
+onBeforeUnmount(() => window.removeEventListener('hashchange', onHashChange))
 
 const schemas = computed(() => loaded.value?.document.components?.schemas ?? {})
 
@@ -174,15 +280,30 @@ const firstGroupOf = computed(() => {
 })
 const tagIntro = (name: string) => loaded.value?.groups.find((g) => g.name === name)
 
-defineExpose({ go, spec: loaded })
+defineExpose({ go, open, spec: loaded, active: activeId })
 </script>
 
 <template>
   <component :is="kitLocale ? UidLocaleProvider : 'div'" v-bind="kitLocale ? { locale: kitLocale } : { class: 'oa-locale-passthrough' }">
   <div ref="root" class="oa-reference">
-    <UidAlert v-if="loadError" variant="danger" :title="labels.loadError">{{ loadError }}</UidAlert>
+    <!-- Shown here only while the navigation is not: loading or a failed spec. -->
+    <div v-if="multi && (loading || loadError)" class="oa-switcher">
+      <UidSelect size="sm" :options="switcher" :model-value="activeId" @update:model-value="(v: unknown) => open(String(v))" />
+    </div>
+    <div v-if="loading" class="oa-loading"><UidSpinner /></div>
+    <UidAlert v-else-if="loadError" variant="danger" :title="labels.loadError">{{ loadError }}</UidAlert>
     <template v-else-if="loaded">
       <nav class="oa-nav" :aria-label="labels.operations">
+        <UidSelect
+          v-if="multi"
+          class="oa-nav__specs"
+          size="sm"
+          searchable
+          :options="switcher"
+          :model-value="activeId"
+          :aria-label="labels.specs"
+          @update:model-value="(v: unknown) => open(String(v))"
+        />
         <UidInput v-model="query" size="sm" type="search" :placeholder="labels.search" class="oa-nav__search" />
         <div class="oa-nav__scroll">
           <div v-for="g in groups" :key="g.name" class="oa-nav__group">
@@ -190,9 +311,9 @@ defineExpose({ go, spec: loaded })
             <a
               v-for="e in g.operations"
               :key="e.id"
-              :href="`#operation/${e.id}`"
+              :href="`#${anchorOf(`operation/${e.id}`)}`"
               class="oa-nav__op"
-              :class="{ 'is-active': active === `operation/${e.id}`, 'is-deprecated': e.deprecated }"
+              :class="{ 'is-active': active === anchorOf(`operation/${e.id}`), 'is-deprecated': e.deprecated }"
               @click.prevent="go(`operation/${e.id}`)"
             >
               <span class="oa-method oa-method--small" :class="`oa-method--${e.method}`">{{ e.method === 'delete' ? 'DEL' : e.method.toUpperCase() }}</span>
@@ -204,7 +325,7 @@ defineExpose({ go, spec: loaded })
             <a
               v-for="e in webhooks"
               :key="e.id"
-              :href="`#operation/${e.id}`"
+              :href="`#${anchorOf(`operation/${e.id}`)}`"
               class="oa-nav__op"
               @click.prevent="go(`operation/${e.id}`)"
             >
@@ -217,9 +338,9 @@ defineExpose({ go, spec: loaded })
             <a
               v-for="n in schemaNames"
               :key="n"
-              :href="`#schema/${n}`"
+              :href="`#${anchorOf(`schema/${n}`)}`"
               class="oa-nav__op"
-              :class="{ 'is-active': active === `schema/${n}` }"
+              :class="{ 'is-active': active === anchorOf(`schema/${n}`) }"
               @click.prevent="go(`schema/${n}`)"
             >
               <span class="oa-nav__label">{{ n }}</span>
@@ -232,7 +353,7 @@ defineExpose({ go, spec: loaded })
       <main class="oa-main">
         <OaIntro />
         <section v-for="g in loaded.groups" :key="g.name" class="oa-tag">
-          <h2 :id="`tag/${g.name}`" class="oa-tag__title">{{ g.displayName }}</h2>
+          <h2 :id="anchorOf(`tag/${g.name}`)" class="oa-tag__title">{{ g.displayName }}</h2>
           <UidMarkdown v-if="tagIntro(g.name)?.description" class="oa-md" :source="tagIntro(g.name)!.description!" />
           <OaOperation
             v-for="e in g.operations.filter((x) => !x.webhook)"
@@ -247,7 +368,7 @@ defineExpose({ go, spec: loaded })
         </section>
         <section v-if="Object.keys(schemas).length" class="oa-tag">
           <h2 class="oa-tag__title">{{ labels.schemas }}</h2>
-          <div v-for="(s, name) in schemas" :id="`schema/${name}`" :key="name" class="oa-model">
+          <div v-for="(s, name) in schemas" :id="anchorOf(`schema/${name}`)" :key="name" class="oa-model">
             <h3 class="oa-model__title">{{ name }}</h3>
             <UidMarkdown v-if="s.description" class="oa-md oa-md--small" :source="s.description" />
             <OaSchema :schema="s" />

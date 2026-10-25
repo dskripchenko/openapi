@@ -46,6 +46,7 @@ export interface OpenApiLabels {
   links: string
   externalDocs: string
   terms: string
+  specs: string
   noResults: string
   version: string
   copy: string
@@ -97,6 +98,7 @@ export const en: OpenApiLabels = {
   links: 'Links',
   externalDocs: 'More',
   terms: 'Terms of service',
+  specs: 'API',
   noResults: 'Nothing found',
   version: 'Version',
   copy: 'Copy',
@@ -148,6 +150,7 @@ export const ru: OpenApiLabels = {
   links: 'Ссылки',
   externalDocs: 'Подробнее',
   terms: 'Условия использования',
+  specs: 'API',
   noResults: 'Ничего не найдено',
   version: 'Версия',
   copy: 'Копировать',

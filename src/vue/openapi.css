@@ -37,6 +37,10 @@
 }
 .oa-reference > .uid-alert { grid-column: 1 / -1; }
 
+/* ------------------------- several specs, loading ------------------------ */
+.oa-switcher { grid-column: 1 / -1; max-width: var(--oa-nav-width, 272px); }
+.oa-loading { grid-column: 1 / -1; display: flex; justify-content: center; padding: 48px 0; }
+
 /* ------------------------------ navigation ------------------------------ */
 .oa-nav {
   position: sticky;

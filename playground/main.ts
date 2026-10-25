@@ -38,7 +38,17 @@ createApp({
               locale,
               view: (params.get('view') as 'visual' | 'source' | 'preview' | null) ?? 'visual',
             })
-          : h(OpenApiReference, { spec: text.value, locale }),
+          : params.has('multi')
+            ? h(OpenApiReference, {
+                locale,
+                specs: [
+                  { id: 'pets', spec: petstore },
+                  { id: 'shop', name: 'Kitchen Sink', spec: kitchen },
+                  // A loader: fetched the first time the spec is opened.
+                  { id: 'legacy', name: 'Swagger 2.0', spec: () => new Promise((r) => setTimeout(() => r(swagger), 300)) },
+                ],
+              })
+            : h(OpenApiReference, { spec: text.value, locale }),
       ])
   },
 }).mount('#app')

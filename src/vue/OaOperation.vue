@@ -84,7 +84,7 @@ function exampleOf(media: MediaType, mode: 'request' | 'response'): string {
 const tone = (code: string): string =>
   code.startsWith('2') ? 'success' : code.startsWith('3') ? 'info' : code.startsWith('4') || code.startsWith('5') ? 'danger' : 'neutral'
 
-const anchor = computed(() => `operation/${props.entry.id}`)
+const anchor = computed(() => `${ctx.anchorPrefix.value}operation/${props.entry.id}`)
 const headersOf = (r: Response | undefined) =>
   Object.entries(r?.headers ?? {}).map(([name, h]) => ({ name, header: deref<Header>(h) }))
 </script>

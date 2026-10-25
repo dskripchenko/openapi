@@ -77,6 +77,33 @@ try {
   check('deep link to a schema', visible)
   await page.close()
 
+  // Several specs: a switcher, a lazy loader, prefixed deep links, credentials per spec.
+  const mp = await browser.newPage({ viewport: { width: 1440, height: 1200 } })
+  const mErrors = []
+  mp.on('pageerror', (e) => mErrors.push(String(e)))
+  await mp.goto(`${base}?multi=1`)
+  await mp.waitForSelector('.oa-nav__specs')
+  await mp.waitForSelector('.oa-op')
+  check('several specs: the first opens', (await mp.locator('.oa-intro h1').innerText()).includes('Petstore'))
+  await mp.locator('.oa-auth .oa-panel__head').click()
+  await mp.locator('.oa-auth input').first().fill('pets-token')
+  await mp.locator('.oa-nav__specs').click()
+  await mp.locator('[role="option"]', { hasText: 'Swagger 2.0' }).click()
+  await mp.waitForSelector('.oa-op')
+  check('several specs: a loader spec opens on demand', (await mp.locator('.oa-intro__spec').innerText()).includes('2.0'))
+  check('several specs: deep links carry the spec id', (await mp.locator('.oa-op').first().getAttribute('id'))?.startsWith('legacy/operation/') === true)
+  await mp.locator('.oa-nav__specs').click()
+  await mp.locator('[role="option"]').first().click()
+  await mp.waitForSelector('.oa-op')
+  await mp.locator('.oa-auth .oa-panel__head').click()
+  check('several specs: credentials are kept per spec', (await mp.locator('.oa-auth input').first().inputValue()) === 'pets-token')
+  await mp.goto(`${base}?multi=1#shop/schema/Order`)
+  await mp.waitForTimeout(1200)
+  check('several specs: a prefixed deep link opens its spec and section', await mp.locator('[id="shop/schema/Order"]').isVisible())
+  await mp.screenshot({ path: `${out}/multi.png` })
+  check('several specs: no page errors', mErrors.length === 0, mErrors.join('; '))
+  await mp.close()
+
   // The editor: visual edits land in the text, the source view reports problems.
   const ed = await browser.newPage({ viewport: { width: 1440, height: 1200 } })
   const edErrors = []

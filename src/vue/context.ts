@@ -16,6 +16,18 @@ export interface ServerState {
   variables: Record<string, string>
 }
 
+/** A spec as given: YAML/JSON text, a parsed object, or a loader of either. */
+export type SpecInput = string | object | (() => Promise<string | object>)
+
+/** One of several specs on a page. */
+export interface SpecSource {
+  /** Stable id: the deep-link prefix and the `active` value. */
+  id: string
+  /** The switcher's label; the spec's title once loaded, else the id. */
+  name?: string
+  spec: SpecInput
+}
+
 export interface ReferenceContext {
   spec: Ref<LoadedSpec>
   labels: Ref<OpenApiLabels>
@@ -28,6 +40,8 @@ export interface ReferenceContext {
   tryIt: Ref<boolean>
   /** Resolves a relative server URL; the page origin by default. */
   baseUrl: Ref<string | undefined>
+  /** Prefix of the section ids: `{specId}/` when the page has several specs. */
+  anchorPrefix: Ref<string>
 }
 
 export const referenceKey: InjectionKey<ReferenceContext> = Symbol('openapi-reference')
