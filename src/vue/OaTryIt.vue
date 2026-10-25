@@ -11,8 +11,15 @@ import type { OperationEntry } from '../model'
 import { stringifyJson } from '../json'
 import { useReference } from './context'
 import { mediaTypes, sampleBody, type OperationDraft } from './draft'
+import OaShareLink from './OaShareLink.vue'
 
-const props = defineProps<{ entry: OperationEntry; draft: OperationDraft }>()
+const props = defineProps<{
+  entry: OperationEntry
+  draft: OperationDraft
+  /** The form was filled from a link: a notice asks to check it. */
+  prefilled?: boolean
+}>()
+const emit = defineEmits<{ dismiss: [] }>()
 const ctx = useReference()
 const labels = ctx.labels
 
@@ -74,6 +81,7 @@ const showHeaders = ref(false)
       <span class="oa-panel__title">{{ labels.tryIt }}</span>
     </header>
     <div class="oa-tryit__body">
+      <UidAlert v-if="prefilled" class="oa-tryit__prefilled" variant="info" dismissible @dismiss="emit('dismiss')">{{ labels.prefilled }}</UidAlert>
       <div v-for="g in groups" :key="g.loc" class="oa-tryit__group">
         <div class="oa-tryit__group-title">{{ g.loc }}</div>
         <UidInput
@@ -114,6 +122,7 @@ const showHeaders = ref(false)
         </UidButton>
         <UidButton v-if="response" variant="ghost" size="sm" @click="response = null">{{ labels.clear }}</UidButton>
       </div>
+      <OaShareLink :entry="entry" :draft="draft" />
 
       <div v-if="response" class="oa-tryit__response" aria-live="polite">
         <UidAlert v-if="response.error" variant="danger" :title="labels.networkError">{{ response.error }}</UidAlert>

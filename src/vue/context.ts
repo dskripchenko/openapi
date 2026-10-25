@@ -2,7 +2,8 @@
  * What every part of the reference shares: the loaded spec, the strings, the
  * chosen server, the credentials the user typed, and how requests are sent.
  */
-import { inject, type InjectionKey, type Ref } from 'vue'
+import { inject, type InjectionKey, type Ref, type ShallowRef } from 'vue'
+import type { PrefillData } from '../links'
 import type { LoadedSpec } from '../model'
 import type { SendFn } from '../request'
 import type { BasicCredentials } from '../request/security'
@@ -42,6 +43,8 @@ export interface ReferenceContext {
   baseUrl: Ref<string | undefined>
   /** Prefix of the section ids: `{specId}/` when the page has several specs. */
   anchorPrefix: Ref<string>
+  /** A prefilled link waiting for its operation (the full anchor); the operation takes and clears it. */
+  prefill: ShallowRef<{ anchor: string; data: PrefillData } | null>
 }
 
 export const referenceKey: InjectionKey<ReferenceContext> = Symbol('openapi-reference')

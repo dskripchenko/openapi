@@ -531,3 +531,9 @@
 .oa-ef__section > .uid-button,
 .oa-es > .uid-button,
 .oa-es__nested > .uid-button { align-self: flex-start; }
+
+/* Prefilled links: "Copy link" in try-it and the notice of a filled form. */
+.oa-share { display: flex; flex-direction: column; gap: 6px; }
+.oa-share__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.oa-share__done { font-size: 12px; color: var(--uid-success, var(--uid-text-secondary)); }
+.oa-share__creds { margin-left: auto; font-size: 12px; }

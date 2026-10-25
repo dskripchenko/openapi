@@ -10,9 +10,14 @@
  * Several specs — APIs or versions — go in `specs`: a switcher above the
  * navigation picks one, each loads when first opened (text, object or an
  * async loader), and deep links carry its id: `#{id}/operation/{op}`.
+ *
+ * Scalar's anchors work too (`#{doc}/tag/{tag}/{METHOD}{path}`, `#model/…`),
+ * and `#{anchor}?f={payload}` opens an operation with its try-it form filled
+ * (see `../links/prefill` for the format); nothing is sent by itself.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, shallowRef, watch } from 'vue'
 import { UidAlert, UidInput, UidLocaleProvider, UidMarkdown, UidSelect, UidSpinner, en as uidEn, ru as uidRu } from '@dskripchenko/ui'
+import { decodePrefill, pickSpec, resolveSection, splitLink } from '../links'
 import { loadSpec } from '../load'
 import type { LoadedSpec } from '../model'
 import type { ResolverOptions } from '../model'
@@ -178,6 +183,7 @@ const ctx: ReferenceContext = {
   tryIt: computed(() => props.tryIt),
   baseUrl: computed(() => props.baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : undefined)),
   anchorPrefix: computed(() => (multi.value ? `${activeId.value}/` : '')),
+  prefill: shallowRef(null),
 }
 provide(referenceKey, ctx)
 void load(activeId.value)
@@ -231,40 +237,60 @@ const root = ref<HTMLElement | null>(null)
 /** The element id of a section: prefixed with the spec's id when there are several. */
 const anchorOf = (local: string): string => ctx.anchorPrefix.value + local
 
-/** Opens a section by its local anchor (`operation/{id}`, `schema/{name}`) in the open spec. */
-async function go(local: string): Promise<void> {
+/**
+ * Opens a section by its local anchor (`operation/{id}`, `schema/{name}`) in
+ * the open spec. `tryIt` lands on the operation's try-it panel instead.
+ */
+async function go(local: string, opts: { tryIt?: boolean } = {}): Promise<void> {
   const anchor = anchorOf(local)
   active.value = anchor
   await nextTick()
   const el = root.value?.querySelector<HTMLElement>(`[id="${CSS.escape(anchor)}"]`)
   if (!el) return
-  el.scrollIntoView({ block: 'start' })
+  const target = (): HTMLElement => (opts.tryIt ? el.querySelector<HTMLElement>('.oa-tryit') : null) ?? el
+  target().scrollIntoView({ block: 'start' })
   // Operations render as they come near: the ones above the target grow and
   // push it down. Settle, then land on it again.
   for (let i = 0; i < 3; i++) {
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
     await nextTick()
-    el.scrollIntoView({ block: 'start' })
+    target().scrollIntoView({ block: 'start' })
   }
-  if (props.hashNavigation && typeof history !== 'undefined') history.replaceState(null, '', `#${anchor}`)
+  if (props.hashNavigation && typeof history !== 'undefined') {
+    // The canonical anchor replaces an alias and drops a prefill payload, so
+    // a reload does not fill the form again and credentials leave the address.
+    const url = new URL(window.location.href)
+    url.searchParams.delete('oa-f')
+    url.hash = anchor
+    history.replaceState(null, '', url.toString())
+  }
 }
 
-/** Opens what the address names: the spec (when there are several), then the section. */
+/**
+ * Opens what the address names: the spec (when there are several), then the
+ * section — our anchors or Scalar's — and fills the form of a prefilled link.
+ */
 async function followHash(): Promise<void> {
-  let hash = decodeURIComponent(window.location.hash.slice(1))
-  if (multi.value) {
-    const slash = hash.indexOf('/')
-    const id = slash === -1 ? hash : hash.slice(0, slash)
-    if (sources.value.some((s) => s.id === id)) {
-      if (id !== activeId.value) await open(id)
-      else await load(id)
-      hash = slash === -1 ? '' : hash.slice(slash + 1)
-    }
+  const { anchor, payload: inHash } = splitLink(window.location.hash)
+  const payload = inHash ?? new URLSearchParams(window.location.search).get('oa-f') ?? undefined
+  const { spec: id, rest } = pickSpec(anchor, multi.value ? sources.value : [])
+  if (id !== undefined) {
+    if (id !== activeId.value) await open(id)
+    else await load(id)
   }
-  if (hash.startsWith('operation/') || hash.startsWith('schema/') || hash.startsWith('tag/')) {
-    if (!loaded.value) await load(activeId.value)
-    if (anchorOf(hash) !== active.value) void go(hash)
-  }
+  if (!rest) return
+  if (!loaded.value) await load(activeId.value)
+  const spec = loaded.value
+  if (!spec) return
+  const local = resolveSection(rest, spec)
+  if (!local) return
+  const data = payload && local.startsWith('operation/') ? await decodePrefill(payload) : null
+  if (data) {
+    // The spec's own watchers (the server reset) run first.
+    await nextTick()
+    ctx.prefill.value = { anchor: anchorOf(local), data }
+    await go(local, { tryIt: true })
+  } else if (anchorOf(local) !== active.value) void go(local)
 }
 const onHashChange = (): void => void followHash()
 onMounted(() => {

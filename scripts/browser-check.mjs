@@ -2,6 +2,8 @@
 // themes, drives search, samples and try-it (against a mocked API), and saves
 // screenshots to tests/browser/output. Run after `pnpm install`; CI runs it.
 import { mkdirSync } from 'node:fs'
+import { Buffer } from 'node:buffer'
+import { deflateRawSync } from 'node:zlib'
 import { resolve } from 'node:path'
 import { createServer } from 'vite'
 import { chromium } from 'playwright'
@@ -105,6 +107,107 @@ try {
   await mp.screenshot({ path: `${out}/multi.png` })
   check('several specs: no page errors', mErrors.length === 0, mErrors.join('; '))
   await mp.close()
+
+  // Deep links: Scalar's anchors land on our sections.
+  const inView = (pg, id) =>
+    pg.evaluate((id) => {
+      const el = document.getElementById(id)
+      if (!el) return false
+      const r = el.getBoundingClientRect()
+      return r.top > -20 && r.top < window.innerHeight
+    }, id)
+  const lp = await browser.newPage({ viewport: { width: 1440, height: 1200 } })
+  const lErrors = []
+  lp.on('pageerror', (e) => lErrors.push(String(e)))
+  await lp.goto(`${base}?spec=kitchen#v2/tag/orders/POST/v2/orders`)
+  await lp.waitForSelector('.oa-op')
+  await lp.waitForTimeout(800)
+  check('scalar link: an operation (document segment, base path) in a single spec', await inView(lp, 'operation/createOrder'))
+  check('scalar link: the address becomes canonical', (await lp.evaluate(() => window.location.hash)) === '#operation/createOrder')
+  await lp.goto(`${base}?spec=kitchen#tag/orders/GET/orders/{orderId}`)
+  await lp.waitForTimeout(800)
+  check('scalar link: an operation without a document segment', await inView(lp, 'operation/getOrder'))
+  await lp.goto(`${base}?spec=kitchen#model/order`)
+  await lp.waitForTimeout(800)
+  check('scalar link: a model opens the schema', await inView(lp, 'schema/Order'))
+  await lp.goto(`${base}?multi=1#shop/tag/orders/POST/orders`)
+  await lp.waitForSelector('[id="shop/operation/createOrder"]')
+  await lp.waitForTimeout(800)
+  check('scalar link: several specs, the document picks the spec', await inView(lp, 'shop/operation/createOrder'))
+  await lp.goto(`${base}?multi=1#kitchen-sink/model/Order`)
+  await lp.waitForSelector('[id="shop/schema/Order"]')
+  await lp.waitForTimeout(800)
+  check('scalar link: a document named by the slug of the spec name', await inView(lp, 'shop/schema/Order'))
+
+  // Prefilled links fill the form and send nothing. The payload is made as PHP's gzdeflate would.
+  const payload = (data) => 'z' + deflateRawSync(Buffer.from(JSON.stringify(data), 'utf8')).toString('base64url')
+  let sent = 0
+  await lp.route(/api\.example\.com|localhost:8080/, (route) => {
+    sent++
+    return route.fulfill({ status: 200, body: '{}' })
+  })
+  const order = { v: 1, vars: { region: 'us' }, header: { 'Idempotency-Key': 'from-link' }, body: '{\n  "note": "Привет"\n}' }
+  await lp.goto(`${base}?spec=kitchen#operation/createOrder?f=${payload(order)}`)
+  const created = lp.locator('[id="operation/createOrder"]')
+  await created.locator('.oa-tryit__prefilled').waitFor()
+  await lp.waitForTimeout(800)
+  check('prefilled link: the header value is filled', (await created.locator('.oa-tryit__group input').first().inputValue()) === 'from-link')
+  check('prefilled link: the body is filled', (await created.locator('.oa-tryit__textarea').inputValue()) === order.body)
+  check('prefilled link: the server variable is applied', (await created.locator('.oa-samples').innerText()).includes('us.api.example.com'))
+  check('prefilled link: the try-it panel is in view', await created.locator('.oa-tryit').evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    return r.top > -20 && r.top < window.innerHeight
+  }))
+  check('prefilled link: the payload leaves the address', (await lp.evaluate(() => window.location.hash)) === '#operation/createOrder')
+  check('prefilled link: nothing is sent', sent === 0, `${sent} request(s)`)
+  await lp.screenshot({ path: `${out}/prefilled.png` })
+  await created.locator('.oa-tryit__prefilled button').first().click()
+  check('prefilled link: the notice can be dismissed', (await created.locator('.oa-tryit__prefilled').count()) === 0)
+  // The last operation of the spec, far below, through the query parameter.
+  await lp.goto(`${base}?spec=kitchen&oa-f=${payload({ v: 1, query: { form: 'a,b' }, header: { 'x-trace': 't-9' } })}#operation/paramStyles`)
+  const styles = lp.locator('[id="operation/paramStyles"]')
+  await styles.locator('.oa-tryit__prefilled').waitFor()
+  await lp.waitForTimeout(500)
+  const styleValues = await styles.locator('.oa-tryit__group input').evaluateAll((els) => els.map((el) => el.value))
+  check('prefilled link: an operation far down, payload as ?oa-f=', styleValues.includes('t-9') && styleValues.includes('a,b'), styleValues.join(' | '))
+  check('prefilled link: the query parameter leaves the address', !(await lp.evaluate(() => window.location.search)).includes('oa-f'))
+  check('prefilled link: still nothing is sent', sent === 0, `${sent} request(s)`)
+  check('links: no page errors', lErrors.length === 0, lErrors.join('; '))
+  await lp.close()
+
+  // "Copy link" round trip: the copied link fills the same form elsewhere; credentials stay out by default.
+  const cc = await browser.newContext({ viewport: { width: 1440, height: 1200 }, permissions: ['clipboard-read', 'clipboard-write'] })
+  const cp = await cc.newPage()
+  await cp.goto(`${base}?multi=1#shop/operation/createOrder`)
+  const source = cp.locator('[id="shop/operation/createOrder"]')
+  await source.locator('.oa-tryit').waitFor()
+  await cp.locator('.oa-auth .oa-panel__head').click()
+  await cp.locator('.oa-auth input').first().fill('secret-token')
+  await source.locator('.oa-tryit__group input').first().fill('copied-key')
+  await source.locator('.oa-tryit__textarea').fill('{"copied": true}')
+  await source.locator('.oa-share__copy').click()
+  await source.locator('.oa-share__done').waitFor()
+  const link = await cp.evaluate(() => window.navigator.clipboard.readText())
+  check('copy link: the link names the operation', link.includes('#shop/operation/createOrder?f=z'), link.slice(0, 120))
+  const cp2 = await cc.newPage()
+  await cp2.goto(link)
+  const target = cp2.locator('[id="shop/operation/createOrder"]')
+  await target.locator('.oa-tryit__prefilled').waitFor()
+  check('copy link: the header comes back', (await target.locator('.oa-tryit__group input').first().inputValue()) === 'copied-key')
+  check('copy link: the body comes back', (await target.locator('.oa-tryit__textarea').inputValue()) === '{"copied": true}')
+  await cp2.locator('.oa-auth .oa-panel__head').click()
+  check('copy link: credentials are left out by default', (await cp2.locator('.oa-auth input').first().inputValue()) === '')
+  await source.locator('.oa-share__creds').click()
+  check('copy link: a warning goes with credentials', (await source.locator('.oa-share .oa-tryit__warn').count()) === 1)
+  await source.locator('.oa-share__copy').click()
+  await cp.waitForTimeout(200)
+  const withCreds = await cp.evaluate(() => window.navigator.clipboard.readText())
+  await cp2.goto('about:blank')
+  await cp2.goto(withCreds)
+  await cp2.locator('[id="shop/operation/createOrder"] .oa-tryit__prefilled').waitFor()
+  await cp2.locator('.oa-auth .oa-panel__head').click()
+  check('copy link: credentials travel when ticked', (await cp2.locator('.oa-auth input').first().inputValue()) === 'secret-token')
+  await cc.close()
 
   // The editor: visual edits land in the text, the source view reports problems.
   const ed = await browser.newPage({ viewport: { width: 1440, height: 1200 } })
