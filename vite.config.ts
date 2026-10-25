@@ -10,7 +10,7 @@ export default defineConfig({
       tsconfigPath: resolve(import.meta.dirname, 'tsconfig.vue.json'),
       entryRoot: resolve(import.meta.dirname, 'src'),
       include: ['src/**/*.ts', 'src/**/*.vue'],
-      exclude: ['src/**/*.spec.ts'],
+      exclude: ['src/**/*.spec.ts', 'src/standalone/**'],
       // One declaration file per entry: no relative imports, so `nodenext` consumers resolve them too.
       bundleTypes: true,
     }),

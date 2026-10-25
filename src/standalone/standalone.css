@@ -1,0 +1,2 @@
+/* The standalone page owns the window: no default body margin around it. */
+body { margin: 0; }

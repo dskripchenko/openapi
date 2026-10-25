@@ -1,14 +1,21 @@
 // Browser check of the Vue components: renders the fixture specs in both
 // themes, drives search, samples and try-it (against a mocked API), and saves
 // screenshots to tests/browser/output. Run after `pnpm install`; CI runs it.
-import { mkdirSync } from 'node:fs'
+// It builds dist/standalone.js first (a few seconds) so the standalone page
+// is checked against the current sources; OA_CHECK_SKIP_BUILD=1 reuses the
+// existing bundle.
+import { existsSync, mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createServer } from 'vite'
+import { build, createServer } from 'vite'
 import { chromium } from 'playwright'
 
 const root = resolve(import.meta.dirname, '..')
 const out = resolve(root, 'tests/browser/output')
 mkdirSync(out, { recursive: true })
+
+if (!process.env.OA_CHECK_SKIP_BUILD || !existsSync(resolve(root, 'dist/standalone.js'))) {
+  await build({ configFile: resolve(root, 'vite.standalone.config.ts'), root, logLevel: 'warn' })
+}
 
 // OA_CHECK_PORT lets several checks run side by side.
 const port = Number(process.env.OA_CHECK_PORT ?? 5311)
@@ -105,6 +112,76 @@ try {
   await mp.screenshot({ path: `${out}/multi.png` })
   check('several specs: no page errors', mErrors.length === 0, mErrors.join('; '))
   await mp.close()
+
+  // The standalone bundle (built above) in a plain page: one script, two specs by URL.
+  const sa = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
+  const saErrors = []
+  sa.on('pageerror', (e) => saErrors.push(String(e)))
+  sa.on('console', (m) => m.type() === 'error' && saErrors.push(m.text()))
+  const html = (name) => sa.evaluate((n) => document.documentElement.getAttribute(n), name)
+  const pageBg = () => sa.evaluate(() => window.getComputedStyle(document.querySelector('.oa-page')).backgroundColor)
+  await sa.goto(`${base}standalone.html`)
+  await sa.waitForSelector('.oa-op')
+  check('standalone: renders from one script', (await sa.locator('.oa-intro h1').innerText()).includes('Petstore'))
+  check('standalone: the title goes to the bar and the document', (await sa.locator('.oa-page__title').innerText()) === 'Example APIs' && (await sa.title()) === 'Example APIs')
+  check('standalone: the styles are injected', (await sa.locator('style[data-dsk-openapi]').count()) === 1)
+  const barHeight = await sa.locator('.oa-page__bar').evaluate((el) => el.offsetHeight)
+  const stickyTop = await sa.locator('.oa-nav').evaluate((el) => window.getComputedStyle(el).top)
+  check('standalone: the navigation sticks below the bar', barHeight > 0 && stickyTop === `${barHeight}px`, `${stickyTop} vs ${barHeight}px`)
+  await sa.mouse.wheel(0, 1500)
+  await sa.waitForTimeout(200)
+  const navTop = await sa.locator('.oa-nav').evaluate((el) => el.getBoundingClientRect().top)
+  check('standalone: the bar stays on top while scrolling', Math.round(navTop) === barHeight && (await sa.locator('.oa-page__bar').evaluate((el) => el.getBoundingClientRect().top)) === 0, `nav at ${navTop}`)
+  await sa.screenshot({ path: `${out}/standalone-light.png` })
+
+  const lightBg = await pageBg()
+  await sa.locator('[data-theme-option="dark"]').click()
+  const darkBg = await pageBg()
+  check('standalone: the dark theme sets data-theme and the colors', (await html('data-theme')) === 'dark' && darkBg !== lightBg, `${lightBg} → ${darkBg}`)
+  check('standalone: the theme switch reports its state', (await sa.locator('[data-theme-option="dark"]').getAttribute('aria-checked')) === 'true')
+  await sa.screenshot({ path: `${out}/standalone-dark.png` })
+  await sa.emulateMedia({ colorScheme: 'light' })
+  await sa.locator('[data-theme-option="system"]').click()
+  const sysLight = await html('data-theme')
+  await sa.emulateMedia({ colorScheme: 'dark' })
+  await sa.waitForTimeout(100)
+  check('standalone: system follows prefers-color-scheme live', sysLight === 'light' && (await html('data-theme')) === 'dark')
+  await sa.locator('[data-theme-option="system"]').press('ArrowLeft')
+  check('standalone: arrow keys move the theme choice', (await html('data-theme')) === 'dark' && (await sa.locator('[data-theme-option="dark"]').evaluate((el) => el === document.activeElement)))
+  await sa.evaluate(() => window.__reference.setTheme('light'))
+  await sa.waitForTimeout(50)
+  check('standalone: setTheme() from the API', (await html('data-theme')) === 'light')
+
+  await sa.locator('[data-locale-option="ru"]').click()
+  check('standalone: the language switch changes the labels', (await sa.locator('.oa-nav__search input').getAttribute('placeholder')) === 'Поиск' && (await html('lang')) === 'ru')
+  check('standalone: the bar follows the language', (await sa.locator('.oa-page__theme').getAttribute('aria-label')) === 'Тема')
+  await sa.evaluate(() => window.__reference.setLocale('en'))
+  await sa.waitForTimeout(50)
+  check('standalone: setLocale() from the API', (await sa.locator('.oa-nav__search input').getAttribute('placeholder')) === 'Search')
+
+  await sa.locator('.oa-nav__specs').click()
+  await sa.locator('[role="option"]', { hasText: 'Kitchen Sink' }).click()
+  await sa.waitForFunction(() => document.querySelector('.oa-intro h1')?.textContent?.includes('Kitchen'))
+  check('standalone: the second source opens', (await sa.locator('.oa-op').first().getAttribute('id'))?.startsWith('kitchen/operation/') === true)
+  check('standalone: no page errors', saErrors.length === 0, saErrors.join('; '))
+  await sa.close()
+
+  // Try-it through the proxy: the request goes there as JSON, the answer is shown.
+  const px = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
+  let proxied = null
+  // By path: a glob would also catch the page itself, whose query ends in /api-proxy.
+  await px.route((u) => u.pathname === '/api-proxy', async (route) => {
+    proxied = JSON.parse(route.request().postData() ?? 'null')
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ status: 202, statusText: 'Accepted', headers: [['content-type', 'application/json']], body: '{"via":"proxy"}', duration: 5 }) })
+  })
+  await px.goto(`${base}standalone.html?proxy=/api-proxy`)
+  await px.waitForSelector('.oa-op')
+  const pop = px.locator('.oa-op').first()
+  await pop.locator('.oa-tryit button', { hasText: 'Send' }).click()
+  await pop.locator('.oa-tryit__response .oa-status').waitFor()
+  check('standalone: try-it posts the HttpRequest to the proxy', !!proxied && typeof proxied.method === 'string' && /^https?:\/\//.test(proxied.url) && Array.isArray(proxied.headers), proxied?.url)
+  check('standalone: try-it shows the proxied response', (await pop.locator('.oa-tryit__response .oa-status').innerText()).startsWith('202'))
+  await px.close()
 
   // The editor: visual edits land in the text, the source view reports problems.
   const ed = await browser.newPage({ viewport: { width: 1440, height: 1200 } })
