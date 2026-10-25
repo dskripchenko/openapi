@@ -36,8 +36,11 @@ export interface EditorDoc {
   positions: Ref<PositionMap | undefined>
   issues: Ref<DocumentIssue[]>
   selection: Ref<Selection>
-  /** Replaces the text (source mode, outside updates) and parses it. */
-  setText(text: string): void
+  /**
+   * Replaces the text (source mode, outside updates) and parses it. `lazy`
+   * parses a large text after typing pauses instead of on every key.
+   */
+  setText(text: string, opts?: { lazy?: boolean }): void
   /** Re-serializes `doc` after a form edit. */
   commit(): void
   setFormat(format: SpecFormat): void
@@ -52,6 +55,8 @@ export function useEditorDoc(initial: string, emit: (text: string) => void): Edi
   const parseError = ref<EditorDoc['parseError']['value']>(null)
   const positions = ref<PositionMap>()
   const selection = ref<Selection>({ kind: 'info' })
+  /** Bumped when the document changes (a parse or a commit): what the problems follow. */
+  const revision = ref(0)
 
   function parse(source: string): void {
     if (source.trim() === '') {
@@ -65,6 +70,7 @@ export function useEditorDoc(initial: string, emit: (text: string) => void): Edi
       positions.value = parsed.positions
       doc.value = reactive(parsed.value as Doc) as Doc
       parseError.value = null
+      revision.value++
       try {
         family.value = detectVersion(parsed.value).family
       } catch {
@@ -76,9 +82,17 @@ export function useEditorDoc(initial: string, emit: (text: string) => void): Edi
     }
   }
 
-  function setText(next: string): void {
+  let parseTimer: ReturnType<typeof setTimeout> | null = null
+  function setText(next: string, opts: { lazy?: boolean } = {}): void {
     text.value = next
-    parse(next)
+    if (parseTimer) clearTimeout(parseTimer)
+    parseTimer = null
+    if (opts.lazy && next.length > 100_000) {
+      parseTimer = setTimeout(() => {
+        parseTimer = null
+        parse(text.value)
+      }, 300)
+    } else parse(next)
   }
 
   let lastEmitted = initial
@@ -98,6 +112,7 @@ export function useEditorDoc(initial: string, emit: (text: string) => void): Edi
       positions.value = undefined
     }
     write(next)
+    revision.value++
   }
 
   function setFormat(next: SpecFormat): void {
@@ -115,8 +130,8 @@ export function useEditorDoc(initial: string, emit: (text: string) => void): Edi
 
   const issues = computed<DocumentIssue[]>(() => {
     if (!doc.value) return []
-    // Touch the text so issues recompute after every commit.
-    void text.value
+    // Recomputed per parse or commit, not per keystroke.
+    void revision.value
     return validateDocument(doc.value, { positions: positions.value })
   })
 

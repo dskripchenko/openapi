@@ -79,7 +79,7 @@ const errorCount = computed(() => editor.issues.value.filter((i) => i.severity =
 
 /* ---------------------------------- source ---------------------------------- */
 function onSource(text: string): void {
-  editor.setText(text)
+  editor.setText(text, { lazy: true })
   emit('update:modelValue', text)
 }
 

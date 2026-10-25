@@ -458,6 +458,7 @@
 .oa-source__gutter {
   overflow: hidden;
   padding: 10px 0;
+  position: relative;
   min-width: 44px;
   text-align: right;
   color: var(--uid-text-tertiary);
@@ -465,8 +466,10 @@
   border-right: 1px solid var(--uid-border-subtle);
   user-select: none;
 }
-.oa-source__ln { padding: 0 8px; }
-.oa-source__ln.is-error { color: var(--uid-danger); font-weight: 600; background: var(--uid-danger-subtle); }
+.oa-source__gutter-inner { position: relative; }
+.oa-source__numbers { margin: 0; padding: 0 8px; font: inherit; }
+.oa-source__mark { position: absolute; left: 0; right: 0; height: 1.6em; background: var(--uid-danger-subtle); border-left: 3px solid var(--uid-danger); }
+.oa-source--plain .oa-source__textarea { color: var(--uid-text-primary); }
 .oa-source__stack { position: relative; min-width: 0; }
 .oa-source__highlight,
 .oa-source__textarea {

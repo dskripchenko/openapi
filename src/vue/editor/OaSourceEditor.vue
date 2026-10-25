@@ -21,7 +21,16 @@ const textarea = ref<HTMLTextAreaElement | null>(null)
 const highlight = ref<HTMLElement | null>(null)
 const gutter = ref<HTMLElement | null>(null)
 
-const lineCount = computed(() => props.modelValue.split('\n').length)
+/** Past this size the text is shown plain: tokenizing a megabyte on every key is too slow. */
+const HIGHLIGHT_LIMIT = 150_000
+const plain = computed(() => props.modelValue.length > HIGHLIGHT_LIMIT)
+const lineCount = computed(() => {
+  let n = 1
+  for (let i = props.modelValue.indexOf('\n'); i !== -1; i = props.modelValue.indexOf('\n', i + 1)) n++
+  return n
+})
+/** One text node for all the numbers: a node per line would be tens of thousands. */
+const numbers = computed(() => Array.from({ length: lineCount.value }, (_, i) => i + 1).join('\n'))
 const errorLines = computed(() => {
   const lines = new Set<number>()
   for (const i of props.issues) if (i.severity === 'error' && i.line) lines.add(i.line)
@@ -30,8 +39,8 @@ const errorLines = computed(() => {
 })
 
 // Text nodes and spans, no v-html: the source stays escaped.
-const Highlighted = (): VNode[] =>
-  tokenize(props.modelValue + '\n', props.language).map((t) =>
+const Highlighted = (): VNode[] | string =>
+  plain.value ? '' : tokenize(props.modelValue + '\n', props.language).map((t) =>
     t.type === 'plain' ? (t.text as unknown as VNode) : h('span', { class: `uid-code__tok--${t.type}` }, t.text),
   )
 
@@ -75,13 +84,16 @@ defineExpose({ goToLine })
 </script>
 
 <template>
-  <div class="oa-source">
+  <div class="oa-source" :class="{ 'oa-source--plain': plain }">
     <div class="oa-source__frame">
       <div ref="gutter" class="oa-source__gutter" aria-hidden="true">
-        <div v-for="n in lineCount" :key="n" class="oa-source__ln" :class="{ 'is-error': errorLines.has(n) }">{{ n }}</div>
+        <div class="oa-source__gutter-inner">
+          <span v-for="n in errorLines" :key="n" class="oa-source__mark" :style="{ top: `calc(${n - 1} * 1.6em + 10px)` }" />
+          <pre class="oa-source__numbers">{{ numbers }}</pre>
+        </div>
       </div>
       <div class="oa-source__stack">
-        <pre ref="highlight" class="oa-source__highlight" aria-hidden="true"><Highlighted /></pre>
+        <pre v-if="!plain" ref="highlight" class="oa-source__highlight" aria-hidden="true"><Highlighted /></pre>
         <textarea
           ref="textarea"
           class="oa-source__textarea"
