@@ -143,6 +143,13 @@ describe('prefill codec', () => {
     expect(await decodePrefill(payload)).toEqual({ v: 1, query: { n: '5', b: 'false' }, server: 'https://x' })
   })
 
+  it('carries undeclared pairs and drops malformed ones', async () => {
+    const extra: PrefillData = { v: 1, xQuery: [['debug', '1']], xHeader: [['X-A', 'a'], ['X-A', 'b']], xCookie: [['c', '']] }
+    expect(await decodePrefill(await encodePrefill(extra))).toEqual(extra)
+    const payload = 'j' + Buffer.from(JSON.stringify({ v: 1, xHeader: [['ok', 2], ['bad'], 'x', [1, 'y']], xQuery: {}, xCookie: [] })).toString('base64url')
+    expect(await decodePrefill(payload)).toEqual({ v: 1, xHeader: [['ok', '2']] })
+  })
+
   it('returns null for malformed input', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const j = (v: unknown) => 'j' + Buffer.from(JSON.stringify(v)).toString('base64url')

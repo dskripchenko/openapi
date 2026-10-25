@@ -4,21 +4,33 @@
  * request goes through the reference's `send` — fetch by default, a host's
  * proxy when one is given.
  *
- * Form bodies (multipart, urlencoded) get one field per property, files get
- * a file picker, and a binary body is a single file. A request in flight can
- * be cancelled; the response shows its size, JSON pretty or raw, images as a
- * preview and other bytes as a download.
+ * Parameters are grouped by location, each with the input its schema calls
+ * for; undeclared query parameters, headers and cookies can be added. A JSON
+ * body is a form generated from its schema, with the JSON text one click
+ * away; form bodies (multipart, urlencoded) get one field per property, files
+ * get a file picker, and a binary body is a single file. "What will be sent"
+ * shows the final URL and headers. A request in flight can be cancelled; the
+ * response shows its size, JSON pretty or raw, images as a preview and other
+ * bytes as a download. Nothing in the panel scrolls on its own.
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { UidAlert, UidButton, UidCode, UidFileUpload, UidInput, UidSelect } from '@dskripchenko/ui'
-import type { HttpResponse, ParameterIn, RequestBody } from '../core/types'
+import { UidAlert, UidButton, UidFileUpload, UidSelect } from '@dskripchenko/ui'
+import type { HttpResponse, Parameter, ParameterIn, RequestBody, Schema } from '../core/types'
 import type { OperationEntry } from '../model'
 import { stringifyJson } from '../json'
-import { describe as describeSchema } from '../schema'
+import { inferType } from '../schema/util'
+import { vAutoGrow } from './autoGrow'
 import { useReference } from './context'
 import { defaultExample, exampleText, mediaTypes, namedExamples, parseValue, sampleBody, type OperationDraft } from './draft'
-import { BODY_FILE, fieldText, formatBytes, formFields, isBinaryBody, type FormField } from './form'
+import { valueText } from './fields'
+import { BODY_FILE, formatBytes, formFields, isBinaryBody, type FormField } from './form'
+import OaCodeBlock from './OaCodeBlock.vue'
+import OaField from './OaField.vue'
+import OaKeyValue from './OaKeyValue.vue'
+import OaRequestPreview from './OaRequestPreview.vue'
+import OaSchemaForm from './OaSchemaForm.vue'
 import OaShareLink from './OaShareLink.vue'
+import { bodyFormSchema } from './schemaForm'
 
 const props = defineProps<{
   entry: OperationEntry
@@ -32,9 +44,21 @@ const labels = ctx.labels
 const resolve = (r: string) => ctx.spec.value.resolver.get(r) as never
 
 const LOCATIONS: ParameterIn[] = ['path', 'query', 'header', 'cookie']
+const LOCATION_LABEL = { path: 'locPath', query: 'locQuery', header: 'locHeader', cookie: 'locCookie' } as const
+/**
+ * Parameter groups by location. Query and Headers are always there, so
+ * undeclared ones can be added; Path and Cookies when the spec has some.
+ */
 const groups = computed(() =>
-  LOCATIONS.map((loc) => ({ loc, params: props.entry.parameters.filter((p) => p.in === loc) })).filter((g) => g.params.length),
+  LOCATIONS.map((loc) => ({ loc, params: props.entry.parameters.filter((p) => p.in === loc) })).filter(
+    (g) => g.params.length || g.loc === 'query' || g.loc === 'header' || (g.loc === 'cookie' && props.draft.extra.cookie.length),
+  ),
 )
+/** A parameter's schema: its own, else the schema of its first content type. */
+const paramSchema = (p: Parameter): Schema | undefined => p.schema ?? Object.values(p.content ?? {})[0]?.schema
+const addExtra = (loc: ParameterIn) => {
+  if (loc !== 'path') props.draft.extra[loc].push(['', ''])
+}
 
 const body = computed(() => ctx.spec.value.resolver.deref(props.entry.operation.requestBody) as RequestBody | undefined)
 const types = computed(() => mediaTypes(body.value).map((t) => ({ value: t, label: t })))
@@ -45,7 +69,7 @@ function chooseMediaType(value: unknown): void {
   props.draft.bodyText = sampleBody(body.value?.content[value], ctx, value)
   bodyExample.value = defaultExample(body.value?.content[value], ctx)
   for (const key of Object.keys(props.draft.files)) delete props.draft.files[key]
-  rawBody.value = false
+  view.value = 'form'
 }
 
 /** The body's examples, "generated" first; choosing one replaces the body text. */
@@ -61,32 +85,54 @@ function chooseExample(value: unknown): void {
   props.draft.bodyText = exampleText(body.value?.content[props.draft.mediaType], value, ctx, props.draft.mediaType)
 }
 
-/* ------------------------------ form bodies ------------------------------ */
+/* --------------------------------- bodies -------------------------------- */
 
 const media = computed(() => body.value?.content[props.draft.mediaType])
 const binary = computed(() => !!props.draft.mediaType && isBinaryBody(props.draft.mediaType, media.value, resolve))
+/** Multipart and urlencoded bodies: one field per property. */
 const fields = computed(() => (binary.value ? undefined : formFields(props.draft.mediaType, media.value, resolve)))
 const fileFields = computed(() => fields.value?.filter((f) => f.file) ?? [])
-const rawBody = ref(false)
+/** A JSON body with an object (or array) schema: edited as a generated form. */
+const jsonSchema = computed(() => (binary.value || fields.value ? undefined : bodyFormSchema(props.draft.mediaType, media.value, resolve)))
+/** "Form" or "JSON": the view the user chose. The form shows only while the text parses. */
+const view = ref<'form' | 'json'>('form')
 
-/** The body text as an object: `{}` when empty, null when it is not a JSON object. */
-const bodyObject = computed<Record<string, unknown> | null>(() => {
+/** The body text parsed: undefined when empty; ok false when it is not JSON. */
+const parsed = computed<{ ok: boolean; value?: unknown }>(() => {
   const text = props.draft.bodyText.trim()
-  if (!text) return {}
+  if (!text) return { ok: true }
   try {
-    const value: unknown = JSON.parse(text)
-    return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null
+    return { ok: true, value: JSON.parse(text) as unknown }
   } catch {
-    return null
+    return { ok: false }
   }
 })
-/** The form is shown while the body text is an object; otherwise the text itself. */
-const formMode = computed(() => !!fields.value && !rawBody.value && bodyObject.value !== null)
+/** The body as an object: `{}` when empty, null when it is not a JSON object. */
+const bodyObject = computed<Record<string, unknown> | null>(() => {
+  const { ok, value } = parsed.value
+  if (!ok) return null
+  if (value === undefined) return {}
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null
+})
+const formable = computed(() => !!fields.value || !!jsonSchema.value)
+/** The form can show the text: an object for form bodies, any JSON for a JSON body. */
+const fits = computed(() => (fields.value ? bodyObject.value !== null : parsed.value.ok))
+const showForm = computed(() => formable.value && view.value === 'form' && fits.value)
+function setView(next: 'form' | 'json'): void {
+  // Text that does not parse stays in JSON, where the warning says why.
+  if (next === 'form' && !fits.value) return
+  view.value = next
+}
+
+/** The JSON form writes the whole body back, pretty. */
+function writeBody(value: unknown): void {
+  props.draft.bodyText = value === undefined ? '' : stringifyJson(value, 2)
+}
 
 function setField(field: FormField, text: string): void {
   const next = { ...(bodyObject.value ?? {}) }
   if (text === '') delete next[field.name]
-  else next[field.name] = parseValue(text, field.schema.type)
+  else next[field.name] = parseValue(text, inferType(field.schema, resolve))
   props.draft.bodyText = Object.keys(next).length ? stringifyJson(next, 2) : ''
 }
 
@@ -107,7 +153,6 @@ const bodyAccept = computed(() => {
   const mt = props.draft.mediaType
   return mt && !/octet-stream/i.test(mt) ? mt : undefined
 })
-const fieldType = (f: FormField): string => describeSchema(f.schema, { resolve })
 
 /* ------------------------------- sending -------------------------------- */
 
@@ -211,22 +256,33 @@ const downloadName = computed(() => {
     </header>
     <div class="oa-tryit__body">
       <UidAlert v-if="prefilled" class="oa-tryit__prefilled" variant="info" dismissible @dismiss="emit('dismiss')">{{ labels.prefilled }}</UidAlert>
-      <div v-for="g in groups" :key="g.loc" class="oa-tryit__group">
-        <div class="oa-tryit__group-title">{{ g.loc }}</div>
-        <UidInput
+
+      <section v-for="g in groups" :key="g.loc" class="oa-tryit__group" :data-loc="g.loc">
+        <div class="oa-tryit__group-title">
+          <span class="oa-tryit__heading">{{ labels[LOCATION_LABEL[g.loc]] }}</span>
+          <button v-if="g.loc !== 'path'" type="button" class="oa-link oa-tryit__add" @click="addExtra(g.loc)">+ {{ labels.add }}</button>
+        </div>
+        <OaField
           v-for="p in g.params"
           :key="p.name"
-          size="sm"
-          :label="p.name"
+          :name="p.name"
+          :schema="paramSchema(p)"
           :required="p.required"
-          :placeholder="p.schema?.type ? String(p.schema.type) : ''"
+          :deprecated="p.deprecated"
+          :description="p.description"
           :model-value="draft.values[p.in][p.name] ?? ''"
           @update:model-value="(v: string) => (draft.values[p.in][p.name] = v)"
         />
-      </div>
-      <div v-if="types.length" class="oa-tryit__group">
+        <OaKeyValue
+          v-if="g.loc !== 'path' && draft.extra[g.loc].length"
+          :rows="draft.extra[g.loc]"
+          @update:rows="(rows: [string, string][]) => g.loc !== 'path' && (draft.extra[g.loc] = rows)"
+        />
+      </section>
+
+      <section v-if="types.length" class="oa-tryit__group oa-tryit__bodygroup">
         <div class="oa-tryit__group-title">
-          {{ labels.body }}
+          <span class="oa-tryit__heading">{{ labels.body }}</span>
           <UidSelect
             v-if="types.length > 1"
             class="oa-tryit__media"
@@ -236,12 +292,30 @@ const downloadName = computed(() => {
             @update:model-value="chooseMediaType"
           />
           <span v-else class="oa-tryit__media-one">{{ draft.mediaType }}</span>
-          <button v-if="fields && bodyObject !== null" type="button" class="oa-link oa-tryit__mode" @click="rawBody = !rawBody">
-            {{ rawBody ? labels.formView : labels.rawJson }}
-          </button>
+          <div v-if="formable && !binary" class="oa-segmented oa-tryit__view-toggle" role="radiogroup" :aria-label="labels.body">
+            <button
+              type="button"
+              role="radio"
+              class="oa-segmented__item"
+              data-view="form"
+              :class="{ 'is-active': showForm }"
+              :aria-checked="showForm"
+              :disabled="!fits"
+              @click="setView('form')"
+            >{{ labels.formView }}</button>
+            <button
+              type="button"
+              role="radio"
+              class="oa-segmented__item"
+              data-view="json"
+              :class="{ 'is-active': !showForm }"
+              :aria-checked="!showForm"
+              @click="setView('json')"
+            >{{ labels.jsonView }}</button>
+          </div>
         </div>
         <div v-if="!binary && bodyExamples.length > 1" class="oa-tryit__example">
-          <span>{{ labels.example }}:</span>
+          <span>{{ labels.example }}</span>
           <UidSelect
             class="oa-tryit__media"
             size="sm"
@@ -259,7 +333,15 @@ const downloadName = computed(() => {
           :model-value="uploads(BODY_FILE)"
           @update:model-value="(v: { file: File }[]) => setFiles(BODY_FILE, v)"
         />
-        <template v-else-if="formMode">
+        <OaSchemaForm
+          v-else-if="showForm && jsonSchema"
+          class="oa-tryit__form"
+          root
+          :schema="jsonSchema"
+          :model-value="parsed.value"
+          @update:model-value="writeBody"
+        />
+        <div v-else-if="showForm && fields" class="oa-tryit__form">
           <template v-for="f in fields" :key="f.name">
             <UidFileUpload
               v-if="f.file"
@@ -272,25 +354,18 @@ const downloadName = computed(() => {
               :model-value="uploads(f.name)"
               @update:model-value="(v: { file: File }[]) => setFiles(f.name, v)"
             />
-            <UidInput
+            <OaField
               v-else
-              size="sm"
-              :data-field="f.name"
-              :label="f.name"
+              :name="f.name"
+              :schema="f.schema"
               :required="f.required"
-              :placeholder="fieldType(f)"
-              :model-value="fieldText(bodyObject?.[f.name])"
+              :model-value="valueText(bodyObject?.[f.name])"
               @update:model-value="(v: string) => setField(f, v)"
             />
           </template>
-        </template>
+        </div>
         <template v-else>
-          <textarea
-            v-model="draft.bodyText"
-            class="oa-tryit__textarea"
-            spellcheck="false"
-            :rows="Math.min(18, Math.max(4, draft.bodyText.split('\n').length + 1))"
-          />
+          <textarea v-model="draft.bodyText" v-auto-grow class="oa-tryit__textarea" spellcheck="false" rows="4" />
           <div v-if="draft.bodyInvalid" class="oa-tryit__warn">{{ labels.invalidJson }}</div>
           <UidFileUpload
             v-for="f in fileFields"
@@ -305,13 +380,16 @@ const downloadName = computed(() => {
             @update:model-value="(v: { file: File }[]) => setFiles(f.name, v)"
           />
         </template>
-      </div>
+      </section>
+
+      <OaRequestPreview :request="draft.request" />
+
       <div class="oa-tryit__actions">
-        <UidButton variant="primary" size="sm" :loading="sending" @click="send">
+        <UidButton class="oa-tryit__send" variant="primary" :loading="sending" @click="send">
           {{ sending ? labels.sending : labels.send }}
         </UidButton>
-        <UidButton v-if="sending" class="oa-tryit__cancel" variant="secondary" size="sm" @click="cancel">{{ labels.cancel }}</UidButton>
-        <UidButton v-else-if="response || cancelled" variant="ghost" size="sm" @click="clear">{{ labels.clear }}</UidButton>
+        <UidButton v-if="sending" class="oa-tryit__cancel" variant="secondary" @click="cancel">{{ labels.cancel }}</UidButton>
+        <UidButton v-else-if="response || cancelled" class="oa-tryit__clear" variant="secondary" @click="clear">{{ labels.clear }}</UidButton>
       </div>
       <OaShareLink :entry="entry" :draft="draft" />
 
@@ -319,13 +397,14 @@ const downloadName = computed(() => {
         <UidAlert variant="warning" :title="labels.cancelled" />
       </div>
       <div v-if="response" class="oa-tryit__response" aria-live="polite">
+        <div class="oa-tryit__heading">{{ labels.response }}</div>
         <UidAlert v-if="response.error" variant="danger" :title="labels.networkError">{{ response.error }}</UidAlert>
         <template v-else>
           <div class="oa-tryit__status">
             <span class="oa-status" :class="`oa-status--${tone}`">{{ response.status }} {{ response.statusText }}</span>
             <span class="oa-tryit__time">{{ Math.round(response.duration) }} ms</span>
             <span class="oa-tryit__size">{{ formatBytes(size) }}</span>
-            <button type="button" class="oa-link" @click="showHeaders = !showHeaders">
+            <button type="button" class="oa-link" :aria-expanded="showHeaders" @click="showHeaders = !showHeaders">
               {{ labels.headers }} ({{ response.headers.length }})
             </button>
             <span v-if="isJson && response.body" class="oa-tryit__view">
@@ -333,21 +412,20 @@ const downloadName = computed(() => {
               <button type="button" class="oa-chip" :class="{ 'is-active': !pretty }" @click="pretty = false">{{ labels.raw }}</button>
             </span>
           </div>
-          <table v-if="showHeaders" class="oa-table oa-table--compact">
-            <tbody>
-              <tr v-for="([k, v], i) in response.headers" :key="i">
-                <td><code>{{ k }}</code></td>
-                <td>{{ v }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <dl v-if="showHeaders" class="oa-preview__headers oa-tryit__headers">
+            <template v-for="([k, v], i) in response.headers" :key="i">
+              <dt>{{ k }}</dt>
+              <dd>{{ v }}</dd>
+            </template>
+          </dl>
           <img v-if="isImage" class="oa-tryit__image" :src="blobUrl!" :alt="contentType" />
           <a v-if="blobUrl" class="oa-link oa-tryit__download" :href="blobUrl" :download="downloadName">
             {{ labels.download }} {{ downloadName }}
           </a>
-          <UidCode v-else-if="shownBody" :code="shownBody" :language="bodyLanguage" copy max-height="360px" />
+          <OaCodeBlock v-else-if="shownBody" class="oa-tryit__result" :code="shownBody" :language="bodyLanguage" />
         </template>
       </div>
     </div>
   </section>
 </template>
+

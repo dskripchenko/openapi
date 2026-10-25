@@ -173,6 +173,8 @@ try {
   await created.locator('.oa-tryit__prefilled').waitFor()
   await lp.waitForTimeout(800)
   check('prefilled link: the header value is filled', (await created.locator('.oa-tryit__group input').first().inputValue()) === 'from-link')
+  check('prefilled link: the body shows in the form', (await created.locator('.oa-tryit__form .oa-field[data-field="note"] input').inputValue()) === 'Привет')
+  await created.locator('.oa-tryit [data-view="json"]').click()
   check('prefilled link: the body is filled', (await created.locator('.oa-tryit__textarea').inputValue()) === order.body)
   await created.locator('.oa-side-tabs__tab[data-tab="code"]').click()
   check('prefilled link: the server variable is applied', (await created.locator('.oa-samples').innerText()).includes('us.api.example.com'))
@@ -192,7 +194,8 @@ try {
   await styles.locator('.oa-tryit__prefilled').waitFor()
   await lp.waitForTimeout(500)
   const styleValues = await styles.locator('.oa-tryit__group input').evaluateAll((els) => els.map((el) => el.value))
-  check('prefilled link: an operation far down, payload as ?oa-f=', styleValues.includes('t-9') && styleValues.includes('a,b'), styleValues.join(' | '))
+  const formTags = await styles.locator('.oa-field[data-field="form"] .uid-tags-input__chip > span').allInnerTexts()
+  check('prefilled link: an operation far down, payload as ?oa-f=', styleValues.includes('t-9') && formTags.join(',') === 'a,b', `${styleValues.join(' | ')} / ${formTags.join(',')}`)
   check('prefilled link: the query parameter leaves the address', !(await lp.evaluate(() => window.location.search)).includes('oa-f'))
   check('prefilled link: still nothing is sent', sent === 0, `${sent} request(s)`)
   check('links: no page errors', lErrors.length === 0, lErrors.join('; '))
@@ -208,6 +211,7 @@ try {
   await cp.locator('.oa-auth input').first().fill('secret-token')
   await closeSettings(cp)
   await source.locator('.oa-tryit__group input').first().fill('copied-key')
+  await source.locator('.oa-tryit [data-view="json"]').click()
   await source.locator('.oa-tryit__textarea').fill('{"copied": true}')
   await source.locator('.oa-share__copy').click()
   await source.locator('.oa-share__done').waitFor()
@@ -218,6 +222,7 @@ try {
   const target = cp2.locator('[id="shop/operation/createOrder"]')
   await target.locator('.oa-tryit__prefilled').waitFor()
   check('copy link: the header comes back', (await target.locator('.oa-tryit__group input').first().inputValue()) === 'copied-key')
+  await target.locator('.oa-tryit [data-view="json"]').click()
   check('copy link: the body comes back', (await target.locator('.oa-tryit__textarea').inputValue()) === '{"copied": true}')
   await openSettings(cp2)
   check('copy link: credentials are left out by default', (await cp2.locator('.oa-auth input').first().inputValue()) === '')
@@ -355,10 +360,16 @@ try {
   const pay = sp.locator('[id="operation/createPayment"]')
   await pay.scrollIntoViewIfNeeded()
   const textarea = pay.locator('.oa-tryit__textarea')
+  check('examples: the form starts with the first example', (await pay.locator('.oa-tryit__form .oa-field[data-field="number"] input').inputValue()) === '4242424242424242')
+  await pay.locator('.oa-tryit [data-view="json"]').click()
   check('examples: try-it starts with the first example', (await textarea.inputValue()).includes('4242424242424242'))
   await pay.locator('.oa-tryit__example .uid-select').click()
   await sp.locator('[role="option"]', { hasText: 'Bank transfer' }).click()
   check('examples: try-it example select replaces the body', (await textarea.inputValue()).includes('DE89370400440532013000'))
+  await pay.locator('.oa-tryit [data-view="form"]').click()
+  const bankValues = await pay.locator('.oa-tryit__form input').evaluateAll((els) => els.map((el) => el.value))
+  check('examples: the form follows the chosen example', bankValues.includes('DE89370400440532013000'), bankValues.join(' | '))
+  await pay.locator('.oa-tryit [data-view="json"]').click()
   await pay.locator('.oa-tryit__example .uid-select').click()
   await sp.locator('[role="option"]', { hasText: 'Generated sample' }).click()
   check('examples: try-it offers the generated sample', !(await textarea.inputValue()).includes('DE89370400440532013000'))
@@ -367,7 +378,7 @@ try {
   const styleOp = sp.locator('[id="operation/paramStyles"]')
   await styleOp.scrollIntoViewIfNeeded()
   await styleOp.locator('.oa-param__examples .oa-chip', { hasText: 'long' }).click()
-  const traceValue = await styleOp.locator('.oa-tryit .uid-input-field', { hasText: 'X-Trace' }).locator('input').inputValue()
+  const traceValue = await styleOp.locator('.oa-tryit .oa-field[data-field="X-Trace"] input').inputValue()
   check('examples: a parameter example fills try-it', traceValue === 'abcdef0123456789', traceValue)
   await sp.screenshot({ path: `${out}/examples.png` })
   check('search and examples: no page errors', spErrors.length === 0, spErrors.join('; '))
@@ -630,6 +641,114 @@ try {
   check('copy link: the operation URL', copied === expected, copied)
   check('files: no page errors', fErrors.length === 0, fErrors.join('; '))
   await fp.close()
+
+  // Try-it forms: a JSON body as a form, typed parameter inputs, custom headers, the request preview, narrow panels.
+  const tf = await browser.newPage({ viewport: { width: 1440, height: 1600 } })
+  const tfErrors = []
+  tf.on('pageerror', (e) => tfErrors.push(String(e)))
+  await tf.goto(`${base}?spec=kitchen#operation/createOrder`)
+  const co = tf.locator('[id="operation/createOrder"]')
+  await co.locator('.oa-tryit__form').waitFor()
+  check('try-it form: a JSON body opens as a form', (await co.locator('.oa-tryit__textarea').count()) === 0)
+  await co.locator('.oa-sf[data-path="total"] .oa-field[data-field="amount"] input').fill('42.50')
+  await co.locator('.oa-sf[data-path="status"] .uid-select').click()
+  await tf.locator('[role="option"]', { hasText: 'paid' }).click()
+  const itemsGroup = co.locator('.oa-sf[data-path="items"]')
+  await itemsGroup.locator('> .oa-sf__body > .oa-sf__more').click()
+  const secondItem = itemsGroup.locator('> .oa-sf__body > .oa-sf--group').nth(1)
+  await secondItem.locator('.oa-field[data-field="sku"] input').fill('SKU-2')
+  await secondItem.locator('.oa-field[data-field="quantity"] input').fill('3')
+  await co.locator('.oa-tryit [data-view="json"]').click()
+  const typed = JSON.parse(await co.locator('.oa-tryit__textarea').inputValue())
+  check(
+    'try-it form: nested fields, an enum and an added array item land in the JSON',
+    typed.total?.amount === '42.50' && typed.status === 'paid' && typed.items?.length === 2 && typed.items[1].sku === 'SKU-2' && typed.items[1].quantity === 3,
+    JSON.stringify(typed).slice(0, 200),
+  )
+  check('try-it form: read-only properties are left out', typed.id === undefined && typed.createdAt === undefined)
+  await co.locator('.oa-tryit__textarea').fill('{"status": ')
+  await co.locator('.oa-tryit [data-view="form"]').click({ force: true })
+  check(
+    'try-it form: invalid JSON stays in the JSON view',
+    (await co.locator('.oa-tryit__textarea').count()) === 1 && (await co.locator('.oa-tryit__warn').count()) === 1 && (await co.locator('.oa-tryit [data-view="form"]').isDisabled()),
+  )
+  await co.locator('.oa-tryit__textarea').fill(JSON.stringify(typed, null, 2))
+  await co.locator('.oa-tryit [data-view="form"]').click()
+  check('try-it form: back to the form, the values stay', (await co.locator('.oa-sf[data-path="total"] .oa-field[data-field="amount"] input').inputValue()) === '42.50')
+  // A custom header goes along.
+  await co.locator('.oa-tryit__group[data-loc="header"] .oa-tryit__add').click()
+  await co.locator('.oa-kv__key input').fill('X-Debug')
+  await co.locator('.oa-kv__value input').fill('on')
+  let formSent = null
+  await tf.route('**/v2/orders**', async (route) => {
+    const r = route.request()
+    formSent = { headers: r.headers(), body: JSON.parse(r.postData() ?? 'null') }
+    await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ id: 'o-2', note: 'x'.repeat(400), url: `https://example.com/${'segment/'.repeat(40)}` }) })
+  })
+  await co.locator('.oa-tryit button', { hasText: 'Send' }).click()
+  await co.locator('.oa-tryit__response .oa-status').waitFor()
+  check('try-it form: the request carries the form body', formSent?.body?.items?.[1]?.sku === 'SKU-2' && formSent?.body?.total?.amount === '42.50')
+  check('try-it form: a custom header is sent', formSent?.headers['x-debug'] === 'on', JSON.stringify(formSent?.headers ?? {}))
+  check('try-it form: the response body is a wrapped code block', (await co.locator('.oa-tryit__response .oa-code').count()) === 1)
+  // The preview: closed to one line, open to the URL and headers.
+  const preview = co.locator('.oa-preview')
+  const summary = await preview.locator('.oa-preview__summary').innerText()
+  check('preview: one line with the method, URL and header count', /POST/.test(summary) && /orders/.test(summary) && /headers: \d/.test(summary), summary)
+  await preview.locator('.oa-preview__summary').click()
+  const previewText = await preview.locator('.oa-preview__headers').innerText()
+  check('preview: lists the custom header', previewText.includes('X-Debug') && previewText.includes('on'))
+
+  // Narrow panels: nothing overflows sideways at 340px, response shown and preview open.
+  const overflow = (loc) =>
+    loc.evaluate((el) => {
+      const right = el.getBoundingClientRect().right
+      const out = [...el.querySelectorAll('*')].filter((n) => n.getClientRects().length && n.getBoundingClientRect().right > right + 1 && !n.closest('.oa-preview__line')).map((n) => n.className)
+      return { scroll: el.scrollWidth - el.clientWidth, out: out.slice(0, 5) }
+    })
+  for (const width of [340, 480]) {
+    await co.locator('.oa-tryit').evaluate((el, w) => (el.style.width = `${w}px`), width)
+    await tf.waitForTimeout(150)
+    const o = await overflow(co.locator('.oa-tryit'))
+    check(`try-it at ${width}px: no horizontal overflow`, o.scroll <= 0 && o.out.length === 0, JSON.stringify(o))
+  }
+  await co.locator('.oa-tryit').screenshot({ path: `${out}/tryit-form-narrow.png` })
+  await co.locator('.oa-tryit').evaluate((el) => (el.style.width = ''))
+
+  // Typed parameters: an array of an enum as a multi-select, a boolean with "not set", tags.
+  await tf.goto(`${base}?spec=kitchen#operation/listOrders`)
+  const lo = tf.locator('[id="operation/listOrders"]')
+  await lo.locator('.oa-tryit').waitFor()
+  await lo.locator('.oa-field[data-field="status"] .uid-select').click()
+  await tf.locator('[role="option"]', { hasText: 'shipped' }).click()
+  await tf.keyboard.press('Escape')
+  await lo.locator('.oa-field[data-field="limit"] input').fill('7')
+  await lo.locator('.oa-preview__summary').click()
+  const listUrl = await lo.locator('.oa-preview__url').innerText()
+  check('typed params: an enum via select and a number input', /status=shipped/.test(listUrl) && /limit=7/.test(listUrl), listUrl)
+  await tf.goto(`${base}?spec=kitchen#operation/paramStyles`)
+  const ps = tf.locator('[id="operation/paramStyles"]')
+  await ps.locator('.oa-tryit').waitFor()
+  await ps.locator('.oa-field[data-field="empty"] [data-value="true"]').click()
+  await ps.locator('.oa-field[data-field="form"] input').fill('x')
+  await ps.locator('.oa-field[data-field="form"] input').press('Enter')
+  await ps.locator('.oa-field[data-field="form"] input').fill('y')
+  await ps.locator('.oa-field[data-field="form"] input').press('Enter')
+  await ps.locator('.oa-preview__summary').click()
+  const psUrl = await ps.locator('.oa-preview__url').innerText()
+  check('typed params: a boolean switch and array tags', /empty=true/.test(psUrl) && /form=x,y/.test(psUrl), psUrl)
+  await ps.locator('.oa-field[data-field="empty"] [data-value="unset"]').click()
+  check('typed params: an optional boolean can be unset', !/empty=/.test(await ps.locator('.oa-preview__url').innerText()))
+
+  // Credentials from a prefilled link: the preview masks them.
+  const linkPayload = 'j' + Buffer.from(JSON.stringify({ v: 1, auth: { bearer: 'tok-1234567890-abcd' } })).toString('base64url')
+  await tf.goto(`${base}?spec=kitchen#operation/getOrder?f=${linkPayload}`)
+  const go = tf.locator('[id="operation/getOrder"]')
+  await go.locator('.oa-tryit__prefilled').waitFor()
+  await go.locator('.oa-preview__summary').click()
+  const masked = await go.locator('.oa-preview__headers').innerText()
+  check('preview: Authorization is masked', masked.includes('Bearer ••••abcd') && !masked.includes('tok-1234'), masked)
+  check('try-it forms: no page errors', tfErrors.length === 0, tfErrors.join('; '))
+  await tf.close()
 
   // The editor: visual edits land in the text, the source view reports problems.
   const ed = await browser.newPage({ viewport: { width: 1440, height: 1200 } })

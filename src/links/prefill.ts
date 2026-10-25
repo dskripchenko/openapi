@@ -28,7 +28,9 @@
  *                                       parameter values as typed (strings)
  *       "mediaType"?: "application/json",
  *       "body"?: "{\"a\":1}",           the body text as typed
- *       "auth"?: { "bearer": "token", "basic": { "username": "u", "password": "p" } }
+ *       "auth"?: { "bearer": "token", "basic": { "username": "u", "password": "p" } },
+ *       "xQuery"?: [["k", "v"]], "xHeader"?: [["X-Debug", "1"]], "xCookie"?: [["k", "v"]]
+ *                                       name/value pairs the spec does not declare, in order
  *     }
  *
  * Every key but `v` is optional and unknown keys are ignored; a `v` above 1
@@ -56,6 +58,10 @@ export interface PrefillData {
   body?: string
   /** Credentials by security scheme name. */
   auth?: Record<string, string | { username: string; password: string }>
+  /** Undeclared query parameters, headers and cookies the user added, as name/value pairs. */
+  xQuery?: [string, string][]
+  xHeader?: [string, string][]
+  xCookie?: [string, string][]
 }
 
 /** The most a payload may inflate to: a link is not a way to ship megabytes. */
@@ -153,6 +159,17 @@ function strings(v: unknown): Record<string, string> | undefined {
   return out
 }
 
+/** A list of name/value pairs of strings; malformed pairs are dropped. */
+function pairs(v: unknown): [string, string][] | undefined {
+  if (!Array.isArray(v)) return undefined
+  const out: [string, string][] = []
+  for (const pair of v) {
+    if (Array.isArray(pair) && typeof pair[0] === 'string' && (typeof pair[1] === 'string' || typeof pair[1] === 'number' || typeof pair[1] === 'boolean'))
+      out.push([pair[0], String(pair[1])])
+  }
+  return out
+}
+
 /** Keeps the known keys of the right types; null for anything that is not version 1. */
 function sanitize(raw: unknown): PrefillData | null {
   if (!isRecord(raw) || typeof raw.v !== 'number') return null
@@ -180,6 +197,10 @@ function sanitize(raw: unknown): PrefillData | null {
         auth[name] = { username: String(value.username ?? ''), password: String(value.password ?? '') }
     }
     data.auth = auth
+  }
+  for (const key of ['xQuery', 'xHeader', 'xCookie'] as const) {
+    const list = pairs(raw[key])
+    if (list?.length) data[key] = list
   }
   return data
 }

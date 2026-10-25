@@ -22,11 +22,20 @@ export interface OperationDraft {
    * Kept apart from the values and the body text: files never go into a link.
    */
   files: Record<string, File[]>
+  /**
+   * Query parameters, headers and cookies the spec does not declare, added by
+   * the user as name/value rows; sent after the declared ones.
+   */
+  extra: DraftExtra
   /** The body text could not be parsed as JSON (it is sent as typed). */
   readonly bodyInvalid: boolean
   /** The request "Send" makes and the samples print (a computed, unwrapped by reactive). */
   readonly request: HttpRequest
 }
+
+/** The locations that take undeclared name/value rows. */
+export type ExtraLocation = 'query' | 'header' | 'cookie'
+export type DraftExtra = Record<ExtraLocation, [string, string][]>
 
 /** The media types of a request body, JSON first. */
 export function mediaTypes(body: RequestBody | undefined): string[] {
@@ -204,6 +213,7 @@ export function createDraft(entry: OperationEntry, ctx: ReferenceContext): Opera
     mediaType: types[0] ?? '',
     bodyText: types[0] ? sampleBody(body?.content[types[0]], ctx, types[0]) : '',
     files: {} as Record<string, File[]>,
+    extra: { query: [], header: [], cookie: [] } as DraftExtra,
   })
   const draft = state
 
@@ -272,6 +282,7 @@ export function createDraft(entry: OperationEntry, ctx: ReferenceContext): Opera
         bodyValue !== undefined
           ? { mediaType: draft.mediaType, value: bodyValue, encoding: body?.content[draft.mediaType]?.encoding }
           : undefined,
+      extra: draft.extra,
       security: appliedSecurity(ctx, entry),
     })
   })

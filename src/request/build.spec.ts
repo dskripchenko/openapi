@@ -329,3 +329,38 @@ describe('buildRequest', () => {
     expect(body()).toContainEqual(['Content-Type', 'application/octet-stream'])
   })
 })
+
+describe('buildRequest: extra parameters', () => {
+  const params: Parameter[] = [
+    { name: 'q', in: 'query', schema: { type: 'string' } },
+    { name: 'X-Trace', in: 'header', schema: { type: 'string' } },
+    { name: 'sid', in: 'cookie', schema: { type: 'string' } },
+  ]
+  const build = (extra: Parameters<typeof buildRequest>[0]['extra']) =>
+    buildRequest({
+      method: 'get',
+      path: '/s',
+      server: 'https://a.com',
+      parameters: params,
+      values: { query: { q: 'x' }, header: { 'X-Trace': 't' }, cookie: { sid: '1' } },
+      extra,
+      security: [{ scheme: { type: 'apiKey', in: 'header', name: 'X-Key' }, value: 'k' }],
+    })
+
+  it('appends them after the declared ones, encoded, before the credentials', () => {
+    const r = build({ query: [['a b', 'c&d']], header: [['X-Extra', 'v 1']], cookie: [['theme', 'dark mode']] })
+    expect(r.url).toBe('https://a.com/s?q=x&a%20b=c%26d')
+    expect(r.headers).toEqual([
+      ['X-Trace', 't'],
+      ['X-Extra', 'v 1'],
+      ['X-Key', 'k'],
+      ['Cookie', 'sid=1; theme=dark%20mode'],
+    ])
+  })
+
+  it('skips pairs without a name and trims names', () => {
+    const r = build({ query: [['', 'lost'], [' n ', '']], header: [['  ', 'x']] })
+    expect(r.url).toBe('https://a.com/s?q=x&n=')
+    expect(r.headers.map(([k]) => k)).toEqual(['X-Trace', 'X-Key', 'Cookie'])
+  })
+})
