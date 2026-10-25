@@ -431,6 +431,7 @@
   cursor: pointer;
 }
 .oa-response__desc { flex: 1; color: var(--uid-text-secondary); }
+.oa-response__head--plain { cursor: default; }
 .oa-response__body { padding: 4px 10px 10px; display: flex; flex-direction: column; gap: 8px; }
 .oa-response__example { margin-top: 4px; }
 .oa-callback { margin: 6px 0; }

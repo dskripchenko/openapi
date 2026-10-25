@@ -334,9 +334,24 @@ try {
   const box = await payTarget.boundingBox()
   check('search: Enter opens the operation', !!box && box.y >= -2 && box.y < 200 && (await sp.locator('.oa-search__results').count()) === 0, JSON.stringify(box))
 
+  // A response with nothing but a description is a plain row.
+  const hooks = sp.locator('.oa-op').filter({ hasText: 'An order was paid' }).first()
+  await hooks.scrollIntoViewIfNeeded()
+  await hooks.locator('.oa-response__head').first().waitFor()
+  check('responses: an empty one has nothing to open', (await hooks.locator('.oa-response__head--plain').count()) > 0 && (await hooks.locator('.oa-response__head--plain .oa-schema__chevron').count()) === 0)
+  // An XML body is written as XML, not as "[object Object]".
+  const xmlOp = sp.locator('[id="operation/createOrder"]')
+  await xmlOp.scrollIntoViewIfNeeded()
+  await xmlOp.locator('.oa-tryit .oa-tryit__media').first().click()
+  await sp.locator('[role="option"]', { hasText: 'application/xml' }).first().click()
+  const xmlText = await xmlOp.locator('.oa-tryit__textarea').inputValue()
+  check('try-it: an XML body is XML', xmlText.trimStart().startsWith('<') && !xmlText.includes('[object Object]'), xmlText.slice(0, 60))
+
   // A response with named examples: the chips switch the code.
   const list = sp.locator('[id="operation/listOrders"]')
   await list.scrollIntoViewIfNeeded()
+  check('responses: folded by default', (await list.locator('.oa-response__body').count()) === 0)
+  await list.locator('button.oa-response__head').first().click()
   await list.locator('.oa-response__example').first().waitFor()
   // The code block fills in after it mounts: wait for its text.
   const exampleCode = async () => {

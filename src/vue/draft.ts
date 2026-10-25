@@ -8,7 +8,7 @@ import type { Example, HttpRequest, MaybeRef, MediaType, ParameterIn, RequestBod
 import type { OperationEntry } from '../model'
 import { buildRequest, isMultipart, serverUrl, joinUrl } from '../request'
 import type { AppliedSecurity } from '../request/security'
-import { sample } from '../schema'
+import { sample, sampleXml } from '../schema'
 import { stringifyJson } from '../json'
 import type { ReferenceContext } from './context'
 import { BODY_FILE, formFields, isBinaryBody, placeholderName } from './form'
@@ -106,6 +106,7 @@ function bodyText(
   mediaType: string,
   media: ExampleHolder | undefined,
   resolve: (ref: string) => never,
+  mode: 'request' | 'response' = 'request',
 ): string {
   if (value === undefined) return ''
   // File fields of a multipart body are chosen in the form, not typed.
@@ -114,7 +115,13 @@ function bodyText(
     if (files.size) value = Object.fromEntries(Object.entries(value).filter(([k]) => !files.has(k)))
   }
   if (typeof value === 'string') return value
-  return /json/i.test(mediaType) || !/xml|text/i.test(mediaType) ? stringifyJson(value, 2) : String(value)
+  // An XML body is written from the schema (its `xml` names and attributes); a
+  // structured value has no XML spelling of its own.
+  if (/xml/i.test(mediaType) && typeof value === 'object' && value !== null && media?.schema) {
+    return sampleXml(media.schema, { resolve, mode })
+  }
+  if (/json/i.test(mediaType) || !/xml|text/i.test(mediaType) || typeof value === 'object') return stringifyJson(value, 2)
+  return String(value)
 }
 
 /**
@@ -132,9 +139,9 @@ export function exampleText(
   const resolve = (ref: string) => ctx.spec.value.resolver.get(ref) as never
   if (name === GENERATED_EXAMPLE) {
     if (!media.schema) return ''
-    return bodyText(sample(media.schema, { resolve, mode }), mediaType, media, resolve)
+    return bodyText(sample(media.schema, { resolve, mode }), mediaType, media, resolve, mode)
   }
-  return bodyText(namedExamples(media, ctx).find((e) => e.name === name)?.value, mediaType, media, resolve)
+  return bodyText(namedExamples(media, ctx).find((e) => e.name === name)?.value, mediaType, media, resolve, mode)
 }
 
 /** The sample body text for a media type: the first example or a generated one. */

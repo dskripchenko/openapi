@@ -72,7 +72,11 @@ const bodyMedia = computed<MediaType | undefined>(() => body.value?.content[body
 const responses = computed(() =>
   Object.entries(op.value.responses ?? {}).map(([code, r]) => ({ code, response: deref<Response>(r) })),
 )
-const openResponse = ref<string | null>(responses.value[0]?.code ?? null)
+/** A response has something to open: headers, a body or links. */
+const hasDetails = (r: Response | undefined): boolean =>
+  !!r && (Object.keys(r.headers ?? {}).length > 0 || Object.keys(r.content ?? {}).length > 0 || Object.keys(r.links ?? {}).length > 0)
+// Responses start folded: the codes and their descriptions are the overview.
+const openResponse = ref<string | null>(null)
 const responseType = ref<Record<string, string>>({})
 function responseMedia(code: string, r: Response | undefined): { type: string; media: MediaType } | undefined {
   const types = Object.keys(r?.content ?? {})
@@ -218,6 +222,7 @@ watch(
           <h4 class="oa-block__title">{{ labels.responses }}</h4>
           <div v-for="{ code, response } in responses" :key="code" class="oa-response">
             <button
+              v-if="hasDetails(response)"
               type="button"
               class="oa-response__head"
               :aria-expanded="openResponse === code"
@@ -227,7 +232,12 @@ watch(
               <span class="oa-response__desc">{{ response?.description }}</span>
               <span class="oa-schema__chevron" :class="{ 'is-open': openResponse === code }" aria-hidden="true">›</span>
             </button>
-            <div v-if="openResponse === code" class="oa-response__body">
+            <!-- Nothing but a description: a plain row, nothing to open. -->
+            <div v-else class="oa-response__head oa-response__head--plain">
+              <span class="oa-status" :class="`oa-status--${tone(code)}`">{{ code }}</span>
+              <span class="oa-response__desc">{{ response?.description }}</span>
+            </div>
+            <div v-if="openResponse === code && hasDetails(response)" class="oa-response__body">
               <table v-if="headersOf(response).length" class="oa-table oa-table--compact">
                 <thead><tr><th>{{ labels.headers }}</th><th /></tr></thead>
                 <tbody>
