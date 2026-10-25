@@ -3,14 +3,14 @@
  * One operation: what it does on the left (parameters, body, responses), and
  * how to call it on the right (samples, try-it). Both sides share one draft.
  */
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { UidCode, UidMarkdown } from '@dskripchenko/ui'
 import type { Header, MediaType, Parameter, ParameterIn, RequestBody, Response } from '../core/types'
 import type { OperationEntry } from '../model'
 import { stringifyJson } from '../json'
 import { describe as describeSchema, sample } from '../schema'
 import { useReference } from './context'
-import { createDraft, mediaTypes } from './draft'
+import { createDraft, mediaTypes, type OperationDraft } from './draft'
 import OaSamples from './OaSamples.vue'
 import OaSchema from './OaSchema.vue'
 import OaTryIt from './OaTryIt.vue'
@@ -21,8 +21,28 @@ const labels = ctx.labels
 const deref = <T,>(v: unknown): T | undefined => ctx.spec.value.resolver.deref(v as never) as T | undefined
 const resolveRef = (r: string) => ctx.spec.value.resolver.get(r) as never
 
-const draft = createDraft(props.entry, ctx)
 const op = computed(() => props.entry.operation)
+
+/**
+ * A large spec has hundreds of operations: each one builds its draft, samples
+ * and forms only when it comes near the viewport, and keeps them after.
+ */
+const root = ref<HTMLElement | null>(null)
+const draft = shallowRef<OperationDraft | null>(null)
+let observer: IntersectionObserver | null = null
+function show(): void {
+  if (draft.value) return
+  draft.value = createDraft(props.entry, ctx)
+  observer?.disconnect()
+  observer = null
+}
+onMounted(() => {
+  if (typeof IntersectionObserver === 'undefined' || !root.value) return show()
+  observer = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && show(), { rootMargin: '1200px 0px' })
+  observer.observe(root.value)
+})
+onBeforeUnmount(() => observer?.disconnect())
+defineExpose({ show })
 
 const LOCATIONS: ParameterIn[] = ['path', 'query', 'header', 'cookie']
 const paramGroups = computed(() =>
@@ -62,7 +82,7 @@ const headersOf = (r: Response | undefined) =>
 </script>
 
 <template>
-  <section :id="anchor" class="oa-op" :class="{ 'oa-op--deprecated': entry.deprecated }">
+  <section :id="anchor" ref="root" class="oa-op" :class="{ 'oa-op--deprecated': entry.deprecated, 'oa-op--pending': !draft }">
     <header class="oa-op__head">
       <h3 class="oa-op__title">{{ op.summary || entry.path }}</h3>
       <div class="oa-op__line">
@@ -72,7 +92,7 @@ const headersOf = (r: Response | undefined) =>
       </div>
     </header>
 
-    <div class="oa-op__grid">
+    <div v-if="draft" class="oa-op__grid">
       <div class="oa-op__doc">
         <UidMarkdown v-if="op.description" class="oa-md" :source="op.description" />
         <p v-if="op.externalDocs" class="oa-op__ext">

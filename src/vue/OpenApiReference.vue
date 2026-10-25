@@ -147,7 +147,15 @@ async function go(anchor: string): Promise<void> {
   active.value = anchor
   await nextTick()
   const el = root.value?.querySelector<HTMLElement>(`[id="${CSS.escape(anchor)}"]`)
-  el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  if (!el) return
+  el.scrollIntoView({ block: 'start' })
+  // Operations render as they come near: the ones above the target grow and
+  // push it down. Settle, then land on it again.
+  for (let i = 0; i < 3; i++) {
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+    await nextTick()
+    el.scrollIntoView({ block: 'start' })
+  }
   if (props.hashNavigation && typeof history !== 'undefined') history.replaceState(null, '', `#${anchor}`)
 }
 

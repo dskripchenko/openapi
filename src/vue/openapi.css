@@ -159,6 +159,7 @@
   content-visibility: auto;
   contain-intrinsic-size: auto 600px;
 }
+.oa-op--pending { min-height: 420px; }
 .oa-op--deprecated .oa-op__title { text-decoration: line-through; color: var(--uid-text-secondary); }
 .oa-op__title { margin: 0 0 6px; font-size: 17px; }
 .oa-op__line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

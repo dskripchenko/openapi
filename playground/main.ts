@@ -20,9 +20,13 @@ declare global {
   }
 }
 
+// ?url=/local/spec.json loads a spec over HTTP (files in playground/public/local are not committed).
+const url = params.get('url')
+const initial = url ? await (await fetch(url)).text() : (specs[name] ?? petstore)
+
 createApp({
   setup() {
-    const text = ref(specs[name] ?? petstore)
+    const text = ref(initial)
     window.__text = () => text.value
     const locale = params.get('locale') ?? 'en'
     return () =>

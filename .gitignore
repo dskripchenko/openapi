@@ -6,3 +6,4 @@ coverage
 .npmrc
 tests/browser/output
 .claude/
+playground/public/local/
