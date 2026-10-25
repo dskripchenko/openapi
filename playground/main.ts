@@ -5,8 +5,9 @@ import '../src/vue/openapi.css'
 import petstore from '../tests/fixtures/specs/petstore-30.yaml?raw'
 import kitchen from '../tests/fixtures/specs/kitchen-sink-31.json?raw'
 import swagger from '../tests/fixtures/specs/petstore-swagger2.json?raw'
+import oauth from '../tests/fixtures/specs/oauth-31.json?raw'
 
-const specs: Record<string, string> = { petstore, kitchen, swagger, empty: '' }
+const specs: Record<string, string> = { petstore, kitchen, swagger, oauth, empty: '' }
 const params = new URLSearchParams(location.search)
 const name = params.get('spec') ?? 'petstore'
 const mode = params.get('mode') ?? 'reference'
@@ -48,7 +49,12 @@ createApp({
                   { id: 'legacy', name: 'Swagger 2.0', spec: () => new Promise((r) => setTimeout(() => r(swagger), 300)) },
                 ],
               })
-            : h(OpenApiReference, { spec: text.value, locale }),
+            : h(OpenApiReference, {
+                spec: text.value,
+                locale,
+                // ?persist=local|session keeps credentials between visits.
+                persistCredentials: (params.get('persist') as 'local' | 'session' | null) ?? false,
+              }),
       ])
   },
 }).mount('#app')

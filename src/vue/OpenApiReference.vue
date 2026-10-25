@@ -23,6 +23,8 @@ import { LOCALES, en, type OpenApiLabels } from './labels'
 import OaIntro from './OaIntro.vue'
 import OaOperation from './OaOperation.vue'
 import OaSchema from './OaSchema.vue'
+import { relayOAuthCallback } from './oauthPopup'
+import { credentialsKey, persistMode, usePersistedCredentials } from './persist'
 
 const props = withDefaults(
   defineProps<{
@@ -54,6 +56,13 @@ const props = withDefaults(
     external?: ResolverOptions['external']
     /** Updates `location.hash` when an operation is opened from the navigation. */
     hashNavigation?: boolean
+    /**
+     * Keeps API keys and tokens between visits, per spec: `'session'` (or
+     * `true`) in sessionStorage, `'local'` in localStorage. Off by default.
+     */
+    persistCredentials?: boolean | 'session' | 'local'
+    /** The OAuth redirect URI the identity provider allows; the page URL without query and fragment by default. */
+    oauthRedirectUrl?: string
   }>(),
   {
     spec: undefined,
@@ -68,6 +77,8 @@ const props = withDefaults(
     baseUrl: undefined,
     external: undefined,
     hashNavigation: true,
+    persistCredentials: false,
+    oauthRedirectUrl: undefined,
   },
 )
 
@@ -138,12 +149,16 @@ async function load(id: string): Promise<void> {
 
 /** Credentials typed per spec, kept across switches. */
 const savedCredentials = new Map<string, Record<string, unknown>>()
+const savedExpiry = new Map<string, Record<string, number>>()
 
 async function open(id: string): Promise<void> {
   if (!sources.value.some((s) => s.id === id)) return
   savedCredentials.set(activeId.value, { ...ctx.credentials })
   for (const k of Object.keys(ctx.credentials)) delete ctx.credentials[k]
   Object.assign(ctx.credentials, savedCredentials.get(id) ?? {})
+  savedExpiry.set(activeId.value, { ...ctx.tokenExpiry })
+  for (const k of Object.keys(ctx.tokenExpiry)) delete ctx.tokenExpiry[k]
+  Object.assign(ctx.tokenExpiry, savedExpiry.get(id) ?? {})
   activeId.value = id
   query.value = ''
   emit('update:active', id)
@@ -178,8 +193,23 @@ const ctx: ReferenceContext = {
   tryIt: computed(() => props.tryIt),
   baseUrl: computed(() => props.baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : undefined)),
   anchorPrefix: computed(() => (multi.value ? `${activeId.value}/` : '')),
+  tokenExpiry: reactive({}),
+  oauthRedirectUrl: computed(() => props.oauthRedirectUrl),
+  persistence: computed(() => persistMode(props.persistCredentials)),
+  forgetCredentials: () => persisted.forget(),
 }
 provide(referenceKey, ctx)
+// The key exists once the open spec has loaded (not while a switch is still loading it).
+const persisted = usePersistedCredentials(
+  ctx,
+  () => ctx.persistence.value,
+  () => {
+    const spec = loaded.value
+    return spec && cache.get(activeId.value)?.spec === spec ? credentialsKey(activeId.value, spec.document.info.title) : null
+  },
+)
+// Loaded in a sign-in popup and redirected back: hand the result to the opener.
+onMounted(relayOAuthCallback)
 void load(activeId.value)
 
 watch(
