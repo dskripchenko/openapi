@@ -1,0 +1,13 @@
+$params = @{
+    Uri = 'https://api.example.com/pets/42/photo'
+    Method = 'Post'
+    Headers = @{
+        'X-API-Key' = 'secret'
+    }
+    Form = @{
+        'caption' = 'Rex at the beach'
+        'photo' = (Get-Item -LiteralPath 'rex.png')
+    }
+}
+$response = Invoke-RestMethod @params
+$response

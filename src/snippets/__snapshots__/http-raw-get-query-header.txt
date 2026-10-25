@@ -1,0 +1,3 @@
+GET /v1/pets?limit=10&tags=dog&tags=cat HTTP/1.1
+Host: api.example.com
+X-Request-Id: abc-123

@@ -1,0 +1,5 @@
+curl -X PUT 'https://api.example.com/items/a'\''b?q=x%20y&z=$HOME' \
+  -H 'X-Nasty: it'\''s "quoted" $HOME `tick` \ ‘smart’' \
+  -H 'Content-Type: text/plain' \
+  --data-raw 'it'\''s "quoted" $HOME `tick` \back\slash
+new line	tab ünïcödé 😀 '\''@ """ ${x}'

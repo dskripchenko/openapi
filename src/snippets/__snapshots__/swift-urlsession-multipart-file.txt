@@ -1,0 +1,18 @@
+import Foundation
+
+var request = URLRequest(url: URL(string: "https://api.example.com/pets/42/photo")!)
+request.httpMethod = "POST"
+request.setValue("secret", forHTTPHeaderField: "X-API-Key")
+
+let boundary = "Boundary-\(UUID().uuidString)"
+request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+var body = Data()
+body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"caption\"\r\n\r\nRex at the beach\r\n".data(using: .utf8)!)
+body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"rex.png\"\r\nContent-Type: image/png\r\n\r\n".data(using: .utf8)!)
+body.append(try Data(contentsOf: URL(fileURLWithPath: "rex.png")))
+body.append("\r\n".data(using: .utf8)!)
+body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+request.httpBody = body
+
+let (data, _) = try await URLSession.shared.data(for: request)
+print(String(decoding: data, as: UTF8.self))

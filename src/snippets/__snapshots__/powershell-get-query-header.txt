@@ -1,0 +1,9 @@
+$params = @{
+    Uri = 'https://api.example.com/v1/pets?limit=10&tags=dog&tags=cat'
+    Method = 'Get'
+    Headers = @{
+        'X-Request-Id' = 'abc-123'
+    }
+}
+$response = Invoke-RestMethod @params
+$response

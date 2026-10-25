@@ -1,0 +1,19 @@
+curl -X POST 'https://api.example.com/v1/pets' \
+  -H 'Authorization: Bearer eyJhbGciOi.token' \
+  -H 'Content-Type: application/json' \
+  --data-raw '{
+  "name": "Rex",
+  "age": 3,
+  "vaccinated": true,
+  "owner": null,
+  "tags": [
+    "good",
+    "boy"
+  ],
+  "address": {
+    "city": "Berlin",
+    "zip-code": "10115"
+  },
+  "empty": {},
+  "list": []
+}'

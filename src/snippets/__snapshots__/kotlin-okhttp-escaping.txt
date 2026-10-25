@@ -1,0 +1,21 @@
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+
+fun main() {
+    val client = OkHttpClient()
+    val body = """
+        it's "quoted" ${'$'}HOME `tick` \back\slash
+        new line	tab ünïcödé 😀 '@ ""${'"'} ${'$'}{x}
+    """.trimIndent().toRequestBody("text/plain".toMediaType())
+    val request = Request.Builder()
+        .url("https://api.example.com/items/a'b?q=x%20y&z=\$HOME")
+        .put(body)
+        .addHeader("X-Nasty", "it's \"quoted\" \$HOME `tick` \\ ‘smart’")
+        .build()
+
+    client.newCall(request).execute().use { response ->
+        println(response.body?.string())
+    }
+}

@@ -1,0 +1,17 @@
+using System;
+using System.IO;
+using System.Net.Http;
+using System.Net.Http.Headers;
+
+using var client = new HttpClient();
+using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.example.com/pets/42/photo");
+request.Headers.Add("X-API-Key", "secret");
+var content = new MultipartFormDataContent();
+content.Add(new StringContent("Rex at the beach"), "caption");
+var file1 = new ByteArrayContent(File.ReadAllBytes("rex.png"));
+file1.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+content.Add(file1, "photo", "rex.png");
+request.Content = content;
+
+using var response = await client.SendAsync(request);
+Console.WriteLine(await response.Content.ReadAsStringAsync());

@@ -1,0 +1,9 @@
+<?php
+
+use Illuminate\Support\Facades\Http;
+
+$response = Http::withHeaders([
+    'X-Request-Id' => 'abc-123',
+])->get('https://api.example.com/v1/pets?limit=10&tags=dog&tags=cat');
+
+echo $response->body();

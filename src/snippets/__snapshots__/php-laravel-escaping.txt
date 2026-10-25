@@ -1,0 +1,14 @@
+<?php
+
+use Illuminate\Support\Facades\Http;
+
+$response = Http::withHeaders([
+    'X-Nasty' => 'it\'s "quoted" $HOME `tick` \\ ‘smart’',
+])
+    ->withBody(<<<'BODY'
+        it's "quoted" $HOME `tick` \back\slash
+        new line	tab ünïcödé 😀 '@ """ ${x}
+        BODY, 'text/plain')
+    ->put('https://api.example.com/items/a\'b?q=x%20y&z=$HOME');
+
+echo $response->body();

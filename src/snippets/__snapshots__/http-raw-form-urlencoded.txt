@@ -1,0 +1,5 @@
+POST /login HTTP/1.1
+Host: api.example.com
+Content-Type: application/x-www-form-urlencoded
+
+username=alice&password=p%40ss+word%26more&remember=true

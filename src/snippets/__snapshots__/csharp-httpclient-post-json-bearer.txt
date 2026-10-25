@@ -1,0 +1,28 @@
+using System;
+using System.Net.Http;
+using System.Text;
+
+using var client = new HttpClient();
+using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.example.com/v1/pets");
+request.Headers.Add("Authorization", "Bearer eyJhbGciOi.token");
+request.Content = new StringContent("""
+    {
+      "name": "Rex",
+      "age": 3,
+      "vaccinated": true,
+      "owner": null,
+      "tags": [
+        "good",
+        "boy"
+      ],
+      "address": {
+        "city": "Berlin",
+        "zip-code": "10115"
+      },
+      "empty": {},
+      "list": []
+    }
+    """, Encoding.UTF8, "application/json");
+
+using var response = await client.SendAsync(request);
+Console.WriteLine(await response.Content.ReadAsStringAsync());

@@ -1,0 +1,26 @@
+import requests
+
+response = requests.post(
+    'https://api.example.com/v1/pets',
+    headers={
+        'Authorization': 'Bearer eyJhbGciOi.token',
+    },
+    json={
+        'name': 'Rex',
+        'age': 3,
+        'vaccinated': True,
+        'owner': None,
+        'tags': [
+            'good',
+            'boy',
+        ],
+        'address': {
+            'city': 'Berlin',
+            'zip-code': '10115',
+        },
+        'empty': {},
+        'list': [],
+    },
+)
+
+print(response.text)

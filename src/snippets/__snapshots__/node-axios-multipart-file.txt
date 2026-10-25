@@ -1,0 +1,17 @@
+import axios from 'axios'
+import { openAsBlob } from 'node:fs'
+
+const form = new FormData()
+form.append('caption', 'Rex at the beach')
+form.append('photo', await openAsBlob('rex.png', { type: 'image/png' }), 'rex.png')
+
+const response = await axios({
+  method: 'post',
+  url: 'https://api.example.com/pets/42/photo',
+  headers: {
+    'X-API-Key': 'secret',
+  },
+  data: form,
+})
+
+console.log(response.data)

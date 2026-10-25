@@ -1,0 +1,22 @@
+<?php
+
+use Illuminate\Support\Facades\Http;
+
+$response = Http::withToken('eyJhbGciOi.token')->post('https://api.example.com/v1/pets', [
+    'name' => 'Rex',
+    'age' => 3,
+    'vaccinated' => true,
+    'owner' => null,
+    'tags' => [
+        'good',
+        'boy',
+    ],
+    'address' => [
+        'city' => 'Berlin',
+        'zip-code' => '10115',
+    ],
+    'empty' => (object) [],
+    'list' => [],
+]);
+
+echo $response->body();

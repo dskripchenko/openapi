@@ -1,0 +1,16 @@
+import requests
+
+response = requests.post(
+    'https://api.example.com/pets/42/photo',
+    headers={
+        'X-API-Key': 'secret',
+    },
+    data={
+        'caption': 'Rex at the beach',
+    },
+    files={
+        'photo': ('rex.png', open('rex.png', 'rb'), 'image/png'),
+    },
+)
+
+print(response.text)

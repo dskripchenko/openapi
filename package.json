@@ -59,7 +59,7 @@
     "build": "tsc --noEmit -p tsconfig.build.json && vue-tsc --noEmit -p tsconfig.vue.json && vite build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src tests scripts",
+    "lint": "eslint src tests",
     "typecheck": "tsc --noEmit && vue-tsc --noEmit -p tsconfig.vue.json",
     "changeset": "changeset",
     "release": "pnpm build && changeset publish",
@@ -67,7 +67,7 @@
     "dev": "vite --config playground/vite.config.ts"
   },
   "peerDependencies": {
-    "@dskripchenko/ui": "^1.12.0",
+    "@dskripchenko/ui": "^1.13.0",
     "vue": "^3.4.0"
   },
   "peerDependenciesMeta": {
@@ -80,8 +80,10 @@
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
-    "@dskripchenko/ui": "^1.12.0",
+    "@dskripchenko/ui": "^1.13.0",
     "@eslint/js": "^10.0.1",
+    "@microsoft/api-extractor": "^7.59.4",
+    "@types/node": "^22.20.5",
     "@vitejs/plugin-vue": "^6.0.10",
     "@vue/test-utils": "^2.5.1",
     "eslint": "^10.13.0",

@@ -1,0 +1,13 @@
+<?php
+
+use Illuminate\Support\Facades\Http;
+
+$response = Http::withHeaders([
+    'X-API-Key' => 'secret',
+])
+    ->attach('photo', fopen('rex.png', 'r'), 'rex.png', ['Content-Type' => 'image/png'])
+    ->post('https://api.example.com/pets/42/photo', [
+        'caption' => 'Rex at the beach',
+    ]);
+
+echo $response->body();

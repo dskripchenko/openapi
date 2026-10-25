@@ -1,0 +1,11 @@
+<?php
+
+use Illuminate\Support\Facades\Http;
+
+$response = Http::asForm()->post('https://api.example.com/login', [
+    'username' => 'alice',
+    'password' => 'p@ss word&more',
+    'remember' => 'true',
+]);
+
+echo $response->body();

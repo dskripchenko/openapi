@@ -1,0 +1,7 @@
+PUT /items/a'b?q=x%20y&z=$HOME HTTP/1.1
+Host: api.example.com
+X-Nasty: it's "quoted" $HOME `tick` \ ‘smart’
+Content-Type: text/plain
+
+it's "quoted" $HOME `tick` \back\slash
+new line	tab ünïcödé 😀 '@ """ ${x}

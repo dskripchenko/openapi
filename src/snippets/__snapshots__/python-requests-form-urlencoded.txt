@@ -1,0 +1,12 @@
+import requests
+
+response = requests.post(
+    'https://api.example.com/login',
+    data={
+        'username': 'alice',
+        'password': 'p@ss word&more',
+        'remember': 'true',
+    },
+)
+
+print(response.text)

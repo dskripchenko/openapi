@@ -1,0 +1,4 @@
+curl -X POST 'https://api.example.com/login' \
+  --data-urlencode 'username=alice' \
+  --data-urlencode 'password=p@ss word&more' \
+  --data-urlencode 'remember=true'

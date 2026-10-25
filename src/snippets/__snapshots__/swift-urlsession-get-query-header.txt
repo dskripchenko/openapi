@@ -1,0 +1,8 @@
+import Foundation
+
+var request = URLRequest(url: URL(string: "https://api.example.com/v1/pets?limit=10&tags=dog&tags=cat")!)
+request.httpMethod = "GET"
+request.setValue("abc-123", forHTTPHeaderField: "X-Request-Id")
+
+let (data, _) = try await URLSession.shared.data(for: request)
+print(String(decoding: data, as: UTF8.self))

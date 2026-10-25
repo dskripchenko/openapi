@@ -1,0 +1,13 @@
+import Foundation
+
+var request = URLRequest(url: URL(string: "https://api.example.com/items/a'b?q=x%20y&z=$HOME")!)
+request.httpMethod = "PUT"
+request.setValue("it's \"quoted\" $HOME `tick` \\ ‘smart’", forHTTPHeaderField: "X-Nasty")
+request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+request.httpBody = """
+    it's "quoted" $HOME `tick` \\back\\slash
+    new line	tab ünïcödé 😀 '@ \""" ${x}
+    """.data(using: .utf8)
+
+let (data, _) = try await URLSession.shared.data(for: request)
+print(String(decoding: data, as: UTF8.self))

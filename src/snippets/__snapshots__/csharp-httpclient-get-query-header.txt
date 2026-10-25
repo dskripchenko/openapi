@@ -1,0 +1,9 @@
+using System;
+using System.Net.Http;
+
+using var client = new HttpClient();
+using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.example.com/v1/pets?limit=10&tags=dog&tags=cat");
+request.Headers.Add("X-Request-Id", "abc-123");
+
+using var response = await client.SendAsync(request);
+Console.WriteLine(await response.Content.ReadAsStringAsync());

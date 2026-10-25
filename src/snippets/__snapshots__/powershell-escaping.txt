@@ -1,0 +1,15 @@
+$body = @'
+it's "quoted" $HOME `tick` \back\slash
+new line	tab ünïcödé 😀 '@ """ ${x}
+'@
+$params = @{
+    Uri = 'https://api.example.com/items/a''b?q=x%20y&z=$HOME'
+    Method = 'Put'
+    Headers = @{
+        'X-Nasty' = 'it''s "quoted" $HOME `tick` \ ‘‘smart’’'
+    }
+    ContentType = 'text/plain'
+    Body = $body
+}
+$response = Invoke-RestMethod @params
+$response

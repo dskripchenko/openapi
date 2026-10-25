@@ -1,0 +1,4 @@
+curl -X POST 'https://api.example.com/pets/42/photo' \
+  -H 'X-API-Key: secret' \
+  --form-string 'caption=Rex at the beach' \
+  -F 'photo=@rex.png;type=image/png'

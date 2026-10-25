@@ -1,0 +1,14 @@
+const fileInput = document.querySelector('input[type="file"]')
+const form = new FormData()
+form.append('caption', 'Rex at the beach')
+form.append('photo', fileInput.files[0], 'rex.png')
+
+const response = await fetch('https://api.example.com/pets/42/photo', {
+  method: 'POST',
+  headers: {
+    'X-API-Key': 'secret',
+  },
+  body: form,
+})
+
+console.log(await response.text())

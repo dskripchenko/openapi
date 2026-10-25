@@ -1,0 +1,110 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Swagger Petstore",
+    "summary": "A pet store API",
+    "version": "1.0.0",
+    "license": { "name": "MIT", "identifier": "MIT" }
+  },
+  "servers": [{ "url": "https://petstore.example.com/v1" }],
+  "tags": [{ "name": "pets", "description": "Everything about your pets" }],
+  "paths": {
+    "/pets": {
+      "get": {
+        "summary": "List all pets",
+        "operationId": "listPets",
+        "tags": ["pets"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0, "exclusiveMaximum": 100 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A paged array of pets",
+            "headers": { "x-next": { "description": "Next page link", "schema": { "type": ["string", "null"] } } },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Pets" } } }
+          },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "post": {
+        "summary": "Create a pet",
+        "operationId": "createPet",
+        "tags": ["pets"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NewPet" } } }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/pets/{petId}": {
+      "parameters": [{ "$ref": "#/components/parameters/PetId" }],
+      "get": {
+        "summary": "Info for a specific pet",
+        "operationId": "showPetById",
+        "tags": ["pets"],
+        "responses": {
+          "200": {
+            "description": "Expected response to a valid request",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Pet" } } }
+          },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "newPet": {
+      "post": {
+        "summary": "A pet was added",
+        "operationId": "newPetWebhook",
+        "tags": ["pets"],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Pet" } } } },
+        "responses": { "200": { "description": "Return 200 to acknowledge" } }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "PetId": { "name": "petId", "in": "path", "required": true, "description": "The id of the pet", "schema": { "type": "string" } }
+    },
+    "responses": {
+      "Error": {
+        "description": "unexpected error",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    },
+    "schemas": {
+      "NewPet": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "examples": ["Rex"] },
+          "tag": { "type": ["string", "null"] }
+        }
+      },
+      "Pet": {
+        "allOf": [
+          { "$ref": "#/components/schemas/NewPet" },
+          { "type": "object", "required": ["id"], "properties": { "id": { "type": "integer", "format": "int64" } } }
+        ]
+      },
+      "Pets": { "type": "array", "maxItems": 100, "items": { "$ref": "#/components/schemas/Pet" } },
+      "Error": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": { "code": { "type": "integer", "format": "int32" }, "message": { "type": "string" } }
+      }
+    },
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" } }
+  },
+  "security": [{ "bearerAuth": [] }]
+}

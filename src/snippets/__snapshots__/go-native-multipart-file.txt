@@ -1,0 +1,51 @@
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/textproto"
+	"os"
+)
+
+func main() {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	writer.WriteField("caption", "Rex at the beach")
+	{
+		header := make(textproto.MIMEHeader)
+		header.Set("Content-Disposition", "form-data; name=\"photo\"; filename=\"rex.png\"")
+		header.Set("Content-Type", "image/png")
+		part, err := writer.CreatePart(header)
+		if err != nil {
+			panic(err)
+		}
+		content, err := os.ReadFile("rex.png")
+		if err != nil {
+			panic(err)
+		}
+		part.Write(content)
+	}
+	writer.Close()
+
+	req, err := http.NewRequest("POST", "https://api.example.com/pets/42/photo", body)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("X-API-Key", "secret")
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(data))
+}

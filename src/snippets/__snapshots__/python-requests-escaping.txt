@@ -1,0 +1,12 @@
+import requests
+
+response = requests.put(
+    'https://api.example.com/items/a\'b?q=x%20y&z=$HOME',
+    headers={
+        'X-Nasty': 'it\'s "quoted" $HOME `tick` \\ ‘smart’',
+        'Content-Type': 'text/plain',
+    },
+    data='it\'s "quoted" $HOME `tick` \\back\\slash\nnew line\ttab ünïcödé 😀 \'@ """ ${x}'.encode('utf-8'),
+)
+
+print(response.text)

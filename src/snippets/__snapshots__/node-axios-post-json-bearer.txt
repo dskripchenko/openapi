@@ -1,0 +1,27 @@
+import axios from 'axios'
+
+const response = await axios({
+  method: 'post',
+  url: 'https://api.example.com/v1/pets',
+  headers: {
+    Authorization: 'Bearer eyJhbGciOi.token',
+  },
+  data: {
+    name: 'Rex',
+    age: 3,
+    vaccinated: true,
+    owner: null,
+    tags: [
+      'good',
+      'boy',
+    ],
+    address: {
+      city: 'Berlin',
+      'zip-code': '10115',
+    },
+    empty: {},
+    list: [],
+  },
+})
+
+console.log(response.data)

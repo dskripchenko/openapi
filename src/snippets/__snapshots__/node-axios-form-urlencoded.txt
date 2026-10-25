@@ -1,0 +1,13 @@
+import axios from 'axios'
+
+const response = await axios({
+  method: 'post',
+  url: 'https://api.example.com/login',
+  data: new URLSearchParams({
+    username: 'alice',
+    password: 'p@ss word&more',
+    remember: 'true',
+  }),
+})
+
+console.log(response.data)

@@ -1,0 +1,31 @@
+<?php
+
+require __DIR__ . '/vendor/autoload.php';
+
+use GuzzleHttp\Client;
+
+$client = new Client();
+
+$response = $client->request('POST', 'https://api.example.com/v1/pets', [
+    'headers' => [
+        'Authorization' => 'Bearer eyJhbGciOi.token',
+    ],
+    'json' => [
+        'name' => 'Rex',
+        'age' => 3,
+        'vaccinated' => true,
+        'owner' => null,
+        'tags' => [
+            'good',
+            'boy',
+        ],
+        'address' => [
+            'city' => 'Berlin',
+            'zip-code' => '10115',
+        ],
+        'empty' => (object) [],
+        'list' => [],
+    ],
+]);
+
+echo $response->getBody();

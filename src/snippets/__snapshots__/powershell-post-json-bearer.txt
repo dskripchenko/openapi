@@ -1,0 +1,29 @@
+$body = @'
+{
+  "name": "Rex",
+  "age": 3,
+  "vaccinated": true,
+  "owner": null,
+  "tags": [
+    "good",
+    "boy"
+  ],
+  "address": {
+    "city": "Berlin",
+    "zip-code": "10115"
+  },
+  "empty": {},
+  "list": []
+}
+'@
+$params = @{
+    Uri = 'https://api.example.com/v1/pets'
+    Method = 'Post'
+    Headers = @{
+        'Authorization' = 'Bearer eyJhbGciOi.token'
+    }
+    ContentType = 'application/json'
+    Body = $body
+}
+$response = Invoke-RestMethod @params
+$response

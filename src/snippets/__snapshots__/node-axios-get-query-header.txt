@@ -1,0 +1,11 @@
+import axios from 'axios'
+
+const response = await axios({
+  method: 'get',
+  url: 'https://api.example.com/v1/pets?limit=10&tags=dog&tags=cat',
+  headers: {
+    'X-Request-Id': 'abc-123',
+  },
+})
+
+console.log(response.data)

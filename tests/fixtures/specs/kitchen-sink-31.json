@@ -1,0 +1,393 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "Kitchen Sink API",
+    "summary": "Exercises most OpenAPI 3.1 features",
+    "description": "Every feature the renderer should understand, in one document.",
+    "version": "2.3.0",
+    "termsOfService": "https://example.com/terms",
+    "contact": { "name": "API Team", "url": "https://example.com", "email": "api@example.com" },
+    "license": { "name": "Apache 2.0", "identifier": "Apache-2.0" },
+    "x-logo": { "url": "https://example.com/logo.svg" }
+  },
+  "servers": [
+    {
+      "url": "https://{region}.api.example.com/{basePath}",
+      "description": "Regional production",
+      "variables": {
+        "region": { "default": "eu", "enum": ["eu", "us", "ap"], "description": "Data region" },
+        "basePath": { "default": "v2" }
+      }
+    },
+    { "url": "http://localhost:{port}", "description": "Local", "variables": { "port": { "default": "8080" } } },
+    { "url": "/relative" }
+  ],
+  "tags": [
+    { "name": "orders", "description": "Order management", "x-displayName": "Orders" },
+    { "name": "payments", "description": "Payments and refunds" },
+    { "name": "catalog", "description": "Products", "externalDocs": { "url": "https://example.com/catalog" } },
+    { "name": "params", "description": "Parameter serialization showcase" },
+    { "name": "events", "description": "Webhooks" }
+  ],
+  "x-tagGroups": [
+    { "name": "Commerce", "tags": ["orders", "payments", "catalog"] },
+    { "name": "Reference", "tags": ["params"] }
+  ],
+  "security": [{ "bearer": [] }, { "apiKeyHeader": [], "apiKeyQuery": [] }],
+  "paths": {
+    "/orders": {
+      "summary": "Orders collection",
+      "get": {
+        "tags": ["orders"],
+        "operationId": "listOrders",
+        "summary": "List orders",
+        "parameters": [
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/Limit" },
+          { "name": "status", "in": "query", "schema": { "type": "array", "items": { "$ref": "#/components/schemas/OrderStatus" } }, "style": "form", "explode": true }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of orders",
+            "headers": { "X-Total-Count": { "$ref": "#/components/headers/TotalCount" } },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrderPage" },
+                "examples": { "page": { "$ref": "#/components/examples/OrderPage" } }
+              }
+            },
+            "links": { "next": { "$ref": "#/components/links/NextPage" } }
+          },
+          "4XX": { "$ref": "#/components/responses/Problem" }
+        }
+      },
+      "post": {
+        "tags": ["orders"],
+        "operationId": "createOrder",
+        "summary": "Create an order",
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "$ref": "#/components/requestBodies/NewOrder" },
+        "callbacks": {
+          "orderStatusChanged": {
+            "{$request.body#/callbackUrl}": {
+              "post": {
+                "summary": "Order status changed",
+                "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OrderEvent" } } } },
+                "responses": { "204": { "description": "Callback accepted" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": { "Location": { "description": "URL of the order", "schema": { "type": "string", "format": "uri" } } },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Order" } } },
+            "links": {
+              "GetOrder": { "operationId": "getOrder", "parameters": { "orderId": "$response.body#/id" }, "description": "Fetch the created order" }
+            }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/orders/{orderId}": {
+      "parameters": [{ "$ref": "#/components/parameters/OrderId" }],
+      "get": {
+        "tags": ["orders"],
+        "operationId": "getOrder",
+        "summary": "Get an order",
+        "responses": {
+          "200": { "description": "The order", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Order" } } } },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      },
+      "patch": {
+        "tags": ["orders"],
+        "operationId": "updateOrder",
+        "summary": "Update an order",
+        "requestBody": {
+          "content": { "application/merge-patch+json": { "schema": { "$ref": "#/components/schemas/OrderPatch" } } }
+        },
+        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Order" } } } } }
+      },
+      "delete": {
+        "tags": ["orders"],
+        "operationId": "deleteOrder",
+        "summary": "Cancel an order",
+        "deprecated": true,
+        "security": [{ "oauth": ["orders:write"] }],
+        "responses": { "204": { "description": "Cancelled" } }
+      }
+    },
+    "/payments": {
+      "post": {
+        "tags": ["payments"],
+        "operationId": "createPayment",
+        "summary": "Pay for an order",
+        "security": [{ "oauth": ["payments:write"] }, { "mtls": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PaymentMethod" },
+              "example": { "kind": "card", "number": "4242424242424242", "expiry": "12/30" }
+            }
+          }
+        },
+        "responses": {
+          "202": { "description": "Accepted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Payment" } } } }
+        }
+      }
+    },
+    "/catalog/images": {
+      "post": {
+        "tags": ["catalog"],
+        "operationId": "uploadImage",
+        "summary": "Upload a product image",
+        "security": [{ "openId": ["openid"] }, { "basic": [] }],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": { "type": "string", "contentMediaType": "image/png", "contentEncoding": "binary" },
+                  "alt": { "type": "string" },
+                  "tags": { "type": "array", "items": { "type": "string" } }
+                }
+              },
+              "encoding": { "file": { "contentType": "image/png, image/jpeg" }, "tags": { "style": "form", "explode": true } }
+            },
+            "application/octet-stream": { "schema": { "type": "string", "contentMediaType": "application/octet-stream" } }
+          }
+        },
+        "responses": { "201": { "description": "Uploaded" } }
+      }
+    },
+    "/catalog/search": {
+      "post": {
+        "tags": ["catalog"],
+        "operationId": "searchCatalog",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "type": "object", "properties": { "q": { "type": "string" }, "page": { "type": "integer", "minimum": 1 } } }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Results", "content": { "text/csv": { "schema": { "type": "string" } } } } }
+      }
+    },
+    "/params/{simple}/{label}/{matrix}": {
+      "get": {
+        "tags": ["params"],
+        "operationId": "paramStyles",
+        "summary": "All parameter styles",
+        "parameters": [
+          { "name": "simple", "in": "path", "required": true, "style": "simple", "schema": { "type": "array", "items": { "type": "integer" } } },
+          { "name": "label", "in": "path", "required": true, "style": "label", "explode": true, "schema": { "type": "string" } },
+          { "name": "matrix", "in": "path", "required": true, "style": "matrix", "schema": { "type": "object", "properties": { "a": { "type": "string" } } } },
+          { "name": "form", "in": "query", "style": "form", "explode": false, "schema": { "type": "array", "items": { "type": "string" } } },
+          { "name": "space", "in": "query", "style": "spaceDelimited", "schema": { "type": "array", "items": { "type": "string" } } },
+          { "name": "pipe", "in": "query", "style": "pipeDelimited", "schema": { "type": "array", "items": { "type": "string" } } },
+          { "name": "filter", "in": "query", "style": "deepObject", "explode": true, "schema": { "type": "object", "additionalProperties": { "type": "string" } } },
+          { "name": "reserved", "in": "query", "allowReserved": true, "schema": { "type": "string" } },
+          { "name": "empty", "in": "query", "allowEmptyValue": true, "schema": { "type": "boolean" } },
+          { "name": "json", "in": "query", "content": { "application/json": { "schema": { "type": "object", "properties": { "x": { "type": "number" } } } } } },
+          { "name": "X-Trace", "in": "header", "schema": { "type": "string" }, "examples": { "short": { "value": "abc" }, "long": { "value": "abcdef0123456789" } } },
+          { "name": "session", "in": "cookie", "schema": { "type": "string" }, "deprecated": true }
+        ],
+        "responses": { "204": { "description": "No content" } }
+      }
+    }
+  },
+  "webhooks": {
+    "orderPaid": {
+      "post": {
+        "tags": ["events"],
+        "operationId": "orderPaidWebhook",
+        "summary": "An order was paid",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OrderEvent" } } } },
+        "responses": { "200": { "description": "Acknowledged" } }
+      }
+    },
+    "orderShipped": { "$ref": "#/components/pathItems/OrderShipped" }
+  },
+  "components": {
+    "schemas": {
+      "OrderStatus": { "type": "string", "enum": ["new", "paid", "shipped", "cancelled"] },
+      "Money": {
+        "type": "object",
+        "required": ["amount", "currency"],
+        "properties": {
+          "amount": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$", "examples": ["10.00"] },
+          "currency": { "type": "string", "minLength": 3, "maxLength": 3, "default": "EUR" }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "required": ["id", "status", "total"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "readOnly": true },
+          "status": { "$ref": "#/components/schemas/OrderStatus" },
+          "total": { "$ref": "#/components/schemas/Money" },
+          "items": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/OrderItem" } },
+          "note": { "type": ["string", "null"], "maxLength": 500 },
+          "callbackUrl": { "type": "string", "format": "uri", "writeOnly": true },
+          "createdAt": { "type": "string", "format": "date-time", "readOnly": true },
+          "parent": { "$ref": "#/components/schemas/Order" }
+        }
+      },
+      "OrderItem": {
+        "type": "object",
+        "properties": {
+          "sku": { "type": "string" },
+          "quantity": { "type": "integer", "minimum": 1, "exclusiveMaximum": 1000 },
+          "price": { "$ref": "#/components/schemas/Money" }
+        }
+      },
+      "OrderPatch": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": { "note": { "type": ["string", "null"] }, "status": { "$ref": "#/components/schemas/OrderStatus" } }
+      },
+      "OrderPage": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Order" } },
+          "next": { "type": ["string", "null"] }
+        }
+      },
+      "OrderEvent": {
+        "type": "object",
+        "properties": {
+          "type": { "const": "order.status_changed" },
+          "order": { "$ref": "#/components/schemas/Order" },
+          "occurredAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PaymentMethod": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/Card" },
+          { "$ref": "#/components/schemas/BankTransfer" },
+          { "$ref": "#/components/schemas/Wallet" }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "card": "#/components/schemas/Card",
+            "bank": "#/components/schemas/BankTransfer",
+            "wallet": "#/components/schemas/Wallet"
+          }
+        }
+      },
+      "Card": {
+        "type": "object",
+        "required": ["kind", "number"],
+        "properties": {
+          "kind": { "type": "string", "const": "card" },
+          "number": { "type": "string", "minLength": 12, "maxLength": 19 },
+          "expiry": { "type": "string", "pattern": "^\\d{2}/\\d{2}$" }
+        }
+      },
+      "BankTransfer": {
+        "type": "object",
+        "required": ["kind", "iban"],
+        "properties": { "kind": { "type": "string", "const": "bank" }, "iban": { "type": "string" } }
+      },
+      "Wallet": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": { "type": "string", "const": "wallet" },
+          "provider": { "type": "string", "enum": ["apple", "google"] }
+        },
+        "additionalProperties": false
+      },
+      "Payment": {
+        "allOf": [
+          { "type": "object", "properties": { "id": { "type": "string" }, "amount": { "$ref": "#/components/schemas/Money" } } },
+          { "anyOf": [{ "type": "object", "properties": { "receiptUrl": { "type": "string", "format": "uri" } } }, { "type": "object", "properties": { "pendingReason": { "type": "string" } } }] }
+        ]
+      },
+      "Problem": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "format": "uri" },
+          "title": { "type": "string" },
+          "status": { "type": "integer", "minimum": 400, "maximum": 599 },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "parameters": {
+      "OrderId": { "name": "orderId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "Cursor": { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+      "Limit": { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+    },
+    "headers": {
+      "TotalCount": { "description": "Total number of items", "schema": { "type": "integer" } }
+    },
+    "requestBodies": {
+      "NewOrder": {
+        "required": true,
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Order" } },
+          "application/xml": { "schema": { "$ref": "#/components/schemas/Order" } }
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "Problem details",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+      }
+    },
+    "examples": {
+      "OrderPage": {
+        "summary": "A page with one order",
+        "value": { "data": [{ "id": "6f1c1b7e-8d3a-4b8e-9f0a-1c2d3e4f5a6b", "status": "new", "total": { "amount": "10.00", "currency": "EUR" } }], "next": null }
+      }
+    },
+    "links": {
+      "NextPage": { "operationId": "listOrders", "parameters": { "cursor": "$response.body#/next" } }
+    },
+    "pathItems": {
+      "OrderShipped": {
+        "post": {
+          "tags": ["events"],
+          "operationId": "orderShippedWebhook",
+          "summary": "An order was shipped",
+          "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OrderEvent" } } } },
+          "responses": { "200": { "description": "Acknowledged" } }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearer": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" },
+      "basic": { "type": "http", "scheme": "basic" },
+      "apiKeyHeader": { "type": "apiKey", "in": "header", "name": "X-API-Key" },
+      "apiKeyQuery": { "type": "apiKey", "in": "query", "name": "api_key" },
+      "apiKeyCookie": { "type": "apiKey", "in": "cookie", "name": "sid" },
+      "oauth": {
+        "type": "oauth2",
+        "flows": {
+          "implicit": { "authorizationUrl": "https://auth.example.com/authorize", "scopes": { "orders:read": "Read orders" } },
+          "password": { "tokenUrl": "https://auth.example.com/token", "scopes": { "orders:read": "Read orders" } },
+          "clientCredentials": { "tokenUrl": "https://auth.example.com/token", "scopes": { "payments:write": "Create payments" } },
+          "authorizationCode": {
+            "authorizationUrl": "https://auth.example.com/authorize",
+            "tokenUrl": "https://auth.example.com/token",
+            "refreshUrl": "https://auth.example.com/refresh",
+            "scopes": { "orders:write": "Modify orders", "payments:write": "Create payments" }
+          }
+        }
+      },
+      "openId": { "type": "openIdConnect", "openIdConnectUrl": "https://auth.example.com/.well-known/openid-configuration" },
+      "mtls": { "type": "mutualTLS", "description": "Client certificate" }
+    }
+  }
+}

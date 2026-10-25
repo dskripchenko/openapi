@@ -1,0 +1,14 @@
+using System;
+using System.Net.Http;
+using System.Text;
+
+using var client = new HttpClient();
+using var request = new HttpRequestMessage(HttpMethod.Put, "https://api.example.com/items/a'b?q=x%20y&z=$HOME");
+request.Headers.Add("X-Nasty", "it's \"quoted\" $HOME `tick` \\ ‘smart’");
+request.Content = new StringContent(""""
+    it's "quoted" $HOME `tick` \back\slash
+    new line	tab ünïcödé 😀 '@ """ ${x}
+    """", Encoding.UTF8, "text/plain");
+
+using var response = await client.SendAsync(request);
+Console.WriteLine(await response.Content.ReadAsStringAsync());

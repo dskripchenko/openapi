@@ -1,0 +1,31 @@
+package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+)
+
+func main() {
+	body := strings.NewReader("it's \"quoted\" $HOME `tick` \\back\\slash\nnew line\ttab ünïcödé 😀 '@ \"\"\" ${x}")
+
+	req, err := http.NewRequest("PUT", "https://api.example.com/items/a'b?q=x%20y&z=$HOME", body)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("X-Nasty", "it's \"quoted\" $HOME `tick` \\ ‘smart’")
+	req.Header.Set("Content-Type", "text/plain")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(data))
+}

@@ -1,0 +1,20 @@
+import okhttp3.FormBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+
+fun main() {
+    val client = OkHttpClient()
+    val body = FormBody.Builder()
+        .add("username", "alice")
+        .add("password", "p@ss word&more")
+        .add("remember", "true")
+        .build()
+    val request = Request.Builder()
+        .url("https://api.example.com/login")
+        .post(body)
+        .build()
+
+    client.newCall(request).execute().use { response ->
+        println(response.body?.string())
+    }
+}

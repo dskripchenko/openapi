@@ -1,0 +1,20 @@
+<?php
+
+require __DIR__ . '/vendor/autoload.php';
+
+use GuzzleHttp\Client;
+
+$client = new Client();
+
+$response = $client->request('PUT', 'https://api.example.com/items/a\'b?q=x%20y&z=$HOME', [
+    'headers' => [
+        'X-Nasty' => 'it\'s "quoted" $HOME `tick` \\ ‘smart’',
+        'Content-Type' => 'text/plain',
+    ],
+    'body' => <<<'BODY'
+        it's "quoted" $HOME `tick` \back\slash
+        new line	tab ünïcödé 😀 '@ """ ${x}
+        BODY,
+]);
+
+echo $response->getBody();
