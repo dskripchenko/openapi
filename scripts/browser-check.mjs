@@ -989,6 +989,98 @@ try {
   await ed.screenshot({ path: `${out}/editor-dark.png` })
   check('editor: no page errors', edErrors.length === 0, edErrors.join('; '))
   await ed.close()
+
+  // API blocks: the Vue widget — preview, source with the format switch, the constructor.
+  const bk = await browser.newPage({ viewport: { width: 1100, height: 1400 } })
+  const bkErrors = []
+  bk.on('pageerror', (e) => bkErrors.push(String(e)))
+  const blockText = () => bk.evaluate(() => window.__text())
+  await bk.goto(`${base}?mode=block`)
+  await bk.locator('.oa-bk .oa-embed__card').waitFor()
+  check('block: renders an operation card', (await bk.locator('.oa-bk .oa-embed__title').innerText()) === 'Update a user')
+  let blockSent = null
+  await bk.route('**/v1/users/**', async (route) => {
+    blockSent = { method: route.request().method(), url: route.request().url(), auth: route.request().headers().authorization }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"id":7}' })
+  })
+  await bk.locator('.oa-bk .oa-tryit button', { hasText: 'Send' }).click()
+  await bk.locator('.oa-bk .oa-tryit__response .oa-status').waitFor()
+  check('block: try-it really sends', blockSent?.method === 'POST' && /\/v1\/users\/0(\?|$)/.test(blockSent.url), blockSent?.url)
+  await bk.locator('.oa-bk .uid-tab', { hasText: 'Source' }).click()
+  const bkSource = bk.locator('.oa-bk .oa-source__textarea')
+  check('block: the source tab shows the YAML', (await bkSource.inputValue()).startsWith('method: POST'))
+  await bk.locator('.oa-bk__format--bar .oa-segmented__item', { hasText: 'JSON' }).click()
+  const asJson = await bkSource.inputValue()
+  check('block: YAML → JSON converts the text', asJson.trimStart().startsWith('{') && JSON.parse(asJson).method === 'POST' && (await blockText()) === asJson)
+  await bk.locator('.oa-bk__format--bar .oa-segmented__item', { hasText: 'YAML' }).click()
+  check('block: and back to YAML', (await bkSource.inputValue()).startsWith('method: POST'))
+  await bk.locator('.oa-bk .uid-tab', { hasText: 'Constructor' }).click()
+  const form = bk.locator('.oa-bk__form')
+  await form.locator('.uid-input-field', { hasText: 'Summary' }).locator('input').fill('Rename a user')
+  await bk.waitForTimeout(400)
+  check('block: a constructor edit lands in the source', (await blockText()).includes('summary: Rename a user') && (await blockText()).includes('notify:'))
+  await form.locator('.oa-bk__url input').fill('https://api.example.com/v1/users/{id}/posts/{postId}')
+  await bk.waitForTimeout(100)
+  check('block: path parameters follow the URL', (await form.locator('.oa-bk__param-name input').evaluateAll((els) => els.map((e) => e.value))).join() === 'id,postId,notify')
+  await form.locator('button', { hasText: 'Add parameter' }).click()
+  await bk.waitForTimeout(400)
+  const withParam = await blockText()
+  check('block: an added parameter is written as shorthand', /\n\s+param: string\n/.test(withParam))
+  await bk.screenshot({ path: `${out}/block-constructor.png`, fullPage: true })
+  await bk.locator('.oa-bk .uid-tab', { hasText: 'Source' }).click()
+  check('block: the source tab shows the constructor’s text', (await bkSource.inputValue()) === withParam)
+  await bkSource.fill('method: FETCH\nurl: /a\n')
+  await bk.waitForTimeout(100)
+  check('block: a broken block names its line', /1:1/.test(await bk.locator('.oa-bk .oa-source__issues').innerText()) && (await bk.locator('.oa-bk .oa-bk__dot').count()) === 1)
+  await bk.locator('.oa-bk .uid-tab', { hasText: 'Preview' }).click()
+  check('block: the preview shows the error', (await bk.locator('.oa-bk .uid-alert').innerText()).includes('FETCH'))
+  // Phone width, dark theme: legible, nothing sideways.
+  await bk.setViewportSize({ width: 390, height: 1400 })
+  await bk.goto(`${base}?mode=block&theme=dark&tab=constructor`)
+  await bk.locator('.oa-bk__form').waitFor()
+  const bkLook = await bk.evaluate(() => {
+    const lum = (c) => {
+      const [r, g, b] = c.match(/[\d.]+/g).slice(0, 3).map((v) => {
+        const s = Number(v) / 255
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+      })
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
+    const block = document.querySelector('.oa-bk')
+    const input = block.querySelector('.oa-bk__url input')
+    const fg = lum(window.getComputedStyle(input).color)
+    const bg = lum(window.getComputedStyle(block).backgroundColor)
+    const right = block.getBoundingClientRect().right
+    const outside = [...block.querySelectorAll('*')].filter((n) => n.getClientRects().length && n.getBoundingClientRect().right > right + 1).map((n) => n.className)
+    return { contrast: (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05), page: document.documentElement.scrollWidth, outside: outside.slice(0, 5) }
+  })
+  check('block (dark, phone): text is legible', bkLook.contrast >= 7, bkLook.contrast.toFixed(1))
+  check('block (phone): nothing overflows sideways', bkLook.page <= 390 && bkLook.outside.length === 0, JSON.stringify(bkLook))
+  await bk.screenshot({ path: `${out}/block-phone-dark.png`, fullPage: true })
+  check('block: no page errors', bkErrors.length === 0, bkErrors.join('; '))
+  await bk.close()
+
+  // API blocks in a rendered article, from the standalone bundle (read-only).
+  const sb = await browser.newPage({ viewport: { width: 1000, height: 1400 } })
+  const sbErrors = []
+  sb.on('pageerror', (e) => sbErrors.push(String(e)))
+  await sb.goto(`${base}blocks.html`)
+  await sb.locator('.oa-bk .oa-embed__card').first().waitFor()
+  const rendered = await sb.evaluate(() => ({
+    blocks: document.querySelectorAll('[data-openapi-block] .oa-bk').length,
+    cards: document.querySelectorAll('.oa-bk .oa-embed__card').length,
+    left: document.querySelectorAll('pre > code.language-openapi, pre > code.language-openapi-json').length,
+    plain: document.querySelectorAll('pre > code.language-yaml').length,
+    tabs: document.querySelectorAll('.oa-bk .uid-tabs').length,
+    again: window.DskOpenApi.renderBlocks().length,
+  }))
+  check('renderBlocks: every openapi block becomes a widget, other code stays', rendered.blocks === 3 && rendered.left === 0 && rendered.plain === 1, JSON.stringify(rendered))
+  check('renderBlocks: read-only cards, several requests per block', rendered.cards === 3 && rendered.tabs === 0, JSON.stringify(rendered))
+  check('renderBlocks: idempotent', rendered.again === 0)
+  check('renderBlocks: a broken block shows its error', (await sb.locator('.oa-bk .uid-alert').innerText()).includes('FETCH'))
+  await sb.screenshot({ path: `${out}/blocks-standalone.png`, fullPage: true })
+  check('renderBlocks: no page errors', sbErrors.length === 0, sbErrors.join('; '))
+  await sb.close()
 } finally {
   await browser.close()
   await server.close()

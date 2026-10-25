@@ -1,0 +1,69 @@
+<!doctype html>
+<!--
+  API blocks in a rendered markdown article, through the standalone bundle:
+  the ```openapi fences arrive as <pre><code class="language-openapi">, and
+  the script's data-auto turns them into widgets. Needs dist/standalone.js —
+  run `pnpm build` first, then open /blocks.html (`pnpm dev`). ?theme=dark
+  sets a theme explicitly.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Users API — a guide with API blocks</title>
+    <style>
+      body { margin: 0; font: 16px/1.65 Georgia, "Times New Roman", serif; color: #222; background: #fdfcf8; }
+      .article { max-width: 860px; margin: 0 auto; padding: 32px 20px 80px; }
+      .article h1 { font-size: 34px; margin: 0 0 12px; }
+      .article h2 { font-size: 24px; margin: 40px 0 10px; }
+      .article p { margin: 0 0 14px; }
+      .article pre { background: #f0eee6; padding: 12px; border-radius: 6px; overflow: auto; font-size: 13px; }
+      html[data-theme='dark'] body { color: #ddd; background: #15171c; }
+    </style>
+  </head>
+  <body>
+    <main class="article">
+      <h1>Working with users</h1>
+      <p>Each request below is live: fill in the form and press <em>Send</em>.</p>
+
+      <h2>Reading a user</h2>
+<pre><code class="language-openapi">method: GET
+url: https://api.example.com/v1/users/{id}
+summary: Get a user
+auth: { type: apiKey, in: header, name: X-Key }
+params:
+  path: { id: integer! The user's id }
+responses:
+  200: { description: The user, example: { id: 7, name: Ann } }
+  404: Not found
+</code></pre>
+
+      <h2>Several calls at once</h2>
+<pre><code class="language-openapi-json">{
+  "title": "Orders",
+  "baseUrl": "https://api.example.com/v2",
+  "auth": "bearer",
+  "requests": [
+    { "url": "/orders?page=1", "summary": "List orders" },
+    { "method": "POST", "url": "/orders", "summary": "Create an order", "body": { "example": { "item": "book", "qty": 2 } } }
+  ]
+}
+</code></pre>
+
+      <h2>A block with a mistake</h2>
+<pre><code class="language-openapi">method: FETCH
+url: /oops
+</code></pre>
+
+      <h2>Plain code stays code</h2>
+<pre><code class="language-yaml">just: yaml
+</code></pre>
+    </main>
+
+    <script src="/standalone/standalone.js" data-auto></script>
+    <script>
+      const theme = new URLSearchParams(location.search).get('theme')
+      if (theme) document.documentElement.dataset.theme = theme
+    </script>
+  </body>
+</html>

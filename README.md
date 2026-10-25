@@ -60,6 +60,25 @@ One operation inside a guide, from the same script:
 <script src="https://cdn.jsdelivr.net/npm/@dskripchenko/openapi/dist/standalone.js" data-auto></script>
 ```
 
+An API block in a guide, a wiki or a WYSIWYG editor — a fenced `openapi`
+block of a few hand-written lines that renders as a live card with try-it,
+and edits through Preview / Source / Constructor tabs:
+
+````markdown
+```openapi
+method: POST
+url: https://api.example.com/v1/users/{id}
+auth: bearer
+params:
+  path: { id: integer }
+body:
+  example: { name: Ann }
+responses:
+  200: { description: The updated user, example: { id: 7, name: Ann } }
+  404: Not found
+```
+````
+
 ## What is inside
 
 - **`@dskripchenko/openapi`** — the core, plain TypeScript without the DOM:
@@ -69,7 +88,8 @@ One operation inside a guide, from the same script:
   validator, request building by `style` / `explode` and security schemes,
   code samples in 13 languages, TypeScript declarations for operations and
   whole documents, OAuth2 helpers (PKCE, token requests, OpenID Connect
-  discovery) and the deep-link and prefilled-link formats.
+  discovery), the deep-link and prefilled-link formats, and the compact
+  API-block format (`parseBlock`, `inferSchema`, the constructor's model).
 - **`@dskripchenko/openapi/vue`** — the components:
   - `OpenApiReference` — a sticky header with full-text search (`/`,
     Ctrl/Cmd+K) and downloads (YAML, JSON, `.d.ts`), a settings drawer with
@@ -83,6 +103,10 @@ One operation inside a guide, from the same script:
     OpenID Connect discovery) and opt-in remembered credentials; deep links
     (Scalar's too) and prefilled links; several specs on one page;
   - `OpenApiOperation` — one operation embedded in other documentation;
+  - `OpenApiBlock` — an API block of rich content: live cards, and when
+    editable the source (YAML ⇄ JSON) and a constructor form;
+    `mountOpenApiBlock` and `openApiBlockRenderer` for editors and markdown
+    views that render fenced blocks;
   - `OpenApiPage` — the reference as a whole page, with light / dark /
     system theme and language switchers;
   - `OpenApiEditor` — visual forms for info, servers, tags, security
@@ -91,7 +115,8 @@ One operation inside a guide, from the same script:
 - **`dist/standalone.js`** — the page and the embed with Vue, the kit and the
   styles in one script (global `DskOpenApi`), for pages without a build
   step: a drop-in for Scalar's `createApiReference`, `mountOperation` and
-  `data-openapi-operation` markup, and an optional try-it proxy.
+  `data-openapi-operation` markup, `renderBlocks` for ```` ```openapi ````
+  blocks in rendered markdown, and an optional try-it proxy.
 
 The components follow the kit's light and dark themes; the interface ships in
 English and Russian.
@@ -105,6 +130,7 @@ English and Russian.
 | Standalone page and OpenApiPage | [en](docs/en/standalone.md) | [ru](docs/ru/standalone.md) | [de](docs/de/standalone.md) | [zh](docs/zh/standalone.md) |
 | Deep links and prefilled links | [en](docs/en/links.md) | [ru](docs/ru/links.md) | [de](docs/de/links.md) | [zh](docs/zh/links.md) |
 | Embedding an operation | [en](docs/en/embed.md) | [ru](docs/ru/embed.md) | [de](docs/de/embed.md) | [zh](docs/zh/embed.md) |
+| API blocks | [en](docs/en/blocks.md) | [ru](docs/ru/blocks.md) | [de](docs/de/blocks.md) | [zh](docs/zh/blocks.md) |
 | TypeScript types | [en](docs/en/types.md) | [ru](docs/ru/types.md) | [de](docs/de/types.md) | [zh](docs/zh/types.md) |
 | OpenApiEditor | [en](docs/en/editor.md) | [ru](docs/ru/editor.md) | [de](docs/de/editor.md) | [zh](docs/zh/editor.md) |
 | Core API | [en](docs/en/core.md) | [ru](docs/ru/core.md) | [de](docs/de/core.md) | [zh](docs/zh/core.md) |
