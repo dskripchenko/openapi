@@ -4,7 +4,8 @@
  * how to call it on the right (samples, try-it). Both sides share one draft.
  */
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
-import { UidCode, UidMarkdown } from '@dskripchenko/ui'
+import { UidButton, UidCode, UidMarkdown } from '@dskripchenko/ui'
+import { Check, Link } from '@dskripchenko/ui/icons'
 import type { Header, MediaType, Parameter, ParameterIn, RequestBody, Response } from '../core/types'
 import type { OperationEntry } from '../model'
 import { stringifyJson } from '../json'
@@ -85,6 +86,22 @@ const tone = (code: string): string =>
   code.startsWith('2') ? 'success' : code.startsWith('3') ? 'info' : code.startsWith('4') || code.startsWith('5') ? 'danger' : 'neutral'
 
 const anchor = computed(() => `${ctx.anchorPrefix.value}operation/${props.entry.id}`)
+/** Copies the address of the operation's anchor: the page without its hash, `#`, the section id. */
+const linkCopied = ref(false)
+let copiedTimer: ReturnType<typeof setTimeout> | undefined
+async function copyLink(): Promise<void> {
+  const id = root.value?.id || anchor.value
+  try {
+    await navigator.clipboard.writeText(`${window.location.href.split('#')[0]}#${id}`)
+  } catch {
+    return
+  }
+  linkCopied.value = true
+  clearTimeout(copiedTimer)
+  copiedTimer = setTimeout(() => (linkCopied.value = false), 1500)
+}
+onBeforeUnmount(() => clearTimeout(copiedTimer))
+
 const headersOf = (r: Response | undefined) =>
   Object.entries(r?.headers ?? {}).map(([name, h]) => ({ name, header: deref<Header>(h) }))
 </script>
@@ -92,7 +109,20 @@ const headersOf = (r: Response | undefined) =>
 <template>
   <section :id="anchored ? anchor : undefined" ref="root" class="oa-op" :class="{ 'oa-op--deprecated': entry.deprecated, 'oa-op--pending': !draft }">
     <header class="oa-op__head">
-      <h3 class="oa-op__title">{{ op.summary || entry.path }}</h3>
+      <div class="oa-op__titlebar">
+        <h3 class="oa-op__title">{{ op.summary || entry.path }}</h3>
+        <UidButton
+          class="oa-op__copy"
+          :class="{ 'is-copied': linkCopied }"
+          variant="ghost"
+          size="sm"
+          :icon="linkCopied ? Check : Link"
+          :aria-label="linkCopied ? labels.linkCopied : labels.copyOperationLink"
+          :title="linkCopied ? labels.linkCopied : labels.copyOperationLink"
+          @click="copyLink"
+        />
+        <span v-if="linkCopied" class="oa-op__copied" role="status">{{ labels.linkCopied }}</span>
+      </div>
       <div class="oa-op__line">
         <span class="oa-method" :class="`oa-method--${entry.method}`">{{ entry.method.toUpperCase() }}</span>
         <code class="oa-op__path">{{ entry.path }}</code>

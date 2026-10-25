@@ -74,6 +74,9 @@ export function phpGuzzle(request: HttpRequest): string {
     case 'text':
       bodyOption = ['body', new Raw(phpText(body.text))]
       break
+    case 'file':
+      bodyOption = ['body', fopen(body.filename)]
+      break
     case 'urlencoded':
       // form_params goes through http_build_query: repeated names need the raw body.
       if (hasDuplicateKeys(body.fields)) {
@@ -159,6 +162,16 @@ export function phpLaravel(request: HttpRequest): string {
     }
     case 'text':
       withBody(body.text, req.contentType ?? body.mediaType)
+      break
+    case 'file':
+      chain.push(
+        'withBody(file_get_contents(' +
+          phpString(body.filename) +
+          '), ' +
+          phpString(req.contentType ?? body.mediaType) +
+          ')',
+      )
+      headers = withoutHeaders(headers, 'Content-Type')
       break
     case 'urlencoded':
       if (canData && !hasDuplicateKeys(body.fields)) {

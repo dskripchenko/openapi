@@ -1,0 +1,8 @@
+$params = @{
+    Uri = 'https://api.example.com/pets/42/photo'
+    Method = 'Put'
+    ContentType = 'image/png'
+    InFile = 'rex.png'
+}
+$response = Invoke-RestMethod @params
+$response

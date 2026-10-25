@@ -22,7 +22,11 @@ export interface BuildInput {
   values: Partial<Record<ParameterIn, Record<string, unknown>>>
   body?: {
     mediaType: string
-    /** An object for structured media types, or the body text as typed. */
+    /**
+     * An object for structured media types, or the body text as typed. For
+     * other media types a file value (`{ filename, contentType?, data? }`)
+     * makes the file the whole body.
+     */
     value: unknown
     encoding?: Record<string, Encoding>
   }
@@ -88,6 +92,12 @@ function buildBody(body: NonNullable<BuildInput['body']>): HttpRequestBody {
   if (isMultipart(mediaType) && structured) {
     return { mediaType, form: multipartFields(value as Record<string, unknown>) }
   }
+  if (!isFormUrlEncoded(mediaType) && !isMultipart(mediaType) && isFileValue(value)) {
+    const file: NonNullable<HttpRequestBody['file']> = { filename: value.filename }
+    if (value.contentType !== undefined) file.contentType = value.contentType
+    if (typeof Blob !== 'undefined' && value.data instanceof Blob) file.data = value.data
+    return { mediaType, file }
+  }
   if (typeof value === 'string') return { mediaType, text: value }
   if (value === undefined) return { mediaType, text: '' }
   // JSON types, and the fallback for structured values of any other type.
@@ -105,6 +115,7 @@ function buildBody(body: NonNullable<BuildInput['body']>): HttpRequestBody {
  * - Cookies (parameters and API keys) go into a single `Cookie` header.
  * - `Content-Type` is set from the body media type, except for multipart:
  *   the HTTP client adds it with the boundary (`body.mediaType` keeps it).
+ *   A file body under a wildcard type (`image/*`) declares the file's type.
  * - A relative `server` gives a relative URL; resolve it against the page.
  */
 export function buildRequest(input: BuildInput): HttpRequest {
@@ -149,8 +160,15 @@ export function buildRequest(input: BuildInput): HttpRequest {
 
   const request: HttpRequest = { method: input.method.toUpperCase(), url, headers }
   if (input.body) {
-    request.body = buildBody(input.body)
-    if (!isMultipart(input.body.mediaType)) headers.push(['Content-Type', input.body.mediaType])
+    const body = buildBody(input.body)
+    request.body = body
+    if (!isMultipart(body.mediaType)) {
+      const wildcard = body.file !== undefined && body.mediaType.includes('*')
+      headers.push([
+        'Content-Type',
+        wildcard ? body.file?.contentType || 'application/octet-stream' : body.mediaType,
+      ])
+    }
   }
   if (cookies.length) headers.push(['Cookie', cookies.map(([k, v]) => k + '=' + v).join('; ')])
   return request

@@ -49,6 +49,9 @@ export function pythonRequests(request: HttpRequest): string {
     case 'text':
       args.push('data=' + pyText(body.text))
       break
+    case 'file':
+      args.push('data=open(' + pyString(body.filename) + ", 'rb')")
+      break
     case 'urlencoded':
       args.push('data=' + pairsLiteral(body.fields))
       implied = 'application/x-www-form-urlencoded'

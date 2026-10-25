@@ -1,0 +1,7 @@
+<?php
+
+use Illuminate\Support\Facades\Http;
+
+$response = Http::withBody(file_get_contents('rex.png'), 'image/png')->put('https://api.example.com/pets/42/photo');
+
+echo $response->body();

@@ -7,6 +7,7 @@ export {
   isFormUrlEncoded,
   isJsonMediaType,
   isMultipart,
+  isTextualMediaType,
 } from './encode'
 export { fetchOAuthToken, type OAuthToken, type OAuthTokenOptions } from './oauth'
 export {
@@ -16,7 +17,7 @@ export {
   type BasicCredentials,
   type SecurityParts,
 } from './security'
-export { sendRequest, toFetchBody, type SendFn, type SendOptions } from './send'
+export { sendRequest, toFetchBody, type SendFn, type SendFnOptions, type SendOptions } from './send'
 export {
   defaultStyle,
   serializeParam,

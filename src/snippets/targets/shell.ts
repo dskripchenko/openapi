@@ -40,6 +40,9 @@ export function curl(request: HttpRequest): string {
     case 'text':
       args.push('--data-raw ' + shellQuote(body.text))
       break
+    case 'file':
+      args.push('--data-binary ' + shellQuote('@' + body.filename))
+      break
     case 'urlencoded':
       for (const [k, v] of body.fields) {
         // curl encodes the value only; the name is passed as given.
@@ -108,6 +111,10 @@ export function powershell(request: HttpRequest): string {
       params.push('ContentType = ' + psQuote(req.contentType ?? body.mediaType))
       params.push('Body = $body')
       break
+    case 'file':
+      params.push('ContentType = ' + psQuote(req.contentType ?? body.mediaType))
+      params.push('InFile = ' + psQuote(body.filename))
+      break
     case 'urlencoded':
       params.push('ContentType = ' + psQuote(req.contentType ?? body.mediaType))
       if (hasDuplicateKeys(body.fields)) {
@@ -173,6 +180,9 @@ export function httpRaw(request: HttpRequest): string {
     case 'json':
     case 'text':
       text = body.text
+      break
+    case 'file':
+      text = '<contents of ' + body.filename + '>'
       break
     case 'urlencoded':
       text = encodeForm(body.fields)

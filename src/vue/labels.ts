@@ -52,6 +52,22 @@ export interface OpenApiLabels {
   copy: string
   show: string
   hide: string
+  // files
+  /** Try-it: the body as a form, and the toggle back to it. */
+  formView: string
+  /** Try-it: the form body as JSON text. */
+  rawJson: string
+  /** Try-it: the file of a binary body. */
+  file: string
+  cancel: string
+  cancelled: string
+  /** Response view: formatted JSON and the body as received. */
+  pretty: string
+  raw: string
+  download: string
+  downloadSpec: string
+  copyOperationLink: string
+  linkCopied: string
 }
 
 export const en: OpenApiLabels = {
@@ -104,6 +120,18 @@ export const en: OpenApiLabels = {
   copy: 'Copy',
   show: 'Show',
   hide: 'Hide',
+  // files
+  formView: 'Form',
+  rawJson: 'Raw JSON',
+  file: 'File',
+  cancel: 'Cancel',
+  cancelled: 'Cancelled',
+  pretty: 'Pretty',
+  raw: 'Raw',
+  download: 'Download',
+  downloadSpec: 'Download spec',
+  copyOperationLink: 'Copy link to this operation',
+  linkCopied: 'Link copied',
 }
 
 export const ru: OpenApiLabels = {
@@ -156,6 +184,18 @@ export const ru: OpenApiLabels = {
   copy: 'Копировать',
   show: 'Показать',
   hide: 'Скрыть',
+  // files
+  formView: 'Форма',
+  rawJson: 'Как JSON',
+  file: 'Файл',
+  cancel: 'Отменить',
+  cancelled: 'Запрос отменён',
+  pretty: 'Форматировать',
+  raw: 'Как есть',
+  download: 'Скачать',
+  downloadSpec: 'Скачать спецификацию',
+  copyOperationLink: 'Скопировать ссылку на операцию',
+  linkCopied: 'Ссылка скопирована',
 }
 
 export const LOCALES: Record<string, OpenApiLabels> = { en, ru }

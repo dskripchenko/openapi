@@ -311,6 +311,11 @@ export interface HttpRequestBody {
   text?: string
   /** x-www-form-urlencoded and multipart: the fields in order. */
   form?: [string, FormValue][]
+  /**
+   * A binary body (octet-stream, images, …): the file is the whole body.
+   * Without `data` the request carries no bytes; snippets read the file by name.
+   */
+  file?: { filename: string; contentType?: string; data?: Blob }
 }
 
 /** The request the snippets print and try-it sends. */
@@ -325,7 +330,10 @@ export interface HttpResponse {
   status: number
   statusText: string
   headers: [string, string][]
+  /** The body as text for textual content types; empty when `blob` holds it. */
   body: string
+  /** The body of a non-textual response (images, archives, …), kept as bytes. */
+  blob?: Blob
   /** Milliseconds from send to the last byte. */
   duration: number
   /** Set when the request failed before a response (network, CORS). */

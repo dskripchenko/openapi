@@ -50,6 +50,10 @@ export function javascriptFetch(request: HttpRequest): string {
     case 'text':
       bodyExpr = jsString(body.text)
       break
+    case 'file':
+      pre.push('const fileInput = document.querySelector(\'input[type="file"]\')', '')
+      bodyExpr = 'fileInput.files[0]'
+      break
     case 'urlencoded':
       bodyExpr = urlSearchParams(body.fields, '  ')
       implied = URLENCODED
@@ -108,6 +112,10 @@ export function nodeAxios(request: HttpRequest): string {
       break
     case 'text':
       data = jsString(body.text)
+      break
+    case 'file':
+      imports.push("import { readFile } from 'node:fs/promises'")
+      data = 'await readFile(' + jsString(body.filename) + ')'
       break
     case 'urlencoded':
       data = urlSearchParams(body.fields, '  ')

@@ -1,8 +1,13 @@
 <script setup lang="ts">
-/** The document's head: title, version, description, contact, the server to call and the credentials. */
+/**
+ * The document's head: title, version, description, contact, the server to
+ * call and the credentials, and the spec itself to download.
+ */
 import { computed } from 'vue'
-import { UidInput, UidMarkdown, UidSelect } from '@dskripchenko/ui'
+import { UidButton, UidInput, UidMarkdown, UidSelect } from '@dskripchenko/ui'
+import { Download } from '@dskripchenko/ui/icons'
 import type { Server } from '../core/types'
+import { stringifySpec, type SpecFormat } from '../load'
 import { useReference } from './context'
 import OaAuth from './OaAuth.vue'
 import { safeHref } from './safe'
@@ -22,6 +27,25 @@ function choose(v: unknown): void {
   ctx.server.index = v
   ctx.server.variables = Object.fromEntries(Object.entries(servers.value[v]?.variables ?? {}).map(([k, sv]) => [k, sv.default]))
 }
+
+const slug = (s: string): string =>
+  s.toLowerCase().normalize('NFKD').replace(/\p{M}/gu, '').replace(/[^\p{L}\p{N}.]+/gu, '-').replace(/^-+|-+$/g, '')
+
+/** `{title}-{version}.yaml`: the source document as given, not the normalized 3.1 copy. */
+function download(format: SpecFormat): void {
+  const spec = ctx.spec.value
+  const text = stringifySpec(spec.source.raw, format)
+  const blob = new Blob([text], { type: format === 'json' ? 'application/json' : 'application/yaml' })
+  const name = [slug(info.value.title ?? ''), slug(String(info.value.version ?? ''))].filter(Boolean).join('-') || 'openapi'
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${name}.${format === 'json' ? 'json' : 'yaml'}`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 0)
+}
 </script>
 
 <template>
@@ -30,6 +54,18 @@ function choose(v: unknown): void {
       <h1>{{ info.title }}</h1>
       <span class="oa-intro__version">{{ info.version }}</span>
       <span class="oa-intro__spec">OpenAPI {{ ctx.spec.value.source.version }}</span>
+      <span class="oa-intro__download" role="group" :aria-label="labels.downloadSpec" :title="labels.downloadSpec">
+        <UidButton
+          v-for="f in (['yaml', 'json'] as const)"
+          :key="f"
+          variant="ghost"
+          size="sm"
+          :icon="Download"
+          :data-format="f"
+          :aria-label="`${labels.downloadSpec} (${f.toUpperCase()})`"
+          @click="download(f)"
+        >{{ f.toUpperCase() }}</UidButton>
+      </span>
     </div>
     <p v-if="info.summary" class="oa-intro__summary">{{ info.summary }}</p>
     <UidMarkdown v-if="info.description" class="oa-md" :source="info.description" />

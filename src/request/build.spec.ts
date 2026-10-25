@@ -299,4 +299,33 @@ describe('buildRequest', () => {
     })
     expect(req.url).toBe('/x?fixed=1&a=2')
   })
+
+  it('sends a file value as the whole body of a binary media type', () => {
+    const data = new Blob(['PNG'], { type: 'image/png' })
+    const req = buildRequest({
+      method: 'PUT',
+      path: '/img',
+      parameters: [],
+      values: {},
+      body: { mediaType: 'application/octet-stream', value: { filename: 'a.png', data } },
+    })
+    expect(req.body).toEqual({
+      mediaType: 'application/octet-stream',
+      file: { filename: 'a.png', data },
+    })
+    expect(req.headers).toContainEqual(['Content-Type', 'application/octet-stream'])
+  })
+
+  it('declares the file type under a wildcard media type', () => {
+    const body = (contentType?: string) =>
+      buildRequest({
+        method: 'PUT',
+        path: '/img',
+        parameters: [],
+        values: {},
+        body: { mediaType: 'image/*', value: { filename: 'a.png', contentType } },
+      }).headers
+    expect(body('image/png')).toContainEqual(['Content-Type', 'image/png'])
+    expect(body()).toContainEqual(['Content-Type', 'application/octet-stream'])
+  })
 })

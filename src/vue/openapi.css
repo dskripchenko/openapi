@@ -120,6 +120,7 @@
   background: var(--uid-color-bg-subtle);
   color: var(--uid-text-secondary);
 }
+.oa-intro__download { display: inline-flex; gap: 2px; margin-left: auto; align-self: center; }
 .oa-intro__summary { margin: 8px 0 0; color: var(--uid-text-secondary); }
 .oa-intro__meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; }
 .oa-intro__meta a { color: var(--uid-accent-text, var(--uid-accent)); }
@@ -170,6 +171,15 @@
 .oa-op--pending { min-height: 420px; }
 .oa-op--deprecated .oa-op__title { text-decoration: line-through; color: var(--uid-text-secondary); }
 .oa-op__title { margin: 0 0 6px; font-size: 17px; }
+.oa-op__titlebar { display: flex; align-items: flex-start; gap: 4px; }
+.oa-op__titlebar .oa-op__title { min-width: 0; }
+/* The copy-link button stays out of the way until the header is hovered or focused; always shown on touch. */
+.oa-op__copy { flex: none; margin-top: -3px; opacity: 0; transition: opacity 0.12s; }
+.oa-op__head:hover .oa-op__copy,
+.oa-op__head:focus-within .oa-op__copy,
+.oa-op__copy.is-copied { opacity: 1; }
+@media (hover: none) { .oa-op__copy { opacity: 1; } }
+.oa-op__copied { align-self: center; margin-top: -6px; font-size: 12px; color: var(--uid-success); }
 .oa-op__line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .oa-op__path { font: 13px/1.4 var(--oa-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); word-break: break-all; }
 .oa-op__grid {
@@ -295,6 +305,25 @@
 .oa-tryit__response { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--uid-border-subtle); padding-top: 12px; }
 .oa-tryit__status { display: flex; align-items: center; gap: 12px; font-size: 12px; }
 .oa-tryit__time { color: var(--uid-text-tertiary); }
+.oa-tryit__size { color: var(--uid-text-tertiary); }
+.oa-tryit__view { display: inline-flex; gap: 4px; margin-left: auto; }
+.oa-tryit__mode { margin-left: auto; font-size: 11px; text-transform: none; }
+.oa-tryit__status { flex-wrap: wrap; }
+/* A compact dropzone: the try-it column is narrow. */
+.oa-tryit .oa-tryit__file .uid-file-upload__dropzone { padding: 10px 12px; gap: 2px; }
+.oa-tryit .oa-tryit__file .uid-file-upload__icon { width: 20px; height: 20px; }
+.oa-tryit .oa-tryit__file .uid-file-upload__primary-text { margin: 0; font-size: 13px; }
+.oa-tryit .oa-tryit__file .uid-file-upload__secondary-text { display: none; }
+.oa-tryit__image {
+  display: block;
+  max-width: 100%;
+  max-height: 360px;
+  align-self: flex-start;
+  border: 1px solid var(--uid-border-subtle);
+  border-radius: 6px;
+  background: repeating-conic-gradient(var(--uid-color-bg-subtle) 0 25%, transparent 0 50%) 0 0 / 16px 16px;
+}
+.oa-tryit__download { align-self: flex-start; font-size: 13px; }
 .oa-link { padding: 0; border: 0; background: none; color: var(--uid-accent-text, var(--uid-accent)); font: inherit; cursor: pointer; }
 
 .oa-table { width: 100%; border-collapse: collapse; font-size: 12px; }
