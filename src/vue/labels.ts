@@ -137,6 +137,12 @@ export interface OpenApiLabels {
   urlCopied: string
   /** The section with the request to send. */
   request: string
+  // types
+  /** The side tab and panel with the operation's TypeScript types. */
+  types: string
+  copyTypeName: string
+  typeNameCopied: string
+  downloadTypes: string
 }
 
 export const en: OpenApiLabels = {
@@ -259,6 +265,11 @@ export const en: OpenApiLabels = {
   copyUrl: 'Copy URL',
   urlCopied: 'Copied',
   request: 'Request',
+  // types
+  types: 'Types',
+  copyTypeName: 'Copy the type name',
+  typeNameCopied: 'Copied',
+  downloadTypes: 'Download TypeScript types',
 }
 
 export const ru: OpenApiLabels = {
@@ -381,6 +392,11 @@ export const ru: OpenApiLabels = {
   copyUrl: 'Скопировать URL',
   urlCopied: 'Скопировано',
   request: 'Запрос',
+  // types
+  types: 'Типы',
+  copyTypeName: 'Скопировать имя типа',
+  typeNameCopied: 'Скопировано',
+  downloadTypes: 'Скачать типы TypeScript',
 }
 
 export const LOCALES: Record<string, OpenApiLabels> = { en, ru }

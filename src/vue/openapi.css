@@ -1105,3 +1105,18 @@
   .oa-kv__value { grid-column: 1; }
   .oa-sf__entry--leaf { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* --------------------------------- types --------------------------------- */
+.oa-types__names {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--uid-border-subtle);
+}
+.oa-types__name { max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+.oa-types__copied { font-size: 11px; color: var(--uid-text-tertiary); }
+.oa-types__code { border: 0; border-radius: 0; }
+/* In the tabbed side column the tab names the panel. */
+.oa-side-tabs ~ .oa-types > .oa-panel__head { display: none; }
