@@ -52,6 +52,12 @@ export interface OpenApiLabels {
   copy: string
   show: string
   hide: string
+  // standalone
+  theme: string
+  themeLight: string
+  themeDark: string
+  themeSystem: string
+  language: string
 }
 
 export const en: OpenApiLabels = {
@@ -104,6 +110,12 @@ export const en: OpenApiLabels = {
   copy: 'Copy',
   show: 'Show',
   hide: 'Hide',
+  // standalone
+  theme: 'Theme',
+  themeLight: 'Light',
+  themeDark: 'Dark',
+  themeSystem: 'System',
+  language: 'Language',
 }
 
 export const ru: OpenApiLabels = {
@@ -156,6 +168,12 @@ export const ru: OpenApiLabels = {
   copy: 'Копировать',
   show: 'Показать',
   hide: 'Скрыть',
+  // standalone
+  theme: 'Тема',
+  themeLight: 'Светлая',
+  themeDark: 'Тёмная',
+  themeSystem: 'Как в системе',
+  language: 'Язык',
 }
 
 export const LOCALES: Record<string, OpenApiLabels> = { en, ru }

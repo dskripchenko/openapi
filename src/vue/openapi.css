@@ -17,6 +17,7 @@
  *   --oa-other: var(--uid-text-secondary)
  *   --oa-other-bg: var(--uid-color-bg-subtle)
  *   --oa-sticky-top: 0px; --oa-source-height: 560px
+ *   --oa-page-width: 1440px; --oa-page-padding: 24px (OpenApiPage)
  */
 /*
  * @dskripchenko/openapi — the reference and editor styles. Kit tokens only, so
@@ -531,3 +532,43 @@
 .oa-ef__section > .uid-button,
 .oa-es > .uid-button,
 .oa-es__nested > .uid-button { align-self: flex-start; }
+
+/* --------------------------------- page ---------------------------------- */
+.oa-page {
+  min-height: 100vh;
+  background: var(--uid-surface-base);
+  color: var(--uid-text-primary);
+}
+.oa-page__bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px var(--oa-page-padding, 24px);
+  border-bottom: 1px solid var(--uid-border-subtle);
+  background: var(--uid-surface-raised);
+}
+.oa-page__title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.oa-page__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.oa-page__actions .oa-segmented__item { padding: 4px 10px; }
+.oa-page__actions .oa-segmented__item.oa-page__icon { display: inline-flex; align-items: center; padding: 5px 8px; }
+.oa-page__actions .oa-segmented__item:focus-visible { outline: 2px solid var(--uid-color-focus-ring); outline-offset: 1px; }
+.oa-page__body {
+  max-width: var(--oa-page-width, 1440px);
+  margin: 0 auto;
+  padding: 16px var(--oa-page-padding, 24px);
+}
+@media (max-width: 640px) {
+  .oa-page { --oa-page-padding: 16px; }
+}
