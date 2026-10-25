@@ -789,9 +789,9 @@ try {
     tsCode.slice(0, 120),
   )
   check('types: only the opened operation generated its types', (await ty.locator('.oa-types').count()) === 1)
-  await tco.locator('.oa-types__name[data-name="CreateOrderResponse201"]').click()
+  await tco.locator('.oa-types__name[data-name="CreateOrderCreated"]').click()
   await tco.locator('.oa-types__copied').waitFor()
-  check('types: a chip copies its name', (await ty.evaluate(() => window.navigator.clipboard.readText())) === 'CreateOrderResponse201')
+  check('types: a chip copies its name', (await ty.evaluate(() => window.navigator.clipboard.readText())) === 'CreateOrderCreated')
   await tco.locator('.oa-op__side').screenshot({ path: `${out}/types.png` })
   await tco.locator('.oa-side-tabs__tab[data-tab="try"]').click()
   check('types: the other tabs still switch', await tco.locator('.oa-tryit').isVisible() && !(await tco.locator('.oa-types').isVisible()))

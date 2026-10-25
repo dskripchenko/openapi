@@ -255,22 +255,22 @@ describe('operationTypes', () => {
       headers: 'CreateOrderHeaders',
       requestBody: 'CreateOrderRequestBody',
       response: 'CreateOrderResponse',
-      responses: { '201': 'CreateOrderResponse201', default: 'CreateOrderResponseDefault' },
+      responses: { '201': 'CreateOrderCreated', default: 'CreateOrderDefault' },
       responseBodies: {},
-      responseHeaders: { '201': 'CreateOrderResponse201Headers' },
+      responseHeaders: { '201': 'CreateOrderCreatedHeaders' },
       all: [
         'CreateOrderHeaders',
         'CreateOrderRequestBody',
         'CreateOrderResponse',
-        'CreateOrderResponse201',
-        'CreateOrderResponse201Headers',
-        'CreateOrderResponseDefault',
+        'CreateOrderCreated',
+        'CreateOrderCreatedHeaders',
+        'CreateOrderDefault',
       ],
     })
     expect(code).toContain('export type CreateOrderRequestBody = Order\n')
     expect(code).toContain('export interface Order {')
     // Components come after the operation's types, alphabetically.
-    const order = ['CreateOrderHeaders', 'CreateOrderResponseDefault', 'interface Money', 'interface Order ', 'interface OrderItem', 'type OrderStatus', 'interface Problem']
+    const order = ['CreateOrderHeaders', 'CreateOrderDefault', 'interface Money', 'interface Order ', 'interface OrderItem', 'type OrderStatus', 'interface Problem']
     const at = order.map((s) => code.indexOf(s))
     expect(at.every((n, i) => n >= 0 && (i === 0 || n > at[i - 1]!))).toBe(true)
   })
@@ -290,8 +290,8 @@ describe('operationTypes', () => {
   it('a response with several bodies, headers and no 2xx body', () => {
     const spec = edge()
     const { names } = operationTypes(spec, op(spec, 'get-trees-id'))
-    expect(names.responseBodies['200']).toEqual({ 'application/json': 'GetTreesIdResponse200Json', 'text/plain': 'GetTreesIdResponse200Text' })
-    expect(names.responseHeaders['200']).toBe('GetTreesIdResponse200Headers')
+    expect(names.responseBodies['200']).toEqual({ 'application/json': 'GetTreesIdSuccessJson', 'text/plain': 'GetTreesIdSuccessText' })
+    expect(names.responseHeaders['200']).toBe('GetTreesIdSuccessHeaders')
     expect(names.cookies).toBe('GetTreesIdCookies')
     const del = operationTypes(kitchen(), op(kitchen(), 'deleteOrder')) // an entry of another load works too
     expect(del.code).toContain('export type DeleteOrderResponse = void')
@@ -356,5 +356,15 @@ describe('the output compiles', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
+  })
+})
+
+describe('response type names', () => {
+  it('name a code by its meaning, ranges and default too', async () => {
+    const { statusTypeName } = await import('./status')
+    expect(['200', '201', '204', '301', '404', '422', '500', '4XX', '5xx', 'default', '299'].map((c) => statusTypeName(c))).toEqual([
+      'Success', 'Created', 'NoContent', 'Redirect', 'NotFound', 'UnprocessableEntity', 'Error', 'ClientError', 'ServerError', 'Default', 'Status299',
+    ])
+    expect(statusTypeName('422', { '422': 'Invalid' })).toBe('Invalid')
   })
 })

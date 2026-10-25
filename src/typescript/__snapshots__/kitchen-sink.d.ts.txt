@@ -100,16 +100,16 @@ export interface ListOrdersQueryParams {
 }
 
 /** The body of a successful (2xx) response. */
-export type ListOrdersResponse = ListOrdersResponse200
+export type ListOrdersResponse = ListOrdersSuccess
 
 /**
  * 200: A page of orders
  * Media type: application/json.
  */
-export type ListOrdersResponse200 = OrderPage
+export type ListOrdersSuccess = OrderPage
 
 /** Headers of the 200 response. */
-export interface ListOrdersResponse200Headers {
+export interface ListOrdersSuccessHeaders {
   /** Total number of items */
   'X-Total-Count'?: number
 }
@@ -118,7 +118,7 @@ export interface ListOrdersResponse200Headers {
  * 4XX: Problem details
  * Media type: application/problem+json.
  */
-export type ListOrdersResponse4XX = Problem
+export type ListOrdersClientError = Problem
 
 // createOrder: POST /orders
 
@@ -131,16 +131,16 @@ export interface CreateOrderHeaders {
 export type CreateOrderRequestBody = Order
 
 /** The body of a successful (2xx) response. */
-export type CreateOrderResponse = CreateOrderResponse201
+export type CreateOrderResponse = CreateOrderCreated
 
 /**
  * 201: Created
  * Media type: application/json.
  */
-export type CreateOrderResponse201 = Order
+export type CreateOrderCreated = Order
 
 /** Headers of the 201 response. */
-export interface CreateOrderResponse201Headers {
+export interface CreateOrderCreatedHeaders {
   /**
    * URL of the order
    * @format uri
@@ -152,7 +152,7 @@ export interface CreateOrderResponse201Headers {
  * default: Problem details
  * Media type: application/problem+json.
  */
-export type CreateOrderResponseDefault = Problem
+export type CreateOrderDefault = Problem
 
 // getOrder: GET /orders/{orderId}
 
@@ -162,19 +162,19 @@ export interface GetOrderPathParams {
 }
 
 /** The body of a successful (2xx) response. */
-export type GetOrderResponse = GetOrderResponse200
+export type GetOrderResponse = GetOrderSuccess
 
 /**
  * 200: The order
  * Media type: application/json.
  */
-export type GetOrderResponse200 = Order
+export type GetOrderSuccess = Order
 
 /**
  * 404: Problem details
  * Media type: application/problem+json.
  */
-export type GetOrderResponse404 = Problem
+export type GetOrderNotFound = Problem
 
 // updateOrder: PATCH /orders/{orderId}
 
@@ -190,13 +190,13 @@ export interface UpdateOrderPathParams {
 export type UpdateOrderRequestBody = OrderPatch
 
 /** The body of a successful (2xx) response. */
-export type UpdateOrderResponse = UpdateOrderResponse200
+export type UpdateOrderResponse = UpdateOrderSuccess
 
 /**
  * 200: Updated
  * Media type: application/json.
  */
-export type UpdateOrderResponse200 = Order
+export type UpdateOrderSuccess = Order
 
 // deleteOrder: DELETE /orders/{orderId}
 
@@ -214,13 +214,13 @@ export type DeleteOrderResponse = void
 export type CreatePaymentRequestBody = PaymentMethod
 
 /** The body of a successful (2xx) response. */
-export type CreatePaymentResponse = CreatePaymentResponse202
+export type CreatePaymentResponse = CreatePaymentAccepted
 
 /**
  * 202: Accepted
  * Media type: application/json.
  */
-export type CreatePaymentResponse202 = Payment
+export type CreatePaymentAccepted = Payment
 
 // uploadImage: POST /catalog/images
 
@@ -252,13 +252,13 @@ export interface SearchCatalogRequestBody {
 }
 
 /** The body of a successful (2xx) response. */
-export type SearchCatalogResponse = SearchCatalogResponse200
+export type SearchCatalogResponse = SearchCatalogSuccess
 
 /**
  * 200: Results
  * Media type: text/csv.
  */
-export type SearchCatalogResponse200 = string
+export type SearchCatalogSuccess = string
 
 // paramStyles: GET /params/{simple}/{label}/{matrix}
 

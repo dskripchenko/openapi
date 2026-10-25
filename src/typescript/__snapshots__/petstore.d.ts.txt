@@ -32,16 +32,16 @@ export interface ListPetsQueryParams {
 }
 
 /** The body of a successful (2xx) response. */
-export type ListPetsResponse = ListPetsResponse200
+export type ListPetsResponse = ListPetsSuccess
 
 /**
  * 200: A paged array of pets
  * Media type: application/json.
  */
-export type ListPetsResponse200 = Pets
+export type ListPetsSuccess = Pets
 
 /** Headers of the 200 response. */
-export interface ListPetsResponse200Headers {
+export interface ListPetsSuccessHeaders {
   /** Next page link */
   'x-next'?: string | null
 }
@@ -50,7 +50,7 @@ export interface ListPetsResponse200Headers {
  * default: unexpected error
  * Media type: application/json.
  */
-export type ListPetsResponseDefault = Error
+export type ListPetsDefault = Error
 
 // createPet: POST /pets
 
@@ -64,7 +64,7 @@ export type CreatePetResponse = void
  * default: unexpected error
  * Media type: application/json.
  */
-export type CreatePetResponseDefault = Error
+export type CreatePetDefault = Error
 
 // showPetById: GET /pets/{petId}
 
@@ -74,19 +74,19 @@ export interface ShowPetByIdPathParams {
 }
 
 /** The body of a successful (2xx) response. */
-export type ShowPetByIdResponse = ShowPetByIdResponse200
+export type ShowPetByIdResponse = ShowPetByIdSuccess
 
 /**
  * 200: Expected response to a valid request
  * Media type: application/json.
  */
-export type ShowPetByIdResponse200 = Pet
+export type ShowPetByIdSuccess = Pet
 
 /**
  * default: unexpected error
  * Media type: application/json.
  */
-export type ShowPetByIdResponseDefault = Error
+export type ShowPetByIdDefault = Error
 
 // newPetWebhook: webhook newPet (POST)
 

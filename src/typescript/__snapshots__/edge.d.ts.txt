@@ -74,19 +74,19 @@ export interface GetTreesIdCookies {
 }
 
 /** The body of a successful (2xx) response. */
-export type GetTreesIdResponse = GetTreesIdResponse200
+export type GetTreesIdResponse = GetTreesIdSuccess
 
 /** 200: The tree */
-export type GetTreesIdResponse200 = GetTreesIdResponse200Json | GetTreesIdResponse200Text
+export type GetTreesIdSuccess = GetTreesIdSuccessJson | GetTreesIdSuccessText
 
 /** Media type: application/json. */
-export type GetTreesIdResponse200Json = TreeNode
+export type GetTreesIdSuccessJson = TreeNode
 
 /** Media type: text/plain. */
-export type GetTreesIdResponse200Text = string
+export type GetTreesIdSuccessText = string
 
 /** Headers of the 200 response. */
-export interface GetTreesIdResponse200Headers {
+export interface GetTreesIdSuccessHeaders {
   'X-Rate-Limit': number
 }
 
@@ -96,10 +96,10 @@ export interface GetTreesIdResponse200Headers {
 export type Pets2RequestBody = Pet
 
 /** The body of a successful (2xx) response. */
-export type Pets2Response = Pets2Response2XX
+export type Pets2Response = Pets2AnySuccess
 
 /**
  * 2XX: ok
  * Media type: application/json.
  */
-export type Pets2Response2XX = Pair
+export type Pets2AnySuccess = Pair

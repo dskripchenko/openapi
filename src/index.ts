@@ -79,6 +79,8 @@ export {
   operationTypes,
   documentTypes,
   typeName as tsTypeName,
+  STATUS_TYPE_NAMES,
+  statusTypeName,
   type TsContext,
   type OperationTypes,
   type OperationTypeNames,

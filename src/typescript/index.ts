@@ -12,3 +12,4 @@ export {
   type OperationTypes,
   type OperationTypesOptions,
 } from './operation'
+export { STATUS_TYPE_NAMES, statusTypeName } from './status'

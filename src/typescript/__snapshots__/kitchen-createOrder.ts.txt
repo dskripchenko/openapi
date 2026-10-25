@@ -7,16 +7,16 @@ export interface CreateOrderHeaders {
 export type CreateOrderRequestBody = Order
 
 /** The body of a successful (2xx) response. */
-export type CreateOrderResponse = CreateOrderResponse201
+export type CreateOrderResponse = CreateOrderCreated
 
 /**
  * 201: Created
  * Media type: application/json.
  */
-export type CreateOrderResponse201 = Order
+export type CreateOrderCreated = Order
 
 /** Headers of the 201 response. */
-export interface CreateOrderResponse201Headers {
+export interface CreateOrderCreatedHeaders {
   /**
    * URL of the order
    * @format uri
@@ -28,7 +28,7 @@ export interface CreateOrderResponse201Headers {
  * default: Problem details
  * Media type: application/problem+json.
  */
-export type CreateOrderResponseDefault = Problem
+export type CreateOrderDefault = Problem
 
 export interface Money {
   /** @example "10.00" */

@@ -4,6 +4,7 @@
  * their headers, plus the component schemas they reach, so a snippet
  * compiles on its own.
  */
+import { STATUS_TYPE_NAMES, statusTypeName } from './status'
 import type { Header, MediaType, Parameter, RequestBody, Response } from '../core/types'
 import type { LoadedSpec, OperationEntry } from '../model'
 import { isPlainObject } from '../schema/util'
@@ -42,10 +43,14 @@ export interface OperationTypes {
 export interface OperationTypesOptions {
   /** False leaves out the component types the operation refers to. Default true. */
   components?: boolean
+  /** Names for response codes over the built-in table: `{ '422': 'Invalid' }`. */
+  statusNames?: Readonly<Record<string, string>>
 }
 
 /** What follows a stem in the generated names. */
-const SUFFIX = /^(PathParams|QueryParams|Headers|Cookies|RequestBody\w*|Response\w*)$/
+const SUFFIX = new RegExp(
+  `^(PathParams|QueryParams|Headers|Cookies|RequestBody\\w*|Response|(?:${[...new Set(Object.values(STATUS_TYPE_NAMES)), 'Status\\w+'].join('|')})\\w*)$`,
+)
 
 /** Whether `name` is `stem` plus an operation suffix: a name the stem's types could take. */
 const extends_ = (name: string, stem: string): boolean => name.startsWith(stem) && SUFFIX.test(name.slice(stem.length))
@@ -161,11 +166,14 @@ function bodyDeclarations(
   return { decls, names: [name, ...Object.values(perMedia)], perMedia }
 }
 
-/** The status part of a name: `200`, `4XX`, `Default`. */
-const statusName = (code: string): string => (code === 'default' ? 'Default' : code.toUpperCase().replace(/[^0-9A-Z]/g, ''))
-
 /** Declarations of one operation, against a shared context; the stem is chosen by the caller. */
-function declareOperation(spec: LoadedSpec, entry: OperationEntry, stem: string, ctx: TsContext): { names: OperationTypeNames; decls: string[] } {
+function declareOperation(
+  spec: LoadedSpec,
+  entry: OperationEntry,
+  stem: string,
+  ctx: TsContext,
+  statusNames: Readonly<Record<string, string>> = {},
+): { names: OperationTypeNames; decls: string[] } {
   const deref = <T>(v: unknown): T | undefined => spec.resolver.deref(v as never) as T | undefined
   const names: OperationTypeNames = { base: stem, response: `${stem}Response`, responses: {}, responseBodies: {}, responseHeaders: {}, all: [] }
   const decls: string[] = []
@@ -194,11 +202,15 @@ function declareOperation(spec: LoadedSpec, entry: OperationEntry, stem: string,
   const responseDecls: string[] = []
   const responseNames: string[] = []
   const success: string[] = []
+  const taken = new Set<string>()
   for (const [code, raw] of Object.entries(entry.operation.responses ?? {})) {
     if (code.startsWith('x-')) continue
     const response = deref<Response>(raw)
     if (!isPlainObject(response)) continue
-    const name = `${stem}Response${statusName(code)}`
+    // Two codes sharing a name (an override, say) keep apart by the code.
+    let name = `${stem}${statusTypeName(code, statusNames)}`
+    if (taken.has(name)) name = `${name}${code.toUpperCase().replace(/[^0-9A-Z]/g, '')}`
+    taken.add(name)
     const description = typeof response.description === 'string' ? response.description.trim() : ''
     if (isPlainObject(response.content) && Object.keys(response.content).length) {
       const out = bodyDeclarations(name, response.content, ctx, [description ? `${code}: ${description}` : `The ${code} response.`])
@@ -243,7 +255,9 @@ function componentDeclarations(ctx: TsContext, skip: Set<string> = new Set()): s
 /**
  * The TypeScript types of one operation: `{Op}PathParams`, `{Op}QueryParams`,
  * `{Op}Headers`, `{Op}Cookies`, `{Op}RequestBody`, `{Op}Response` (2xx union),
- * `{Op}Response{code}` and `{Op}Response{code}Headers` — only those that
+ * `{Op}{Status}` and `{Op}{Status}Headers`, where `{Status}` names the code by
+ * its meaning (Success, Created, NotFound, Error… — see STATUS_TYPE_NAMES) —
+ * only those that
  * exist — then the component schemas they reach, alphabetically.
  */
 export function operationTypes(spec: LoadedSpec, entry: OperationEntry, opts: OperationTypesOptions = {}): OperationTypes {
@@ -251,7 +265,7 @@ export function operationTypes(spec: LoadedSpec, entry: OperationEntry, opts: Op
   // An entry from another load of the same document is matched by method and path.
   const own = spec.operations.find((o) => o === entry) ?? spec.operations.find((o) => o.method === entry.method && o.path === entry.path && o.webhook === entry.webhook)
   const stem = operationStems(spec, ctx, own ?? entry).get(own ?? entry)!
-  const { names, decls } = declareOperation(spec, entry, stem, ctx)
+  const { names, decls } = declareOperation(spec, entry, stem, ctx, opts.statusNames)
   const components = opts.components === false ? [] : componentDeclarations(ctx)
   return { names, code: `${[...decls, ...components].join('\n\n')}\n` }
 }
@@ -261,7 +275,7 @@ export function operationTypes(spec: LoadedSpec, entry: OperationEntry, opts: Op
  * (alphabetically), then every operation's types in document order. Names
  * match what `operationTypes` gives for the same operation.
  */
-export function documentTypes(spec: LoadedSpec): string {
+export function documentTypes(spec: LoadedSpec, opts: Pick<OperationTypesOptions, 'statusNames'> = {}): string {
   const ctx = createTsContext(spec.document)
   const info = spec.document.info ?? { title: '', version: '' }
   const title = [info.title, info.version].filter((s) => typeof s === 'string' && s).join(' ')
@@ -277,7 +291,7 @@ export function documentTypes(spec: LoadedSpec): string {
   const stems = operationStems(spec, ctx)
   const done = new Set(ctx.used)
   for (const entry of spec.operations) {
-    const { decls } = declareOperation(spec, entry, stems.get(entry)!, ctx)
+    const { decls } = declareOperation(spec, entry, stems.get(entry)!, ctx, opts.statusNames)
     const where = entry.webhook !== undefined ? `webhook ${entry.webhook} (${entry.method.toUpperCase()})` : `${entry.method.toUpperCase()} ${entry.path}`
     sections.push(`// ${entry.id}: ${where}\n\n${decls.join('\n\n')}`)
   }
