@@ -58,3 +58,17 @@ export {
 
 export * from './request'
 export { SNIPPET_TARGETS, generateSnippet, type SnippetTarget, type SnippetTargetInfo } from './snippets'
+export {
+  scalarSlug,
+  scalarDocumentSlug,
+  splitLink,
+  pickSpec,
+  resolveSection,
+  encodePrefill,
+  decodePrefill,
+  prefillHash,
+  PREFILL_VERSION,
+  type LinkSpec,
+  type PrefillData,
+  type PrefillValues,
+} from './links'

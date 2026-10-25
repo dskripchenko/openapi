@@ -52,6 +52,12 @@ export interface OpenApiLabels {
   copy: string
   show: string
   hide: string
+  // links
+  copyLink: string
+  linkCopied: string
+  includeCredentials: string
+  credentialsWarning: string
+  prefilled: string
 }
 
 export const en: OpenApiLabels = {
@@ -104,6 +110,12 @@ export const en: OpenApiLabels = {
   copy: 'Copy',
   show: 'Show',
   hide: 'Hide',
+  // links
+  copyLink: 'Copy link',
+  linkCopied: 'Copied',
+  includeCredentials: 'Include credentials',
+  credentialsWarning: 'The link will carry your keys and passwords: anyone who gets it can use them.',
+  prefilled: 'Form filled from a link — check the values before sending',
 }
 
 export const ru: OpenApiLabels = {
@@ -156,6 +168,12 @@ export const ru: OpenApiLabels = {
   copy: 'Копировать',
   show: 'Показать',
   hide: 'Скрыть',
+  // links
+  copyLink: 'Скопировать ссылку',
+  linkCopied: 'Скопировано',
+  includeCredentials: 'Включить учётные данные',
+  credentialsWarning: 'Ссылка унесёт ваши ключи и пароли: ими сможет воспользоваться любой, кто её получит.',
+  prefilled: 'Форма заполнена по ссылке — проверьте значения перед отправкой',
 }
 
 export const LOCALES: Record<string, OpenApiLabels> = { en, ru }

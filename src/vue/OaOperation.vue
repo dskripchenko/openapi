@@ -3,7 +3,7 @@
  * One operation: what it does on the left (parameters, body, responses), and
  * how to call it on the right (samples, try-it). Both sides share one draft.
  */
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { UidCode, UidMarkdown } from '@dskripchenko/ui'
 import type { Header, MediaType, Parameter, ParameterIn, RequestBody, Response } from '../core/types'
 import type { OperationEntry } from '../model'
@@ -15,6 +15,7 @@ import OaSamples from './OaSamples.vue'
 import OaSchema from './OaSchema.vue'
 import OaTryIt from './OaTryIt.vue'
 import { safeHref } from './safe'
+import { applyPrefill } from './share'
 
 const props = withDefaults(
   defineProps<{
@@ -87,6 +88,20 @@ const tone = (code: string): string =>
 const anchor = computed(() => `${ctx.anchorPrefix.value}operation/${props.entry.id}`)
 const headersOf = (r: Response | undefined) =>
   Object.entries(r?.headers ?? {}).map(([name, h]) => ({ name, header: deref<Header>(h) }))
+
+/** A prefilled link to this operation: the draft is made now, however far down it is, and filled. */
+const prefilled = ref(false)
+watch(
+  () => ctx.prefill.value,
+  (p) => {
+    if (!p || !props.anchored || props.entry.webhook || p.anchor !== anchor.value) return
+    ctx.prefill.value = null
+    show()
+    applyPrefill(draft.value!, p.data, props.entry, ctx)
+    prefilled.value = true
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -212,7 +227,7 @@ const headersOf = (r: Response | undefined) =>
 
       <aside class="oa-op__side">
         <OaSamples :draft="draft" />
-        <OaTryIt v-if="ctx.tryIt.value && !entry.webhook" :entry="entry" :draft="draft" />
+        <OaTryIt v-if="ctx.tryIt.value && !entry.webhook" :entry="entry" :draft="draft" :prefilled="prefilled" @dismiss="prefilled = false" />
       </aside>
     </div>
   </section>
