@@ -71,8 +71,8 @@ describe('proxySend', () => {
     expect(calls[0]!.init?.method).toBe('POST')
     const sent = JSON.parse(String(calls[0]!.init?.body))
     expect(sent.url).toBe('https://api.example.com/upload')
-    // File contents stay in the page.
-    expect(sent.body.form[1]).toEqual(['file', { filename: 'a.txt', contentType: 'text/plain' }])
+    // The file's bytes travel in base64.
+    expect(sent.body.form[1]).toEqual(['file', { filename: 'a.txt', contentType: 'text/plain', base64: btoa('secret') }])
   })
 
   it('reports a failing proxy as a request that did not get through', async () => {
