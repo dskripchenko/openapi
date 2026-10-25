@@ -84,3 +84,34 @@ describe('proxySend', () => {
     expect((await proxySend('/proxy', broken.fn)(request)).status).toBe(0)
   })
 })
+
+describe('proxySend with files, binary answers and cancel', () => {
+  it('sends file bytes in base64 and reads a binary answer into a blob', async () => {
+    let sent: { body?: { form?: [string, unknown][]; file?: { base64?: string } } } = {}
+    const fn = (async (_u: unknown, init?: RequestInit) => {
+      sent = JSON.parse(String(init?.body))
+      return new Response(JSON.stringify({ status: 200, statusText: 'OK', headers: [['content-type', 'image/png']], body: '', bodyBase64: btoa('PNG') }), { status: 200 })
+    }) as typeof fetch
+    const r = await proxySend('/proxy', fn)({
+      method: 'POST',
+      url: 'https://api.example.com/up',
+      headers: [],
+      body: { mediaType: 'multipart/form-data', form: [['alt', 'x'], ['file', { filename: 'a.txt', contentType: 'text/plain', data: new Blob(['hi']) }]] },
+    })
+    expect(sent.body?.form?.[1]?.[1]).toEqual({ filename: 'a.txt', contentType: 'text/plain', base64: btoa('hi') })
+    expect(r.blob?.type).toBe('image/png')
+    expect(await r.blob?.text()).toBe('PNG')
+  })
+
+  it('passes the cancel signal to the proxy call', async () => {
+    let signal: AbortSignal | undefined | null
+    const fn = (async (_u: unknown, init?: RequestInit) => {
+      signal = init?.signal
+      throw new DOMException('Aborted', 'AbortError')
+    }) as typeof fetch
+    const controller = new AbortController()
+    const r = await proxySend('/proxy', fn)({ method: 'GET', url: 'https://x', headers: [] }, { signal: controller.signal })
+    expect(signal).toBe(controller.signal)
+    expect(r.status).toBe(0)
+  })
+})

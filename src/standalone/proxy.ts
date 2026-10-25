@@ -1,4 +1,4 @@
-import type { FormValue, HttpRequest, HttpResponse } from '../core/types'
+import type { HttpRequest, HttpResponse } from '../core/types'
 import type { SendFn } from '../request'
 
 /**
@@ -10,17 +10,21 @@ import type { SendFn } from '../request'
  *    `<meta name="csrf-token">` (Laravel's convention), its value goes in
  *    `X-CSRF-TOKEN`.
  *  - The body is the `HttpRequest` as JSON:
- *    `{ method, url, headers: [name, value][], body?: { mediaType, text?, form? } }`.
- *    `url` is absolute. File fields of a form arrive as
- *    `{ filename, contentType? }` — the file's data is not sent.
+ *    `{ method, url, headers: [name, value][], body?: { mediaType, text?, form?, file? } }`.
+ *    `url` is absolute. A file — a form field or the whole body (`file`) —
+ *    arrives as `{ filename, contentType?, base64? }`, `base64` holding its
+ *    bytes (absent when no file was chosen).
  *  - The endpoint checks the URL against the hosts it allows, performs the
  *    request and answers 200 with the `HttpResponse` as JSON:
- *    `{ status, statusText, headers: [name, value][], body: string, duration?, error? }`.
- *    `error` with `status: 0` reports that the API was not reached.
+ *    `{ status, statusText, headers: [name, value][], body: string, bodyBase64?, duration?, error? }`.
+ *    A binary answer (an image, a PDF) goes in `bodyBase64` with `body: ''`:
+ *    the page previews or offers it for download. `error` with `status: 0`
+ *    reports that the API was not reached.
  *  - Any other answer (not 2xx, not JSON) is shown as a failed request.
+ *  - Cancel aborts the call to the proxy.
  */
 export function proxySend(url: string, fetchFn: typeof fetch = (...a) => globalThis.fetch(...a)): SendFn {
-  return async (request: HttpRequest): Promise<HttpResponse> => {
+  return async (request: HttpRequest, options = {}): Promise<HttpResponse> => {
     const started = now()
     const failed = (error: string): HttpResponse => ({ status: 0, statusText: '', headers: [], body: '', duration: now() - started, error })
     try {
@@ -31,12 +35,17 @@ export function proxySend(url: string, fetchFn: typeof fetch = (...a) => globalT
         method: 'POST',
         headers,
         credentials: 'same-origin',
-        body: JSON.stringify(serializable(request)),
+        body: JSON.stringify(await serializable(request)),
+        signal: options.signal,
       })
       if (!response.ok) return failed(`The proxy answered ${response.status} ${response.statusText}`.trim())
-      const data = (await response.json()) as Partial<HttpResponse>
+      const data = (await response.json()) as Partial<HttpResponse> & { bodyBase64?: unknown }
       if (typeof data !== 'object' || data === null || typeof data.status !== 'number') return failed('The proxy answered without a response')
+      const headerList = Array.isArray(data.headers) ? data.headers : []
+      const type = headerList.find(([k]) => String(k).toLowerCase() === 'content-type')?.[1] ?? 'application/octet-stream'
+      const blob = typeof data.bodyBase64 === 'string' ? new Blob([fromBase64(data.bodyBase64)], { type }) : undefined
       return {
+        ...(blob ? { blob } : {}),
         status: data.status,
         statusText: data.statusText ?? '',
         headers: Array.isArray(data.headers) ? data.headers : [],
@@ -50,13 +59,38 @@ export function proxySend(url: string, fetchFn: typeof fetch = (...a) => globalT
   }
 }
 
-/** The request without file contents: a Blob does not survive JSON. */
-function serializable(request: HttpRequest): HttpRequest {
-  if (!request.body?.form) return request
-  const form = request.body.form.map(([name, v]): [string, FormValue] =>
-    typeof v === 'string' ? [name, v] : [name, v.contentType ? { filename: v.filename, contentType: v.contentType } : { filename: v.filename }],
-  )
-  return { ...request, body: { ...request.body, form } }
+type WireFile = { filename: string; contentType?: string; base64?: string }
+
+/** A file as JSON: its bytes in base64 (a Blob does not survive JSON). */
+async function wireFile(file: { filename: string; contentType?: string; data?: Blob | string }): Promise<WireFile> {
+  const out: WireFile = { filename: file.filename }
+  if (file.contentType) out.contentType = file.contentType
+  if (file.data instanceof Blob) out.base64 = toBase64(new Uint8Array(await file.data.arrayBuffer()))
+  else if (typeof file.data === 'string') out.base64 = toBase64(new TextEncoder().encode(file.data))
+  return out
+}
+
+async function serializable(request: HttpRequest): Promise<unknown> {
+  const body = request.body
+  if (!body || (!body.form && !body.file)) return request
+  const form = body.form
+    ? await Promise.all(body.form.map(async ([name, v]): Promise<[string, string | WireFile]> => [name, typeof v === 'string' ? v : await wireFile(v)]))
+    : undefined
+  const file = body.file ? await wireFile(body.file) : undefined
+  return { ...request, body: { ...body, ...(form ? { form } : {}), ...(file ? { file } : {}) } }
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return btoa(binary)
+}
+
+function fromBase64(text: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(text)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes
 }
 
 function csrfToken(): string | null {
