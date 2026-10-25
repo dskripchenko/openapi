@@ -10,9 +10,11 @@ const root = resolve(import.meta.dirname, '..')
 const out = resolve(root, 'tests/browser/output')
 mkdirSync(out, { recursive: true })
 
-const server = await createServer({ configFile: resolve(root, 'playground/vite.config.ts'), server: { port: 5311 }, logLevel: 'warn' })
+// OA_CHECK_PORT lets several checks run side by side.
+const port = Number(process.env.OA_CHECK_PORT ?? 5311)
+const server = await createServer({ configFile: resolve(root, 'playground/vite.config.ts'), server: { port, strictPort: true }, logLevel: 'warn' })
 await server.listen()
-const base = 'http://localhost:5311/'
+const base = `http://localhost:${port}/`
 const browser = await chromium.launch()
 const failures = []
 const check = (name, ok, detail = '') => {
