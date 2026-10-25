@@ -73,6 +73,14 @@ const CASES: Record<string, HttpRequest> = {
       },
     },
   }),
+  'binary-file': buildRequest({
+    method: 'put',
+    path: '/pets/{id}/photo',
+    server: 'https://api.example.com',
+    parameters: [{ name: 'id', in: 'path' }],
+    values: { path: { id: 42 } },
+    body: { mediaType: 'image/png', value: { filename: 'rex.png', contentType: 'image/png' } },
+  }),
 }
 
 const NASTY = `it's "quoted" $HOME \`tick\` \\back\\slash\nnew line\ttab ünïcödé 😀 '@ """ \${x}`

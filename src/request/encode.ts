@@ -103,3 +103,15 @@ export function isFormUrlEncoded(mediaType: string): boolean {
 export function isMultipart(mediaType: string): boolean {
   return baseMediaType(mediaType).startsWith('multipart/')
 }
+
+/**
+ * True for media types read as text: `text/*`, JSON, XML, YAML, JavaScript,
+ * form data and the like. An empty type counts as text (servers omit it on
+ * plain answers); everything else (images, PDFs, octet streams) is bytes.
+ */
+export function isTextualMediaType(mediaType: string): boolean {
+  const base = baseMediaType(mediaType)
+  if (base === '' || base.startsWith('text/')) return true
+  if (isJsonMediaType(base) || isFormUrlEncoded(base)) return true
+  return /[/+](xml|yaml|x-yaml|javascript|ecmascript|x-ndjson|ndjson|graphql|csv)$/.test(base)
+}

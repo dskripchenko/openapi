@@ -26,6 +26,15 @@ export function goNative(request: HttpRequest): string {
       lines.push(T + 'body := strings.NewReader(' + goText(body.text) + ')')
       bodyVar = 'body'
       break
+    case 'file':
+      imports.add('os')
+      lines.push(
+        T + `body, err := os.Open(${goString(body.filename)})`,
+        ...PANIC,
+        T + 'defer body.Close()',
+      )
+      bodyVar = 'body'
+      break
     case 'urlencoded':
       imports.add('net/url').add('strings')
       lines.push(T + 'form := url.Values{}')

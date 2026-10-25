@@ -1,8 +1,17 @@
 import type { HttpRequest, HttpResponse } from '../core/types'
-import { isFormUrlEncoded, isMultipart } from './encode'
+import { isFormUrlEncoded, isMultipart, isTextualMediaType } from './encode'
 
-/** The transport try-it uses; a host may replace it with a proxy. */
-export type SendFn = (request: HttpRequest) => Promise<HttpResponse>
+/** What try-it passes along with the request. */
+export interface SendFnOptions {
+  /** Aborted when the user cancels the request. */
+  signal?: AbortSignal
+}
+
+/**
+ * The transport try-it uses; a host may replace it with a proxy. The second
+ * argument is optional, so a one-argument function still fits.
+ */
+export type SendFn = (request: HttpRequest, options?: SendFnOptions) => Promise<HttpResponse>
 
 export interface SendOptions {
   fetch?: typeof fetch
@@ -20,6 +29,8 @@ function now(): number {
 export function toFetchBody(request: HttpRequest): BodyInit | undefined {
   const body = request.body
   if (!body) return undefined
+  // A binary body is the file itself; fetch takes the Blob as it is.
+  if (body.file) return body.file.data ?? new Blob([])
   if (body.form && isMultipart(body.mediaType)) {
     const data = new FormData()
     for (const [name, value] of body.form) {
@@ -47,7 +58,8 @@ export function toFetchBody(request: HttpRequest): BodyInit | undefined {
 }
 
 /**
- * Sends the request with `fetch` and reads the body as text. Never throws:
+ * Sends the request with `fetch` and reads the body: as text for textual
+ * content types, else as a Blob in `blob` (`body` stays empty). Never throws:
  * network and CORS failures come back as `status: 0` with `error` set.
  *
  * Headers that browsers forbid (`Cookie`, `Host`, `Origin`, …) are passed to
@@ -80,14 +92,20 @@ export async function sendRequest(
     const response = await doFetch(request.url, init)
     const responseHeaders: [string, string][] = []
     response.headers.forEach((value, name) => responseHeaders.push([name, value]))
-    const text = await response.text()
-    return {
+    const result: HttpResponse = {
       status: response.status,
       statusText: response.statusText,
       headers: responseHeaders,
-      body: text,
-      duration: now() - start,
+      body: '',
+      duration: 0,
     }
+    if (isTextualMediaType(response.headers.get('content-type') ?? '')) {
+      result.body = await response.text()
+    } else {
+      result.blob = await response.blob()
+    }
+    result.duration = now() - start
+    return result
   } catch (error) {
     return {
       status: 0,

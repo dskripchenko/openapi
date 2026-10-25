@@ -1,0 +1,11 @@
+const fileInput = document.querySelector('input[type="file"]')
+
+const response = await fetch('https://api.example.com/pets/42/photo', {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'image/png',
+  },
+  body: fileInput.files[0],
+})
+
+console.log(await response.text())

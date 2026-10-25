@@ -113,6 +113,44 @@ describe('sendRequest', () => {
     expect(String(calls[0]!.init.body)).toBe('a=x+y&a=2')
   })
 
+  it('sends a file body as the Blob, keeping its Content-Type', async () => {
+    const { fn, calls } = mockFetch(() => new Response(''))
+    const data = new Blob(['BYTES'])
+    await sendRequest(
+      {
+        method: 'PUT',
+        url: '/f',
+        headers: [['Content-Type', 'application/octet-stream']],
+        body: { mediaType: 'application/octet-stream', file: { filename: 'a.bin', data } },
+      },
+      { fetch: fn },
+    )
+    expect(calls[0]!.init.body).toBe(data)
+    expect(calls[0]!.init.headers).toEqual([['Content-Type', 'application/octet-stream']])
+  })
+
+  it('keeps a non-textual response as a Blob', async () => {
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
+    const { fn } = mockFetch(
+      () => new Response(bytes, { headers: { 'Content-Type': 'image/png' } }),
+    )
+    const res = await sendRequest({ method: 'GET', url: '/i', headers: [] }, { fetch: fn })
+    expect(res.body).toBe('')
+    expect(res.blob?.size).toBe(4)
+    expect(new Uint8Array(await res.blob!.arrayBuffer())).toEqual(bytes)
+  })
+
+  it('reads textual responses as text', async () => {
+    for (const type of ['application/problem+json', 'text/csv', 'application/xml', '']) {
+      const { fn } = mockFetch(
+        () => new Response('x', type ? { headers: { 'Content-Type': type } } : {}),
+      )
+      const res = await sendRequest({ method: 'GET', url: '/t', headers: [] }, { fetch: fn })
+      expect(res.body).toBe('x')
+      expect(res.blob).toBeUndefined()
+    }
+  })
+
   it('does not send a body with GET', async () => {
     const { fn, calls } = mockFetch(() => new Response(''))
     await sendRequest(

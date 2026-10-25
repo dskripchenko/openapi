@@ -22,6 +22,8 @@ export type SnippetBody =
   | { kind: 'text'; text: string; mediaType: string }
   | { kind: 'urlencoded'; fields: [string, string][]; mediaType: string }
   | { kind: 'multipart'; fields: MultipartField[]; mediaType: string }
+  /** A binary body: the file named `filename` is sent as it is. */
+  | { kind: 'file'; filename: string; mediaType: string }
 
 export interface Prepared {
   method: string
@@ -51,6 +53,7 @@ function analyzeBody(request: HttpRequest): SnippetBody {
   const body = request.body
   if (!body) return { kind: 'none' }
   const { mediaType } = body
+  if (body.file) return { kind: 'file', filename: body.file.filename, mediaType }
   if (body.form) {
     if (isMultipart(mediaType)) {
       return {

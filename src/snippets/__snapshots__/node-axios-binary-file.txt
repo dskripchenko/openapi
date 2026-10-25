@@ -1,0 +1,13 @@
+import axios from 'axios'
+import { readFile } from 'node:fs/promises'
+
+const response = await axios({
+  method: 'put',
+  url: 'https://api.example.com/pets/42/photo',
+  headers: {
+    'Content-Type': 'image/png',
+  },
+  data: await readFile('rex.png'),
+})
+
+console.log(response.data)

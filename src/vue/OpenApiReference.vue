@@ -40,7 +40,10 @@ const props = withDefaults(
     specs?: SpecSource[]
     /** The id of the open spec (`v-model:active`); the first by default. */
     active?: string
-    /** Sends try-it requests; `fetch` from the page by default. Pass a proxy for foreign APIs. */
+    /**
+     * Sends try-it requests; `fetch` from the page by default. Pass a proxy for
+     * foreign APIs. The optional second argument carries the `signal` "Cancel" aborts.
+     */
     send?: SendFn
     /** Turns "Try it" off (samples stay). */
     tryIt?: boolean
@@ -187,7 +190,7 @@ const switcher = computed(() =>
 const labels = computed<OpenApiLabels>(() => ({ ...(LOCALES[props.locale ?? 'en'] ?? en), ...props.labels }))
 const kitLocale = computed(() => (props.locale === 'ru' ? uidRu : props.locale === 'en' ? uidEn : undefined))
 
-const defaultSend: SendFn = (req) => sendRequest(req)
+const defaultSend: SendFn = (req, options) => sendRequest(req, options?.signal ? { signal: options.signal } : {})
 const ctx: ReferenceContext = {
   spec: computed(() => loaded.value!) as ReferenceContext['spec'],
   labels,

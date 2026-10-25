@@ -63,6 +63,17 @@ export function csharpHttpClient(request: HttpRequest): string {
       )
       break
     }
+    case 'file':
+      usings.add('System.IO').add('System.Net.Http.Headers')
+      lines.push(
+        'request.Content = new ByteArrayContent(File.ReadAllBytes(' +
+          csString(body.filename) +
+          '));',
+        'request.Content.Headers.ContentType = new MediaTypeHeaderValue(' +
+          csString(mediaTypeOnly(req.contentType ?? body.mediaType)) +
+          ');',
+      )
+      break
     case 'urlencoded':
       usings.add('System.Collections.Generic')
       lines.push('request.Content = new FormUrlEncodedContent(new[]', '{')
@@ -160,6 +171,13 @@ export function swiftUrlSession(request: HttpRequest): string {
     case 'json':
     case 'text':
       lines.push('request.httpBody = ' + swiftText(body.text) + '.data(using: .utf8)')
+      break
+    case 'file':
+      lines.push(
+        'request.httpBody = try Data(contentsOf: URL(fileURLWithPath: ' +
+          swiftString(body.filename) +
+          '))',
+      )
       break
     case 'urlencoded':
       lines.push(

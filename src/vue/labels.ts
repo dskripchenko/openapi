@@ -88,6 +88,22 @@ export interface OpenApiLabels {
   popupBlocked: string
   popupClosed: string
   stateMismatch: string
+  // files
+  /** Try-it: the body as a form, and the toggle back to it. */
+  formView: string
+  /** Try-it: the form body as JSON text. */
+  rawJson: string
+  /** Try-it: the file of a binary body. */
+  file: string
+  cancel: string
+  cancelled: string
+  /** Response view: formatted JSON and the body as received. */
+  pretty: string
+  raw: string
+  download: string
+  downloadSpec: string
+  copyOperationLink: string
+  operationLinkCopied: string
 }
 
 export const en: OpenApiLabels = {
@@ -175,6 +191,18 @@ export const en: OpenApiLabels = {
   popupBlocked: 'The browser blocked the sign-in window. Allow pop-ups for this page and try again.',
   popupClosed: 'The sign-in window was closed before it finished.',
   stateMismatch: 'The sign-in response does not match the request. Try again.',
+  // files
+  formView: 'Form',
+  rawJson: 'Raw JSON',
+  file: 'File',
+  cancel: 'Cancel',
+  cancelled: 'Cancelled',
+  pretty: 'Pretty',
+  raw: 'Raw',
+  download: 'Download',
+  downloadSpec: 'Download spec',
+  copyOperationLink: 'Copy link to this operation',
+  operationLinkCopied: 'Link copied',
 }
 
 export const ru: OpenApiLabels = {
@@ -262,6 +290,18 @@ export const ru: OpenApiLabels = {
   popupBlocked: 'Браузер заблокировал окно входа. Разрешите всплывающие окна для этой страницы и повторите.',
   popupClosed: 'Окно входа закрыли до завершения.',
   stateMismatch: 'Ответ входа не соответствует запросу. Повторите.',
+  // files
+  formView: 'Форма',
+  rawJson: 'Как JSON',
+  file: 'Файл',
+  cancel: 'Отменить',
+  cancelled: 'Запрос отменён',
+  pretty: 'Форматировать',
+  raw: 'Как есть',
+  download: 'Скачать',
+  downloadSpec: 'Скачать спецификацию',
+  copyOperationLink: 'Скопировать ссылку на операцию',
+  operationLinkCopied: 'Ссылка скопирована',
 }
 
 export const LOCALES: Record<string, OpenApiLabels> = { en, ru }

@@ -1,0 +1,11 @@
+import requests
+
+response = requests.put(
+    'https://api.example.com/pets/42/photo',
+    headers={
+        'Content-Type': 'image/png',
+    },
+    data=open('rex.png', 'rb'),
+)
+
+print(response.text)

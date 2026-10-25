@@ -43,6 +43,10 @@ export function javaHttpClient(request: HttpRequest): string {
       publisher =
         'HttpRequest.BodyPublishers.ofString(' + javaText(body.text, I2 + '        ') + ')'
       break
+    case 'file':
+      imports.add('java.nio.file.Path')
+      publisher = 'HttpRequest.BodyPublishers.ofFile(Path.of(' + javaString(body.filename) + '))'
+      break
     case 'urlencoded':
       publisher = 'HttpRequest.BodyPublishers.ofString(' + javaString(encodeForm(body.fields)) + ')'
       break
@@ -171,6 +175,20 @@ export function kotlinOkHttp(request: HttpRequest): string {
       )
       break
     }
+    case 'file':
+      imports
+        .add('java.io.File')
+        .add('okhttp3.MediaType.Companion.toMediaType')
+        .add('okhttp3.RequestBody.Companion.asRequestBody')
+      pre.push(
+        I +
+          'val body = File(' +
+          kotlinString(body.filename) +
+          ').asRequestBody(' +
+          kotlinString(req.contentType ?? body.mediaType) +
+          '.toMediaType())',
+      )
+      break
     case 'urlencoded':
       imports.add('okhttp3.FormBody')
       pre.push(I + 'val body = FormBody.Builder()')

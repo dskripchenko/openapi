@@ -6,16 +6,22 @@
 import { computed, reactive, toRefs } from 'vue'
 import type { Example, HttpRequest, MaybeRef, MediaType, ParameterIn, RequestBody, Schema, SecurityScheme } from '../core/types'
 import type { OperationEntry } from '../model'
-import { buildRequest, serverUrl, joinUrl } from '../request'
+import { buildRequest, isMultipart, serverUrl, joinUrl } from '../request'
 import type { AppliedSecurity } from '../request/security'
 import { sample } from '../schema'
 import { stringifyJson } from '../json'
 import type { ReferenceContext } from './context'
+import { BODY_FILE, formFields, isBinaryBody, placeholderName } from './form'
 
 export interface OperationDraft {
   values: Record<ParameterIn, Record<string, string>>
   mediaType: string
   bodyText: string
+  /**
+   * Files chosen in try-it, by form field name (`$body` for a binary body).
+   * Kept apart from the values and the body text: files never go into a link.
+   */
+  files: Record<string, File[]>
   /** The body text could not be parsed as JSON (it is sent as typed). */
   readonly bodyInvalid: boolean
   /** The request "Send" makes and the samples print (a computed, unwrapped by reactive). */
@@ -86,8 +92,18 @@ export function defaultExample(media: ExampleHolder | undefined, ctx: ReferenceC
 }
 
 /** A body value as text for its media type: strings as they are, else JSON. */
-function bodyText(value: unknown, mediaType: string): string {
+function bodyText(
+  value: unknown,
+  mediaType: string,
+  media: ExampleHolder | undefined,
+  resolve: (ref: string) => never,
+): string {
   if (value === undefined) return ''
+  // File fields of a multipart body are chosen in the form, not typed.
+  if (isMultipart(mediaType) && typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    const files = new Set(formFields(mediaType, media as MediaType | undefined, resolve)?.filter((f) => f.file).map((f) => f.name))
+    if (files.size) value = Object.fromEntries(Object.entries(value).filter(([k]) => !files.has(k)))
+  }
   if (typeof value === 'string') return value
   return /json/i.test(mediaType) || !/xml|text/i.test(mediaType) ? stringifyJson(value, 2) : String(value)
 }
@@ -104,12 +120,12 @@ export function exampleText(
   mode: 'request' | 'response' = 'request',
 ): string {
   if (!media) return ''
+  const resolve = (ref: string) => ctx.spec.value.resolver.get(ref) as never
   if (name === GENERATED_EXAMPLE) {
     if (!media.schema) return ''
-    const resolve = (ref: string) => ctx.spec.value.resolver.get(ref) as never
-    return bodyText(sample(media.schema, { resolve, mode }), mediaType)
+    return bodyText(sample(media.schema, { resolve, mode }), mediaType, media, resolve)
   }
-  return bodyText(namedExamples(media, ctx).find((e) => e.name === name)?.value, mediaType)
+  return bodyText(namedExamples(media, ctx).find((e) => e.name === name)?.value, mediaType, media, resolve)
 }
 
 /** The sample body text for a media type: the first example or a generated one. */
@@ -118,7 +134,7 @@ export function sampleBody(media: MediaType | undefined, ctx: ReferenceContext, 
 }
 
 /** Parses a typed parameter value: JSON for arrays/objects, else the string. */
-function parseValue(text: string, schemaType: string | string[] | undefined): unknown {
+export function parseValue(text: string, schemaType: string | string[] | undefined): unknown {
   const type = Array.isArray(schemaType) ? schemaType.find((t) => t !== 'null') : schemaType
   if (text === '') return undefined
   if (type === 'array' || type === 'object') {
@@ -187,6 +203,7 @@ export function createDraft(entry: OperationEntry, ctx: ReferenceContext): Opera
     values,
     mediaType: types[0] ?? '',
     bodyText: types[0] ? sampleBody(body?.content[types[0]], ctx, types[0]) : '',
+    files: {} as Record<string, File[]>,
   })
   const draft = state
 
@@ -200,6 +217,31 @@ export function createDraft(entry: OperationEntry, ctx: ReferenceContext): Opera
       return true
     }
   })
+
+  /** A chosen file as a form value; a placeholder name when none is chosen, for the samples. */
+  const fileValue = (file: File | undefined, name: string) =>
+    file ? { filename: file.name, ...(file.type ? { contentType: file.type } : {}), data: file } : { filename: placeholderName(name) }
+
+  /** Puts the chosen files into the body: the whole body, or the file fields of a multipart form. */
+  function withFiles(value: unknown): unknown {
+    const mt = draft.mediaType
+    const media = body?.content[mt]
+    if (!mt) return value
+    if (isBinaryBody(mt, media, resolve)) return fileValue(draft.files[BODY_FILE]?.[0], BODY_FILE)
+    const fields = formFields(mt, media, resolve)?.filter((f) => f.file)
+    const isObject = value === undefined || (typeof value === 'object' && value !== null && !Array.isArray(value))
+    if (!fields?.length || !isObject) return value
+    const out: Record<string, unknown> = { ...((value ?? {}) as Record<string, unknown>) }
+    for (const f of fields) {
+      const chosen = draft.files[f.name] ?? []
+      delete out[f.name]
+      // An optional file left empty is left out; a required one shows its placeholder.
+      if (!chosen.length && !f.required) continue
+      const values = chosen.length ? chosen.map((file) => fileValue(file, f.name)) : [{ filename: placeholderName(f.name, f.accept) }]
+      out[f.name] = f.multiple ? values : values[0]
+    }
+    return Object.keys(out).length ? out : undefined
+  }
 
   const request = computed<HttpRequest>(() => {
     const parsed: Partial<Record<ParameterIn, Record<string, unknown>>> = {}
@@ -219,6 +261,7 @@ export function createDraft(entry: OperationEntry, ctx: ReferenceContext): Opera
         }
       }
     }
+    bodyValue = withFiles(bodyValue)
     return buildRequest({
       method: entry.method.toUpperCase(),
       path: entry.path,
