@@ -66,12 +66,8 @@ function parseValue(text: string, schemaType: string | string[] | undefined): un
 export function currentServer(ctx: ReferenceContext, entry?: OperationEntry): string {
   const servers = entry?.operation.servers ?? entry?.pathItem.servers ?? ctx.spec.value.document.servers ?? []
   const { server } = ctx
-  let url = ''
-  if (server.index === -1) url = server.custom
-  else {
-    const chosen = servers[server.index] ?? servers[0]
-    url = chosen ? serverUrl(chosen, server.variables) : ''
-  }
+  const chosen = server.index === -1 ? undefined : (servers[server.index] ?? servers[0])
+  let url = server.index === -1 ? server.custom : chosen ? serverUrl(chosen, server.variables) : ''
   if (url && !/^[a-z][a-z\d+.-]*:/i.test(url) && ctx.baseUrl.value !== undefined) {
     url = joinUrl(ctx.baseUrl.value, url)
   }
