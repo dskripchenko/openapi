@@ -43,7 +43,8 @@
     },
     "./vue": {
       "types": "./dist/vue.d.ts",
-      "import": "./dist/vue.mjs"
+      "import": "./dist/vue.mjs",
+      "require": "./dist/vue.cjs"
     },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"

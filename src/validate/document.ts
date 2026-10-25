@@ -355,7 +355,11 @@ function checkOperation(c: Checker, op: Obj, ptr: string): ParamInfo[] {
     op.tags.forEach((tag, i) => {
       const tp = joinPointer(ptr, 'tags', i)
       if (typeof tag !== 'string') c.add(tp, 'tag must be a string')
-      else if (!c.declaredTags.has(tag)) c.add(tp, `Tag "${tag}" is not declared in the top-level tags`, 'warning')
+      else if (!c.declaredTags.has(tag)) {
+        // Allowed by the spec, so one warning per tag, at its first use — not one per operation.
+        c.add(tp, `Tag "${tag}" is not declared in the top-level tags`, 'warning')
+        c.declaredTags.add(tag)
+      }
     })
   }
 

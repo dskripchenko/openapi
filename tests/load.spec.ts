@@ -32,3 +32,13 @@ describe('loadSpec', () => {
     expect(loadSpec({ openapi: '3.1.0', info: { title: 'T', version: '1' }, paths: {} }).operations).toEqual([])
   })
 })
+
+describe('validateDocument on undeclared tags', () => {
+  it('warns once per tag, at its first use', () => {
+    const op = { tags: ['pets'], responses: { '200': { description: 'ok' } } }
+    const doc = { openapi: '3.1.0', info: { title: 'T', version: '1' }, paths: { '/a': { get: op }, '/b': { get: op, post: op } } }
+    const warnings = validateDocument(doc).filter((i) => i.message.includes('not declared'))
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]!.pointer).toBe('/paths/~1a/get/tags/0')
+  })
+})

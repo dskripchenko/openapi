@@ -27,6 +27,10 @@ export default defineConfig({
     },
     rollupOptions: {
       external: ['vue', /^@dskripchenko\/ui($|\/)/],
+      // The core shared by both entries.
+      output: {
+        manualChunks: (id) => (id.includes('/src/') && !id.includes('/src/vue/') ? 'core' : undefined),
+      },
     },
     minify: false,
     sourcemap: true,
