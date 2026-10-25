@@ -15,17 +15,16 @@
  * and `#{anchor}?f={payload}` opens an operation with its try-it form filled
  * (see `../links/prefill` for the format); nothing is sent by itself.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, shallowRef, watch } from 'vue'
-import { UidAlert, UidButton, UidDrawer, UidInput, UidLocaleProvider, UidMarkdown, UidSelect, UidSpinner, en as uidEn, ru as uidRu } from '@dskripchenko/ui'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { UidAlert, UidButton, UidDrawer, UidInput, UidLocaleProvider, UidMarkdown, UidSelect, UidSpinner } from '@dskripchenko/ui'
 import { Download, KeyRound, Menu, Settings2 } from '@dskripchenko/ui/icons'
 import { decodePrefill, pickSpec, resolveSection, splitLink } from '../links'
-import { loadSpec } from '../load'
 import type { LoadedSpec } from '../model'
 import type { ResolverOptions } from '../model'
-import { sendRequest, type SendFn } from '../request'
+import type { SendFn } from '../request'
 import { SNIPPET_TARGETS, type SnippetTarget } from '../snippets'
-import { referenceKey, type ReferenceContext, type SpecInput, type SpecSource } from './context'
-import { LOCALES, en, type OpenApiLabels } from './labels'
+import type { SpecInput, SpecSource } from './context'
+import type { OpenApiLabels } from './labels'
 import { downloadSpec } from './download'
 import { currentServer } from './draft'
 import OaAuth from './OaAuth.vue'
@@ -34,8 +33,7 @@ import OaServers from './OaServers.vue'
 import OaOperation from './OaOperation.vue'
 import OaSchema from './OaSchema.vue'
 import { buildSearchIndex, fold, type SearchHit, type SearchIndex } from './search'
-import { relayOAuthCallback } from './oauthPopup'
-import { credentialsKey, persistMode, usePersistedCredentials } from './persist'
+import { useReferenceContext } from './useReferenceContext'
 
 const props = withDefaults(
   defineProps<{
@@ -111,7 +109,7 @@ const SINGLE = 'spec'
 const sources = computed<SpecSource[]>(() => props.specs ?? (props.spec !== undefined ? [{ id: SINGLE, spec: props.spec }] : []))
 const multi = computed(() => !!props.specs && props.specs.length > 1)
 
-const activeId = ref<string>(props.active ?? sources.value[0]?.id ?? SINGLE)
+const initialId = props.active ?? sources.value[0]?.id ?? SINGLE
 watch(
   () => props.active,
   (id) => {
@@ -119,125 +117,21 @@ watch(
   },
 )
 
-/** Loaded specs by id, kept while their source stays the same. */
-const cache = new Map<string, { input: SpecInput; spec: LoadedSpec }>()
-const loaded = shallowRef<LoadedSpec | null>(null)
-const loadError = ref<string | null>(null)
-const loading = ref(false)
-let ticket = 0
-
-async function load(id: string): Promise<void> {
-  const source = sources.value.find((s) => s.id === id)
-  const my = ++ticket
-  if (!source) {
-    loaded.value = null
-    return
-  }
-  const hit = cache.get(id)
-  // A loader is matched by the spec's id: an inline `specs` array makes new
-  // functions on every render, and they must not fetch again.
-  const same = hit && (hit.input === source.spec || (typeof hit.input === 'function' && typeof source.spec === 'function'))
-  if (hit && same) {
-    loaded.value = hit.spec
-    loadError.value = null
-    return
-  }
-  try {
-    let input: string | object = source.spec as string | object
-    if (typeof source.spec === 'function') {
-      loading.value = true
-      input = await (source.spec as () => Promise<string | object>)()
-      if (my !== ticket) return
-    }
-    const spec = loadSpec(input, props.external ? { external: props.external } : {})
-    cache.set(id, { input: source.spec, spec })
-    loaded.value = spec
-    loadError.value = null
-    emit('loaded', spec, id)
-  } catch (error) {
-    if (my !== ticket) return
-    loaded.value = null
-    loadError.value = error instanceof Error ? error.message : String(error)
-    emit('error', error instanceof Error ? error : new Error(String(error)), id)
-  } finally {
-    if (my === ticket) loading.value = false
-  }
-}
-
-/** Credentials typed per spec, kept across switches. */
-const savedCredentials = new Map<string, Record<string, unknown>>()
-const savedExpiry = new Map<string, Record<string, number>>()
-
-async function open(id: string): Promise<void> {
-  if (!sources.value.some((s) => s.id === id)) return
-  savedCredentials.set(activeId.value, { ...ctx.credentials })
-  for (const k of Object.keys(ctx.credentials)) delete ctx.credentials[k]
-  Object.assign(ctx.credentials, savedCredentials.get(id) ?? {})
-  savedExpiry.set(activeId.value, { ...ctx.tokenExpiry })
-  for (const k of Object.keys(ctx.tokenExpiry)) delete ctx.tokenExpiry[k]
-  Object.assign(ctx.tokenExpiry, savedExpiry.get(id) ?? {})
-  activeId.value = id
-  query.value = ''
-  emit('update:active', id)
-  await load(id)
-}
-
-watch(
-  () => [sources.value, props.external],
-  () => {
-    if (props.external) cache.clear()
-    if (!sources.value.some((s) => s.id === activeId.value)) activeId.value = sources.value[0]?.id ?? SINGLE
-    void load(activeId.value)
+const reference = useReferenceContext(props, {
+  sources: () => sources.value,
+  initial: initialId,
+  anchorPrefix: (id) => (multi.value ? `${id}/` : ''),
+  onSwitch: (id) => {
+    query.value = ''
+    emit('update:active', id)
   },
-)
+  onLoaded: (spec, id) => emit('loaded', spec, id),
+  onError: (error, id) => emit('error', error, id),
+})
+const { ctx, cache, loaded, loadError, loading, labels, kitLocale, load, open, activeId } = reference
 
 const switcher = computed(() =>
   sources.value.map((s) => ({ value: s.id, label: s.name ?? cache.get(s.id)?.spec.document.info.title ?? s.id })),
-)
-
-const labels = computed<OpenApiLabels>(() => ({ ...(LOCALES[props.locale ?? 'en'] ?? en), ...props.labels }))
-const kitLocale = computed(() => (props.locale === 'ru' ? uidRu : props.locale === 'en' ? uidEn : undefined))
-
-const defaultSend: SendFn = (req, options) => sendRequest(req, options?.signal ? { signal: options.signal } : {})
-const ctx: ReferenceContext = {
-  spec: computed(() => loaded.value!) as ReferenceContext['spec'],
-  labels,
-  server: reactive({ index: 0, custom: '', variables: {} }),
-  credentials: reactive({}),
-  snippetTarget: ref(props.defaultSnippet),
-  snippetTargets: computed(() => props.snippetTargets),
-  send: computed(() => props.send ?? defaultSend),
-  tryIt: computed(() => props.tryIt),
-  baseUrl: computed(() => props.baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : undefined)),
-  anchorPrefix: computed(() => (multi.value ? `${activeId.value}/` : '')),
-  prefill: shallowRef(null),
-  tokenExpiry: reactive({}),
-  oauthRedirectUrl: computed(() => props.oauthRedirectUrl),
-  persistence: computed(() => persistMode(props.persistCredentials)),
-  forgetCredentials: () => persisted.forget(),
-}
-provide(referenceKey, ctx)
-// The key exists once the open spec has loaded (not while a switch is still loading it).
-const persisted = usePersistedCredentials(
-  ctx,
-  () => ctx.persistence.value,
-  () => {
-    const spec = loaded.value
-    return spec && cache.get(activeId.value)?.spec === spec ? credentialsKey(activeId.value, spec.document.info.title) : null
-  },
-)
-// Loaded in a sign-in popup and redirected back: hand the result to the opener.
-onMounted(relayOAuthCallback)
-void load(activeId.value)
-
-watch(
-  loaded,
-  (spec) => {
-    const first = spec?.document.servers?.[0]
-    ctx.server.index = 0
-    ctx.server.variables = Object.fromEntries(Object.entries(first?.variables ?? {}).map(([k, v]) => [k, v.default]))
-  },
-  { immediate: true },
 )
 
 /* ------------------------------ navigation ------------------------------ */
