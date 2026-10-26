@@ -95,6 +95,7 @@
     "eslint": "^10.13.0",
     "eslint-plugin-vue": "^10.11.1",
     "jsdom": "^29.1.1",
+    "lucide-vue-next": "0.460.0",
     "playwright": "1.64.1",
     "prettier": "^3.9.10",
     "typescript": "^6.0.3",

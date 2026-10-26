@@ -12,7 +12,7 @@
  */
 import { computed, ref } from 'vue'
 import { UidAlert, UidButton, UidDrawer, UidLocaleProvider, UidSpinner } from '@dskripchenko/ui'
-import { ExternalLink, KeyRound, Printer, Settings2 } from '@dskripchenko/ui/icons'
+import { ExternalLink, KeyRound, Printer, Settings2 } from 'lucide-vue-next'
 import type { LoadedSpec, ResolverOptions } from '../model'
 import type { SendFn } from '../request'
 import { SNIPPET_TARGETS, type SnippetTarget } from '../snippets'

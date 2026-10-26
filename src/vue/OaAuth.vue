@@ -170,8 +170,10 @@ function fetchVia(send: SendFn): typeof fetch {
 
 function store(name: string, token: OAuthToken): void {
   ctx.credentials[name] = token.accessToken
-  now.value = Date.now()
-  if (token.expiresIn !== undefined) ctx.tokenExpiry[name] = Date.now() + token.expiresIn * 1000
+  // One clock reading: two could differ by a millisecond and round "60 min" up to 61.
+  const at = Date.now()
+  now.value = at
+  if (token.expiresIn !== undefined) ctx.tokenExpiry[name] = at + token.expiresIn * 1000
   else delete ctx.tokenExpiry[name]
 }
 const messageOf = (e: unknown): string => {
