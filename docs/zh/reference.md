@@ -504,10 +504,14 @@ OpenID Connect 访问令牌及其有效期（过期的不会恢复），以及 b
 所选语言和 cURL 的请求示例，以及操作的地址——不含任何交互元素。凭据永远不会被打印：
 安全部分只列出方案名称，示例也不带凭据生成。它渲染在一个带独立样式表的隐藏框架中，
 因此宿主页面不会被改变样式；其标题——`{API} — {operation}`——就是浏览器建议的 PDF 文件名。
+在 iOS 和 iPadOS 上，WebKit 打印的是整个页面而不是框架，因此改为直接从页面本身打印：
+视图位于 shadow root 中（宿主样式不会渗入），对话框打开期间，仅用于打印的样式表会隐藏页面其余部分。
+即使打印对话框选择“无”或“最小”边距而丢弃样式表自身的边距，页边距依然保持：
+每一页上文字与纸张边缘约保持 8 mm。
 对话框本身无法跳过：浏览器不允许页面在没有它的情况下保存 PDF。
 
-`@dskripchenko/openapi/vue` 中的 `printOperation(entry, ctx, { url? })` 和
-`printDocument(ctx, { base? })` 在代码中完成同样的事；它们接收参考页的上下文
+`@dskripchenko/openapi/vue` 中的 `printOperation(entry, ctx, { url?, mode? })` 和
+`printDocument(ctx, { base?, mode? })` 在代码中完成同样的事；它们接收参考页的上下文
 （见 [上下文](#上下文)）。`url` 是随操作一起打印的地址，`base` 是操作锚点所追加到的页面。
 
 ## 请求示例

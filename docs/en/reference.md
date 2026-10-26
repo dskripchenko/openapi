@@ -593,10 +593,15 @@ interactive parts. Credentials are never printed: the security section names
 the schemes, and the sample is built without them. It is rendered into a
 hidden frame with its own stylesheet, so the host page is not restyled, and
 its title — `{API} — {operation}` — is what browsers offer as the PDF's file
-name. The dialog itself cannot be skipped: a browser does not let a page
+name. On iOS and iPadOS, where WebKit prints the whole page rather than a
+frame, it is printed from the page itself instead: the view sits in a shadow
+root (the host's styles stay out) and a print-only stylesheet hides the rest
+of the page while the dialog is open. The margins hold up when a print
+dialog's "None" or "Minimum" margins drop the stylesheet's own: the text keeps
+about 8 mm from the paper's edge on every sheet. The dialog itself cannot be skipped: a browser does not let a page
 save a PDF without it.
 
-`printOperation(entry, ctx, { url? })` and `printDocument(ctx, { base? })`
+`printOperation(entry, ctx, { url?, mode? })` and `printDocument(ctx, { base?, mode? })`
 from `@dskripchenko/openapi/vue` do the same from code; they take the
 reference context (see [the context](#the-context)). `url` is the address
 printed with the operation, `base` the page the operation anchors are

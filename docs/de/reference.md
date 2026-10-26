@@ -632,10 +632,17 @@ gedruckt: Der Security-Abschnitt nennt die Schemas, und das Beispiel wird
 ohne sie gebaut. Sie wird in einen versteckten Frame mit eigenem Stylesheet
 gerendert, sodass die Hostseite nicht umgestaltet wird, und ihr Titel —
 `{API} — {operation}` — ist das, was Browser als Dateinamen der PDF anbieten.
+Unter iOS und iPadOS, wo WebKit statt eines Frames die ganze Seite druckt,
+wird stattdessen von der Seite selbst gedruckt: Die Ansicht liegt in einem
+Shadow Root (die Stile des Hosts bleiben draußen), und ein reines
+Druck-Stylesheet blendet den Rest der Seite aus, solange der Dialog offen ist.
+Die Ränder halten auch, wenn ein Druckdialog mit den Rändern „Keine“ oder
+„Minimal“ die eigenen Ränder des Stylesheets verwirft: Der Text bleibt auf
+jedem Blatt etwa 8 mm vom Papierrand entfernt.
 Den Dialog selbst kann man nicht überspringen: Ein Browser lässt eine Seite
 keine PDF ohne ihn speichern.
 
-`printOperation(entry, ctx, { url? })` und `printDocument(ctx, { base? })`
+`printOperation(entry, ctx, { url?, mode? })` und `printDocument(ctx, { base?, mode? })`
 aus `@dskripchenko/openapi/vue` tun dasselbe aus Code; sie nehmen den
 Kontext der Referenz entgegen (siehe [den Kontext](#der-kontext)). `url` ist
 die mit der Operation gedruckte Adresse, `base` die Seite, an die die Anker
