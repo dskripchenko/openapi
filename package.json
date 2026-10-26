@@ -1,6 +1,6 @@
 {
   "name": "@dskripchenko/openapi",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "OpenAPI 2.0/3.0/3.1 in YAML or JSON with zero runtime dependencies — parse, validate, render with try-it and code samples, and edit visually (Vue components on @dskripchenko/ui)",
   "keywords": [
     "openapi",
@@ -95,6 +95,7 @@
     "eslint": "^10.13.0",
     "eslint-plugin-vue": "^10.11.1",
     "jsdom": "^29.1.1",
+    "lucide-vue-next": "0.460.0",
     "playwright": "1.64.1",
     "prettier": "^3.9.10",
     "typescript": "^6.0.3",

@@ -5,7 +5,7 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { UidButton, UidMarkdown } from '@dskripchenko/ui'
-import { Check, Link, Printer } from '@dskripchenko/ui/icons'
+import { Check, Link, Printer } from 'lucide-vue-next'
 import type { Header, MediaType, Parameter, ParameterIn, RequestBody, Response } from '../core/types'
 import type { OperationEntry } from '../model'
 import { describe as describeSchema } from '../schema'

@@ -5,7 +5,7 @@
 // is checked against the current sources; OA_CHECK_SKIP_BUILD=1 reuses the
 // existing bundle.
 import { Buffer } from 'node:buffer'
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { deflateRawSync } from 'node:zlib'
 import { resolve } from 'node:path'
@@ -899,13 +899,61 @@ try {
   check('print: a sample and the operation URL', printed.text.includes('curl') && printed.text.includes('/standalone.html#kitchen/operation/createOrder'))
   check('print: the host page is untouched', (await em.locator('.oa-embed__card').first().isVisible()) && (await em.evaluate(() => document.querySelectorAll('iframe[data-oa-print]').length)) === 1)
   const pdfPage = await browser.newPage()
+  writeFileSync(`${out}/operation.html`, printed.html)
   await pdfPage.setContent(printed.html)
   await pdfPage.emulateMedia({ media: 'print' })
   const pdf = await pdfPage.pdf({ path: `${out}/operation.pdf`, format: 'A4', preferCSSPageSize: true })
   check('print: a PDF comes out', pdf.length > 1000, `${pdf.length} bytes`)
+  const pad = await pdfPage.evaluate(() => {
+    const cs = window.getComputedStyle(document.body)
+    return { left: parseFloat(cs.paddingLeft), top: parseFloat(cs.paddingTop), clone: cs.boxDecorationBreak || cs.webkitBoxDecorationBreak }
+  })
+  // 8 mm ≈ 30 px: the text stays off the edge even when the dialog drops @page.
+  check('print: a margin of its own, on every sheet', pad.left >= 30 && pad.top >= 22 && pad.clone === 'clone', JSON.stringify(pad))
   await pdfPage.close()
   check('embed: no page errors', emErrors.length === 0, emErrors.join('; '))
   await em.close()
+
+  // iOS/iPadOS: WebKit there prints the top page, not a frame, so the view is
+  // printed on the page itself, the rest hidden on paper. Chromium as an iPhone
+  // takes that path; its PDF must be the operation alone, as from the frame.
+  const pageCount = (buf) => (buf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length
+  const iphone = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', isMobile: true, hasTouch: true })
+  const ip = await iphone.newPage()
+  await ip.addInitScript(() => (window.print = () => (window.__printed = (window.__printed ?? 0) + 1)))
+  const ipErrors = []
+  ip.on('pageerror', (e) => ipErrors.push(String(e)))
+  await ip.route('https://auth.example.com/**', (route) => route.fulfill({ contentType: 'application/json', body: '{}' }))
+  await ip.goto(`${base}embed.html`)
+  await ip.waitForFunction(() => document.querySelectorAll('.oa-embed__card').length === 3)
+  await ip.locator('#create .oa-embed__pdf').click()
+  await ip.waitForFunction(() => window.__printed > 0)
+  const onPage = await ip.evaluate(() => {
+    const host = document.querySelector('[data-oa-print-page]:not(style)')
+    return {
+      frames: document.querySelectorAll('iframe[data-oa-print]').length,
+      ops: host?.shadowRoot?.querySelectorAll('.oap-op').length ?? 0,
+      controls: host?.shadowRoot?.querySelectorAll('button, input, .oa-tryit').length ?? -1,
+      shown: host ? window.getComputedStyle(host).display : 'missing',
+      title: document.title,
+    }
+  })
+  check('print (iOS): on the page, not in a frame', onPage.frames === 0 && onPage.ops === 1 && onPage.controls === 0, JSON.stringify(onPage))
+  check('print (iOS): the container is hidden on screen, the title names the operation', onPage.shown === 'none' && onPage.title === 'Kitchen Sink API — Create an order', JSON.stringify(onPage))
+  await ip.emulateMedia({ media: 'print' })
+  const onPaper = await ip.evaluate(() => ({
+    host: window.getComputedStyle(document.querySelector('[data-oa-print-page]:not(style)')).display,
+    others: [...document.body.children].filter((el) => !el.hasAttribute('data-oa-print-page') && window.getComputedStyle(el).display !== 'none').map((el) => el.tagName + '.' + el.className),
+  }))
+  check('print (iOS): on paper only the operation shows', onPaper.host === 'block' && onPaper.others.length === 0, JSON.stringify(onPaper))
+  const iosPdf = await ip.pdf({ path: `${out}/operation-ios.pdf`, format: 'A4', preferCSSPageSize: true })
+  check('print (iOS): as many sheets as the operation from the frame', pageCount(iosPdf) <= pageCount(pdf) + 1 && pageCount(iosPdf) >= 1, `${pageCount(iosPdf)} vs ${pageCount(pdf)} pages`)
+  await ip.emulateMedia({ media: 'screen' })
+  await ip.evaluate(() => window.dispatchEvent(new window.Event('afterprint')))
+  const afterPrint = await ip.evaluate(() => ({ left: document.querySelectorAll('[data-oa-print-page]').length, title: document.title }))
+  check('print (iOS): afterprint removes the container and its stylesheet, restores the title', afterPrint.left === 0 && afterPrint.title !== 'Kitchen Sink API — Create an order', JSON.stringify(afterPrint))
+  check('print (iOS): no page errors', ipErrors.length === 0, ipErrors.join('; '))
+  await iphone.close()
 
   // The Vue component on its own; an unknown operation is reported in place.
   const ev = await browser.newPage({ viewport: { width: 1280, height: 1200 } })

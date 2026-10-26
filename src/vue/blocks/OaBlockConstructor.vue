@@ -7,7 +7,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { UidButton, UidCheckbox, UidFormField, UidInput, UidSelect, UidTextarea } from '@dskripchenko/ui'
-import { Braces, Plus, X } from '@dskripchenko/ui/icons'
+import { Braces, Plus, X } from 'lucide-vue-next'
 import {
   BLOCK_METHODS,
   BODY_TYPES,

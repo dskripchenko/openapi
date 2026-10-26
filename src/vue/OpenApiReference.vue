@@ -17,7 +17,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { UidAlert, UidButton, UidDrawer, UidInput, UidLocaleProvider, UidMarkdown, UidSelect, UidSpinner } from '@dskripchenko/ui'
-import { Download, KeyRound, Menu, Printer, Settings2 } from '@dskripchenko/ui/icons'
+import { Download, KeyRound, Menu, Printer, Settings2 } from 'lucide-vue-next'
 import { decodePrefill, pickSpec, resolveSection, splitLink } from '../links'
 import type { LoadedSpec } from '../model'
 import type { ResolverOptions } from '../model'

@@ -1,5 +1,14 @@
 # @dskripchenko/openapi
 
+## 1.1.2
+
+### Patch Changes
+
+- **PDF on iPhone and iPad: the operation, not the whole page.** WebKit on iOS and iPadOS ignores a frame's `print()` and prints the top page — the reference's header, a blank sheet and the whole interface over dozens of sheets. There the print view is now printed from the page itself: it sits in a shadow root (the host's styles stay out) and a print-only stylesheet hides the rest of the page while the dialog is open; the container and the stylesheet go away after printing. Desktop browsers keep the hidden frame. `printOperation` / `printDocument` take `mode: 'auto' | 'frame' | 'page'` (`auto` by default) and resolve with the frame or the page container (`HTMLElement`).
+- **The icons are bundled.** The operation, reference and block components import their ~13 lucide icons directly and the build bundles them (the ISC notice is kept, ~9 KB unminified), instead of importing `@dskripchenko/ui/icons` at runtime: the package loads from an ESM CDN without `lucide-vue-next` in the import map.
+- A token's expiry read "61 min" for a 60-minute token now and then: the time and the expiry were two clock readings.
+- **Margins that survive the print dialog.** With "None" or "Minimum" margins (common in print dialogs on Windows) the dialog drops `@page`, and the text ran to the paper's edge. The margins are now split between `@page` and the print view's own padding, repeated on every sheet: about 14 mm at the sides as before, and 8 mm when the dialog drops `@page` (was 0).
+
 ## 1.1.1
 
 ### Patch Changes
