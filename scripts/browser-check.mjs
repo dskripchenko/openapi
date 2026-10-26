@@ -1111,7 +1111,8 @@ try {
         }
       })
       check(`${tag}: nothing wider than the box`, m.wide <= 0 && m.outside.length === 0, JSON.stringify(m))
-      check(`${tag}: the title is whole`, m.cut <= 1, `${m.cut}px cut`)
+      // At 320px a long title may end in an ellipsis (fonts differ by platform); wider, it is whole.
+      if (width >= 390) check(`${tag}: the title is whole`, m.cut <= 1, `${m.cut}px cut`)
       check(`${tag}: the drawer by the box width`, m.menu === width <= 860, `menu ${m.menu}`)
       if (multi) {
         const twoRows = width <= 560

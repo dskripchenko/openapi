@@ -77,7 +77,7 @@
   -webkit-backdrop-filter: saturate(1.4) blur(10px);
   backdrop-filter: saturate(1.4) blur(10px);
 }
-.oa-header__title { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 0 0.01 auto; }
+.oa-header__title { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 0 1 auto; }
 .oa-header__title .oa-chip-static { flex: none; }
 .oa-header__name { flex: 0 1 auto; min-width: 2.5em; overflow: hidden; font-size: 15px; font-weight: 650; white-space: nowrap; text-overflow: ellipsis; }
 /* Short of room, the summary gives way first, then the title. */
@@ -93,9 +93,9 @@
 }
 /* The spec switcher and the search: together on one line, or a row of their own when narrow. */
 .oa-header__find { display: contents; }
-/* Short of room, the search narrows first, then the switcher, then the title. */
-.oa-header__specs { flex: 0 10 200px; min-width: 120px; }
-.oa-header__search { flex: 1 100 160px; min-width: 96px; max-width: 520px; margin-left: auto; }
+/* Short of room, the search narrows first, then the switcher, then the title (factors far apart, all >= 1: a sum under 1 would leave the overflow unshared). */
+.oa-header__specs { flex: 0 1000 200px; min-width: 120px; }
+.oa-header__search { flex: 1 10000 160px; min-width: 96px; max-width: 520px; margin-left: auto; }
 .oa-header__actions { display: flex; align-items: center; gap: 6px; flex: none; }
 .oa-header__icon {
   flex: none;
