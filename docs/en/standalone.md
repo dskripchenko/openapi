@@ -123,7 +123,10 @@ contract:
 
 The endpoint is yours to protect: allow only the hosts you mean to, and
 require the same sign-in as the rest of your back office, or it is an open
-relay. The proxy transport is also exported as `DskOpenApi.proxySend(url)`.
+relay. The proxy transport is also exported as `DskOpenApi.proxySend(url)`,
+and as `proxySend` from `@dskripchenko/openapi` and
+`@dskripchenko/openapi/vue` for an app with a build step (see
+[sending through your server](reference.md#sending-through-your-server)).
 
 ## Migrating from Scalar
 

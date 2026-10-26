@@ -21,7 +21,7 @@ import { isPageTheme, resolveLocale, type PageTheme } from '../vue/page'
 import { renderBlocks, type RenderBlocksOptions } from './blocks'
 import { autoMount, autoMountOnLoad } from './embed'
 import { toSpecSources, type StandaloneOptions } from './options'
-import { proxySend } from './proxy'
+import { proxySend } from '../request/proxy'
 
 export type { StandaloneOptions, StandaloneSource } from './options'
 export type { OperationEmbed, OperationEmbedOptions } from './embed'
@@ -29,7 +29,7 @@ export type { RenderBlocksOptions, RenderedBlock } from './blocks'
 export { autoMount, mountOperation } from './embed'
 export { renderBlocks } from './blocks'
 export { mountOpenApiBlock } from '../vue/blocks/mount'
-export { proxySend } from './proxy'
+export { proxySend } from '../request/proxy'
 
 export interface ApiReference {
   app: App

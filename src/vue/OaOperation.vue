@@ -18,6 +18,7 @@ import OaTryIt from './OaTryIt.vue'
 import OaTypes from './OaTypes.vue'
 import { safeHref } from './safe'
 import { applyPrefill } from './share'
+import { isLargeSpec } from './lazy'
 import { printOperation } from './print'
 
 const props = withDefaults(
@@ -51,7 +52,10 @@ watch(activeTab, (t) => t === 'types' && (typesOpened.value = true))
 
 /**
  * A large spec has hundreds of operations: each one builds its draft, samples
- * and forms only when it comes near the viewport, and keeps them after.
+ * and forms only when it comes near the viewport, and keeps them after. A
+ * small one renders whole at once — nothing is left to a scroll that may never
+ * reach it (a reference switched to while off-screen, a full-page capture, a
+ * scrolling box the viewport observer does not see into).
  */
 const root = ref<HTMLElement | null>(null)
 const draft = shallowRef<OperationDraft | null>(null)
@@ -63,7 +67,7 @@ function show(): void {
   observer = null
 }
 onMounted(() => {
-  if (props.compact) return show()
+  if (props.compact || !isLargeSpec(ctx.spec.value)) return show()
   if (typeof IntersectionObserver === 'undefined' || !root.value) return show()
   observer = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && show(), { rootMargin: '1200px 0px' })
   observer.observe(root.value)

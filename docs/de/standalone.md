@@ -132,7 +132,9 @@ Vertrag:
 Den Endpunkt müssen Sie schützen: Lassen Sie nur die gewollten Hosts zu und
 verlangen Sie dieselbe Anmeldung wie im Rest Ihres Backoffice, sonst ist er
 ein offenes Relay. Der Proxy-Transport wird auch als
-`DskOpenApi.proxySend(url)` exportiert.
+`DskOpenApi.proxySend(url)` exportiert und für eine App mit Build-Schritt als
+`proxySend` aus `@dskripchenko/openapi` und `@dskripchenko/openapi/vue` (siehe
+[Senden über Ihren Server](reference.md#senden-über-ihren-server)).
 
 ## Umstieg von Scalar
 

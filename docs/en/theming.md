@@ -30,6 +30,7 @@ A few things of the package's own are CSS custom properties.
 | Variable | Default | Used for |
 |---|---|---|
 | `--oa-sticky-top` | `0px` | The offset of everything sticky — the reference's header, navigation and side tabs, the editor's tree — and of the anchors' scroll position: set it to the height of the host page's own fixed bar. |
+| `--oa-viewport-h` | `100vh` | The height the reference's sticky navigation fills: set it to the height of a box the reference scrolls inside. |
 | `--oa-source-height` | `560px` | The height of the editor's source view. |
 | `--oa-header-h` | `56px` | The height of the reference's header; the navigation, side tabs and anchors stick below it. Declared on `.oa-reference`: set it there. |
 | `--oa-page-width` | `1440px` | [`OpenApiPage`](standalone.md#openapipage): the maximum width of the content. |

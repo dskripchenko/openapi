@@ -15,7 +15,7 @@
 import { resolveLocale, type PageTheme } from '../vue/page'
 import { mountOpenApiBlock, type OpenApiBlockHandle, type OpenApiBlockOptions } from '../vue/blocks/mount'
 import { applyTheme, lightFallback } from './embed'
-import { proxySend } from './proxy'
+import { proxySend } from '../request/proxy'
 
 export const BLOCK_SELECTOR = ['openapi', 'openapi-yaml', 'openapi-json'].map((l) => `pre > code.language-${l}`).join(', ')
 

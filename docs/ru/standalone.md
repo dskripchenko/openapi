@@ -125,7 +125,9 @@ DskOpenApi.createApiReference(target, options) // → { app, unmount, setTheme, 
 Защищать эндпоинт — ваша задача: пропускайте только нужные хосты и
 требуйте тот же вход, что и в остальной административной части, иначе это
 открытый ретранслятор. Транспорт через прокси экспортируется и как
-`DskOpenApi.proxySend(url)`.
+`DskOpenApi.proxySend(url)`, а для приложения со сборкой — как `proxySend` из
+`@dskripchenko/openapi` и `@dskripchenko/openapi/vue` (см.
+[отправку через свой сервер](reference.md#отправка-через-свой-сервер)).
 
 ## Переход со Scalar
 

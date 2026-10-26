@@ -25,7 +25,7 @@ const port = Number(process.env.OA_CHECK_PORT ?? 5311)
 const server = await createServer({ configFile: resolve(root, 'playground/vite.config.ts'), server: { port, strictPort: true }, logLevel: 'warn' })
 await server.listen()
 const base = `http://localhost:${port}/`
-const browser = await chromium.launch()
+const browser = await chromium.launch({ args: ['--mute-audio'] })
 const failures = []
 const check = (name, ok, detail = '') => {
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`)
@@ -1081,6 +1081,122 @@ try {
   await sb.screenshot({ path: `${out}/blocks-standalone.png`, fullPage: true })
   check('renderBlocks: no page errors', sbErrors.length === 0, sbErrors.join('; '))
   await sb.close()
+
+  // Laid out by its own width: the reference in a narrower box on a wide window.
+  const cq = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
+  const cqErrors = []
+  cq.on('pageerror', (e) => cqErrors.push(String(e)))
+  for (const multi of [true, false]) {
+    for (const width of [320, 390, 768, 1100]) {
+      const tag = `container ${width}px${multi ? ', several specs' : ''}`
+      await cq.goto(`${base}?${multi ? 'multi=1' : 'spec=kitchen'}&box=${width}`)
+      await cq.waitForSelector('.oa-op__doc')
+      await cq.waitForTimeout(200)
+      const m = await cq.evaluate(() => {
+        const box = document.querySelector('.playground-box')
+        const edge = box.getBoundingClientRect()
+        const name = document.querySelector('.oa-header__name')
+        const header = document.querySelector('.oa-header')
+        const outside = [...header.querySelectorAll('*')]
+          .filter((n) => n.getClientRects().length && (n.getBoundingClientRect().right > edge.right + 1 || n.getBoundingClientRect().left < edge.left - 1))
+          .map((n) => n.className)
+        const rect = (s) => document.querySelector(s)?.getBoundingClientRect()
+        return {
+          wide: box.scrollWidth - box.clientWidth,
+          outside: outside.slice(0, 3),
+          cut: name.scrollWidth - name.clientWidth,
+          menu: window.getComputedStyle(document.querySelector('.oa-header__menu')).display !== 'none',
+          headerH: header.offsetHeight,
+          specsRow: rect('.oa-header__specs') ? Math.round(rect('.oa-header__specs').top - rect('.oa-header__title').top) : null,
+        }
+      })
+      check(`${tag}: nothing wider than the box`, m.wide <= 0 && m.outside.length === 0, JSON.stringify(m))
+      check(`${tag}: the title is whole`, m.cut <= 1, `${m.cut}px cut`)
+      check(`${tag}: the drawer by the box width`, m.menu === width <= 860, `menu ${m.menu}`)
+      if (multi) {
+        const twoRows = width <= 560
+        check(`${tag}: the switcher ${twoRows ? 'takes a second row' : 'shares the row'}`, twoRows ? m.specsRow > 20 && m.headerH === 96 : Math.abs(m.specsRow) < 20 && m.headerH === 56, JSON.stringify(m))
+      }
+      if (width === 390) await cq.locator('.playground-box').screenshot({ path: `${out}/container-${width}${multi ? '-multi' : ''}.png` })
+    }
+  }
+  // The drawer opens inside the box and under its header, even scrolled down.
+  await cq.goto(`${base}?spec=kitchen&box=390`)
+  await cq.waitForSelector('.oa-op__doc')
+  await cq.evaluate(() => (document.querySelector('.playground-box').scrollTop = 2400))
+  await cq.locator('.oa-header__menu').click()
+  await cq.waitForTimeout(400)
+  const drawer = await cq.evaluate(() => {
+    const box = document.querySelector('.playground-box').getBoundingClientRect()
+    const header = document.querySelector('.oa-header').getBoundingClientRect()
+    const op = document.querySelector('.oa-nav__op').getBoundingClientRect()
+    const hit = document.elementFromPoint(op.left + 20, op.top + op.height / 2)
+    return { inBox: op.left >= box.left && op.right <= box.right, under: op.top >= header.bottom - 1 && op.bottom <= box.bottom, clickable: !!hit?.closest('.oa-nav__op') }
+  })
+  check('container: the drawer opens inside the box, under the header', drawer.inBox && drawer.under && drawer.clickable, JSON.stringify(drawer))
+  await cq.locator('.oa-nav__op').nth(2).click()
+  await cq.waitForTimeout(300)
+  check('container: picking an item closes the drawer', (await cq.locator('.oa-nav.is-open').count()) === 0)
+
+  // A small spec renders whole, even opened while off-screen (the embed's lazy two-spec reference).
+  await cq.goto(`${base}?multi=1&box=1100&spacer=3000`)
+  await cq.waitForFunction(() => !!window.__reference)
+  await cq.waitForSelector('.oa-op', { state: 'attached' })
+  await cq.evaluate(() => window.scrollTo(0, 0))
+  await cq.evaluate(() => window.__reference.open('shop'))
+  await cq.waitForTimeout(500)
+  const offscreen = await cq.evaluate(() => {
+    const ops = [...document.querySelectorAll('.oa-op')]
+    return {
+      ops: ops.length,
+      filled: ops.filter((o) => o.querySelector('.oa-op__doc')).length,
+      skipped: ops.filter((o) => window.getComputedStyle(o).contentVisibility === 'auto').length,
+      large: !!document.querySelector('.oa-reference--large'),
+      top: window.scrollY,
+    }
+  })
+  check('off-screen switch: every operation of a small spec is rendered', offscreen.ops > 3 && offscreen.filled === offscreen.ops && offscreen.skipped === 0 && !offscreen.large && offscreen.top === 0, JSON.stringify(offscreen))
+  await cq.screenshot({ path: `${out}/offscreen-switch.png`, fullPage: true })
+
+  // A host's rules for bare elements do not reach the layout.
+  await cq.goto(`${base}?multi=1&box=1100`)
+  await cq.addStyleTag({ content: 'main { max-width: 300px; margin: 0 auto; padding: 0 40px; } section { margin-top: 44px; } header { padding: 30px; }' })
+  await cq.waitForSelector('.oa-op__doc')
+  const hostCss = await cq.evaluate(() => {
+    const body = document.querySelector('.oa-body')
+    const main = document.querySelector('.oa-main').getBoundingClientRect()
+    const nav = document.querySelector('.oa-nav').getBoundingClientRect()
+    const gap = parseFloat(window.getComputedStyle(body).columnGap)
+    return {
+      main: Math.round(main.width),
+      expected: Math.round(body.getBoundingClientRect().right - nav.right - gap),
+      tag: window.getComputedStyle(document.querySelector('.oa-tag')).marginTop,
+      header: document.querySelector('.oa-header').offsetHeight,
+    }
+  })
+  check('host css: main, section and header keep their layout', hostCss.main === hostCss.expected && hostCss.tag === '0px' && hostCss.header === 56, JSON.stringify(hostCss))
+
+  // A large spec still renders lazily: far cards wait and skip rendering.
+  const many = {
+    openapi: '3.1.0',
+    info: { title: 'Many', version: '1' },
+    paths: Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`/items/${i}`, { get: { operationId: `get${i}`, summary: `Item ${i}`, responses: { 200: { description: 'OK' } } } }])),
+  }
+  await cq.route((u) => u.pathname === '/generated/many.json', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(many) }))
+  await cq.goto(`${base}?url=/generated/many.json`)
+  await cq.waitForSelector('.oa-op__doc')
+  const lazy = await cq.evaluate(() => {
+    const ops = [...document.querySelectorAll('.oa-op')]
+    return {
+      ops: ops.length,
+      filled: ops.filter((o) => o.querySelector('.oa-op__doc')).length,
+      skipped: window.getComputedStyle(ops.at(-1)).contentVisibility,
+      large: !!document.querySelector('.oa-reference--large'),
+    }
+  })
+  check('large spec: far operations wait until scrolled to', lazy.large && lazy.ops === 60 && lazy.filled > 0 && lazy.filled < 60 && lazy.skipped === 'auto', JSON.stringify(lazy))
+  check('container: no page errors', cqErrors.length === 0, cqErrors.join('; '))
+  await cq.close()
 } finally {
   await browser.close()
   await server.close()

@@ -1,6 +1,6 @@
 import type { HttpRequest } from '../src/core/types'
 import { toSpecSources, urlLoader } from '../src/standalone/options'
-import { proxySend } from '../src/standalone/proxy'
+import { proxySend } from '../src/request/proxy'
 import { resolveLocale } from '../src/vue/page'
 
 const fakeFetch = (respond: (url: string, init?: RequestInit) => Response) => {

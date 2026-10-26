@@ -33,6 +33,7 @@ export {
   type BasicCredentials,
   type SecurityParts,
 } from './security'
+export { proxySend } from './proxy'
 export { sendRequest, toFetchBody, type SendFn, type SendFnOptions, type SendOptions } from './send'
 export {
   defaultStyle,
