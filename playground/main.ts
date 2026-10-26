@@ -51,11 +51,21 @@ document.body.style.background = 'var(--uid-surface-base, var(--uid-color-bg))'
 declare global {
   interface Window {
     __text: () => string
+    __reference?: { open(id: string): Promise<void>; go(anchor: string): Promise<void> } | null
   }
 }
 
 // ?url=/local/spec.json loads a spec over HTTP (files in playground/public/local are not committed).
 const url = params.get('url')
+// ?box=390 puts the reference in a box of that width (and &boxHeight=640 tall,
+// scrolling inside), as a host page would; ?spacer=3000 pushes it below the fold.
+const box = params.get('box')
+const boxStyle = box
+  ? `width: ${Number(box)}px; max-width: 100%; height: ${Number(params.get('boxHeight') ?? 640)}px; overflow: auto; border: 1px dashed var(--uid-border-default)`
+  : undefined
+const spacer = Number(params.get('spacer') ?? 0)
+const expose = (r: unknown) => (window.__reference = r as Window['__reference'])
+
 const initial = url ? await (await fetch(url)).text() : mode === 'block' ? BLOCK : (specs[name] ?? petstore)
 
 createApp({
@@ -65,6 +75,8 @@ createApp({
     const locale = params.get('locale') ?? 'en'
     return () =>
       h('div', { style: 'padding: 16px 24px; max-width: 1440px; margin: 0 auto' }, [
+        spacer ? h('div', { class: 'playground-spacer', style: `height: ${spacer}px` }) : null,
+        h('div', { class: 'playground-box', style: boxStyle }, [
         // ?mode=embed&op=createOrder: one operation in an article, as OpenApiOperation.
         mode === 'block'
           ? h('article', { class: 'playground-article', style: 'max-width: 980px; margin: 0 auto' }, [
@@ -93,6 +105,7 @@ createApp({
             })
           : params.has('multi') || (!params.has('spec') && !params.has('url'))
             ? h(OpenApiReference, {
+                ref: expose,
                 locale,
                 specs: [
                   { id: 'pets', spec: petstore },
@@ -102,11 +115,13 @@ createApp({
                 ],
               })
             : h(OpenApiReference, {
+                ref: expose,
                 spec: text.value,
                 locale,
                 // ?persist=local|session keeps credentials between visits.
                 persistCredentials: (params.get('persist') as 'local' | 'session' | null) ?? false,
               }),
+        ]),
       ])
   },
 }).mount('#app')

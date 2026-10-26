@@ -30,6 +30,7 @@ Einige paketeigene Dinge sind CSS Custom Properties.
 | Variable | Standard | Verwendet für |
 |---|---|---|
 | `--oa-sticky-top` | `0px` | Den Abstand von allem, was sticky ist — Kopfzeile, Navigation und seitliche Tabs der Referenz, der Baum des Editors — sowie der Scrollposition der Anker: setzen Sie ihn auf die Höhe der eigenen festen Leiste der Hostseite. |
+| `--oa-viewport-h` | `100vh` | Die Höhe, die die klebende Navigation der Referenz ausfüllt: setzen Sie sie auf die Höhe eines Kastens, in dem die Referenz scrollt. |
 | `--oa-source-height` | `560px` | Die Höhe der Quelltext-Ansicht des Editors. |
 | `--oa-header-h` | `56px` | Die Höhe der Kopfzeile der Referenz; Navigation, seitliche Tabs und Anker bleiben darunter stehen. Auf `.oa-reference` deklariert: setzen Sie sie dort. |
 | `--oa-page-width` | `1440px` | [`OpenApiPage`](standalone.md#openapipage): die maximale Breite des Inhalts. |

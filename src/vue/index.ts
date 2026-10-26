@@ -26,3 +26,4 @@ export {
   type BlockMountContext,
   type BlockMountHandle,
 } from './blocks/mount'
+export { proxySend } from '../request/proxy'

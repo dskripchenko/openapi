@@ -37,19 +37,34 @@ den Link darauf kopiert, und „PDF“. Links: Beschreibung, Parameter,
 Request-Body, Antworten und Callbacks; Antworten beginnen zugeklappt, und eine
 Antwort, die nur eine Beschreibung hat, ist eine einfache Zeile. Rechts drei
 Tabs: „Try it“, „Request samples“ und [Types](types.md). Codeblöcke brechen
-lange Zeilen um und klappen lange Blöcke hinter „Show all“ ein. Karten werden
-eingeblendet, sobald sie ins Bild kommen (nicht bei reduzierter Bewegung).
+lange Zeilen um und klappen lange Blöcke hinter „Show all“ ein. Eine
+Spezifikation mit bis zu 40 Operationen zeigt alle Karten sofort. In einer
+größeren baut eine Karte ihre Formulare und Beispiele auf, sobald sie in die
+Nähe des sichtbaren Bereichs kommt, und wird eingeblendet (nicht bei
+reduzierter Bewegung); Karten weit davon entfernt werden nicht gerendert.
 
 Links aus der Spezifikation — die URLs für Kontakt, Lizenz und
 Nutzungsbedingungen in `info`, die `externalDocs` einer Operation, der
 `externalValue` eines Beispiels — werden nur gezeigt, wenn sie `http(s)`-,
 `mailto`- oder relative Adressen sind; jeder andere Link wird weggelassen.
 
-Unter 1240 px Breite rücken die seitlichen Tabs unter die Beschreibung der
-Operation. Unter 900 px wird die Navigation zu einer Leiste, die von links
-hereingleitet und über eine Menüschaltfläche in der Kopfzeile geöffnet wird,
-und die Download-Schaltflächen der Kopfzeile wandern in die
-Einstellungsleiste.
+Das Layout folgt der eigenen Breite der Referenz, nicht der des Fensters
+(Container Queries): Sie passt in eine Spalte oder einen Kasten der Hostseite
+ebenso wie auf eine ganze Seite. Unter 1180 px rücken die seitlichen Tabs
+unter die Beschreibung der Operation, und die Zusammenfassung verschwindet aus
+der Kopfzeile. Unter 860 px wird die Navigation zu einer Leiste, die innerhalb
+der Referenz von links hereingleitet und über eine Menüschaltfläche in der
+Kopfzeile geöffnet wird, und die Download-Schaltflächen der Kopfzeile wandern
+in die Einstellungsleiste. Unter 600 px verlassen Version und Serveradresse
+die Kopfzeile. Bei mehreren Spezifikationen belegen Umschalter und Suche unter
+560 px eine zweite Zeile der Kopfzeile, die dann 96 px hoch ist. Wird der
+Platz knapp, gibt zuerst die Zusammenfassung nach, dann Suche und Umschalter,
+zuletzt der Titel.
+
+Die Referenz nimmt ihre Breite vom Elternelement, nie vom Inhalt: In einer
+Flex-Zeile geben Sie ihr eine (`flex: 1`, `width`). Regeln der Hostseite für
+nackte Elemente (`main { margin: 0 auto }`, `section { margin-top }`)
+erreichen ihr Layout nicht.
 
 Für eine ganze Seite mit Umschaltern für Theme und Sprache oder eine Seite
 ohne Build-Schritt siehe [Eigenständige Seite und OpenApiPage](standalone.md).
@@ -385,7 +400,20 @@ interface HttpResponse {
 }
 ```
 
-In der Seite eine Funktion, die die Anfrage als JSON an Ihr Backend schickt:
+Folgt Ihr Endpunkt dem Vertrag des
+[Proxys des eigenständigen Bundles](standalone.md#der-proxy), baut
+`proxySend(url)` diese Funktion: die Anfrage als JSON, Dateibytes in
+`base64`, eine binäre Antwort zurück als `Blob`, den Header aus
+`<meta name="csrf-token">` und „Cancel“:
+
+```ts
+import { proxySend } from '@dskripchenko/openapi' // oder '@dskripchenko/openapi/vue'
+
+const send = proxySend('/internal/api-proxy')
+```
+
+Für einen eigenen Vertrag schreiben Sie die Funktion selbst — in der Seite eine,
+die die Anfrage als JSON an Ihr Backend schickt:
 
 ```ts
 import type { HttpResponse, SendFn } from '@dskripchenko/openapi'
@@ -457,9 +485,9 @@ Ein `send`, das eine Ausnahme wirft, wird wie ein Netzwerkfehler behandelt.
 Auch die Token- und Discovery-Anfragen des
 [Anmelde-Panels](#oauth2-und-openid-connect) laufen über `send`: Ein Proxy
 muss also auch diese Hosts durchlassen. `send` wird außerdem von
-[`OpenApiEditor`](editor.md) an seine Vorschau weitergegeben. Das
-eigenständige Bundle hat einen fertigen Transport dieser Art mit festem
-Vertrag: siehe [den Proxy](standalone.md#der-proxy).
+[`OpenApiEditor`](editor.md) an seine Vorschau weitergegeben. `proxySend` ist
+der Transport, den die Option `proxy` des eigenständigen Bundles verwendet;
+sein Vertrag steht unter [dem Proxy](standalone.md#der-proxy).
 
 ## Authentifizierung
 
@@ -865,6 +893,18 @@ Abstand:
 ```css
 :root {
   --oa-sticky-top: 64px;
+}
+```
+
+Die Navigation bleibt in Fensterhöhe kleben. Scrollt die Referenz in einem
+eigenen Kasten (feste `height` und `overflow: auto`), setzen Sie
+`--oa-viewport-h` auf dessen Höhe, damit die Navigation hineinpasst:
+
+```css
+.api-box {
+  height: 640px;
+  overflow: auto;
+  --oa-viewport-h: 640px;
 }
 ```
 

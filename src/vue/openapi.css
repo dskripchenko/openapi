@@ -17,12 +17,28 @@
  *   --oa-other: var(--uid-text-secondary)
  *   --oa-other-bg: var(--uid-color-bg-subtle)
  *   --oa-sticky-top: 0px; --oa-source-height: 560px
+ *   --oa-viewport-h: 100vh (the height the sticky navigation fills; a box's height when the reference scrolls inside one)
  *   --oa-page-width: 1440px; --oa-page-padding: 24px (OpenApiPage)
  */
 /*
  * @dskripchenko/openapi — the reference and editor styles. Kit tokens only, so
  * both themes follow; a host can retune through the --oa-* variables.
  */
+/*
+ * A host page's rules for bare elements — `main { max-width; margin: 0 auto }`,
+ * `section { margin-top }` — stay out of ours: one class of specificity, first
+ * in the file, so the component's own rules below still win.
+ */
+:where(main, section, header, footer, nav, article, aside):is([class^='oa-'], [class*=' oa-']) {
+  float: none;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
 .oa-reference,
 .oa-editor {
   color: var(--uid-text-primary);
@@ -33,6 +49,9 @@
 .oa-reference {
   /* The header's height; the navigation and anchors stick below it. */
   --oa-header-h: 56px;
+  /* Laid out by its own width, not the window's: it may sit in a column or a box. */
+  container: oa-reference / inline-size;
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -59,8 +78,12 @@
   backdrop-filter: saturate(1.4) blur(10px);
 }
 .oa-header__title { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 0 1 auto; }
-.oa-header__name { overflow: hidden; font-size: 15px; font-weight: 650; white-space: nowrap; text-overflow: ellipsis; }
+.oa-header__title .oa-chip-static { flex: none; }
+.oa-header__name { flex: 0 1 auto; min-width: 2.5em; overflow: hidden; font-size: 15px; font-weight: 650; white-space: nowrap; text-overflow: ellipsis; }
+/* Short of room, the summary gives way first, then the title. */
 .oa-header__summary {
+  flex: 0 1000 auto;
+  min-width: 0;
   max-width: 34ch;
   overflow: hidden;
   font-size: 13px;
@@ -68,8 +91,11 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.oa-header__specs { flex: 0 0 200px; }
-.oa-header__search { flex: 1 1 320px; max-width: 520px; margin-left: auto; }
+/* The spec switcher and the search: together on one line, or a row of their own when narrow. */
+.oa-header__find { display: contents; }
+/* Short of room, the search narrows first, then the switcher, then the title (factors far apart, all >= 1: a sum under 1 would leave the overflow unshared). */
+.oa-header__specs { flex: 0 1000 200px; min-width: 120px; }
+.oa-header__search { flex: 1 10000 160px; min-width: 96px; max-width: 520px; margin-left: auto; }
 .oa-header__actions { display: flex; align-items: center; gap: 6px; flex: none; }
 .oa-header__icon {
   flex: none;
@@ -190,7 +216,7 @@
 .oa-nav {
   position: sticky;
   top: calc(var(--oa-sticky-top, 0px) + var(--oa-header-h));
-  height: calc(100vh - var(--oa-sticky-top, 0px) - var(--oa-header-h));
+  height: calc(var(--oa-viewport-h, 100vh) - var(--oa-sticky-top, 0px) - var(--oa-header-h));
   display: flex;
   flex-direction: column;
   padding: 16px 0 24px;
@@ -328,7 +354,7 @@
   letter-spacing: -0.01em;
   scroll-margin-top: calc(var(--oa-sticky-top, 0px) + var(--oa-header-h) + 12px);
 }
-/* Each operation is a card; they fade in as they come near, one after another. */
+/* Each operation is a card; in a large spec they fade in as they come near, one after another. */
 .oa-op {
   margin: 18px 0;
   padding: 22px 24px;
@@ -337,12 +363,15 @@
   background: var(--uid-surface-raised);
   box-shadow: var(--uid-shadow-sm);
   scroll-margin-top: calc(var(--oa-sticky-top, 0px) + var(--oa-header-h) + 12px);
-  content-visibility: auto;
-  contain-intrinsic-size: auto 600px;
   transition: opacity 0.35s ease, transform 0.35s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .oa-op:hover { box-shadow: var(--uid-shadow-md); border-color: var(--uid-border-default); }
 .oa-op--pending { min-height: 420px; opacity: 0.4; transform: translateY(8px); }
+/* A large spec: cards far from the viewport skip rendering, and fill in as they come near. */
+.oa-reference--large .oa-op {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
+}
 .oa-op__head { padding-bottom: 14px; border-bottom: 1px solid var(--uid-border-subtle); }
 .oa-side-tabs {
   display: flex;
@@ -534,47 +563,69 @@
 .oa-md--small p { margin: 0; }
 
 /* -------------------------------- narrow --------------------------------- */
-@media (max-width: 1240px) {
+/* By the reference's own width (a container query), so it fits a column or a box as well as a window. */
+@container oa-reference (max-width: 1180px) {
   .oa-op__grid { grid-template-columns: minmax(0, 1fr); }
   .oa-header__summary { display: none; }
 }
 /* Narrow: the navigation slides in from the left under the header. */
-@media (max-width: 900px) {
+@container oa-reference (max-width: 860px) {
   .oa-body { grid-template-columns: minmax(0, 1fr); }
   .oa-header__menu { display: inline-flex; }
   .oa-header__downloads { display: none; }
   .oa-settings__downloads { display: flex; }
+  /* Positioned in the reference (a container is the containing block even for `fixed`); its list sticks in view. */
   .oa-nav {
-    position: fixed;
-    z-index: 40;
-    top: calc(var(--oa-sticky-top, 0px) + var(--oa-header-h));
+    position: absolute;
+    z-index: 29; /* under the sticky header, over the content */
+    top: var(--oa-header-h);
     bottom: 0;
     left: 0;
-    width: min(320px, 86vw);
+    width: min(320px, 86%);
     height: auto;
     padding: 12px 8px;
     background: var(--uid-surface-raised);
     box-shadow: var(--uid-shadow-xl);
     transform: translateX(-105%);
-    transition: transform 0.22s ease;
+    visibility: hidden;
+    transition: transform 0.22s ease, visibility 0s linear 0.22s;
   }
-  .oa-nav.is-open { transform: none; }
+  .oa-nav.is-open { transform: none; visibility: visible; transition: transform 0.22s ease; }
+  .oa-nav__scroll {
+    position: sticky;
+    top: calc(var(--oa-sticky-top, 0px) + var(--oa-header-h) + 12px);
+    max-height: calc(var(--oa-viewport-h, 100dvh) - var(--oa-sticky-top, 0px) - var(--oa-header-h) - 24px);
+  }
   .oa-nav__overlay {
     display: block;
-    position: fixed;
-    z-index: 35;
-    inset: calc(var(--oa-sticky-top, 0px) + var(--oa-header-h)) 0 0 0;
+    position: absolute;
+    z-index: 28;
+    inset: var(--oa-header-h) 0 0 0;
     background: rgb(0 0 0 / 0.32);
   }
   .oa-op { padding: 18px 16px; border-radius: 12px; }
 }
-@media (max-width: 640px) {
+@container oa-reference (max-width: 600px) {
   .oa-header { gap: 6px; }
   .oa-header__title .oa-chip-static,
   .oa-header__host { display: none; }
   .oa-header__settings { padding: 0 9px; }
-  .oa-header__search { flex-basis: 0; }
+  .oa-header__search { flex-basis: 0; min-width: 72px; }
+  .oa-header__specs { min-width: 96px; }
+  /* The hits open under the whole header, not under a narrow input. */
+  .oa-search { position: static; }
+  .oa-search__results { left: 4px; right: 4px; width: auto; }
   .oa-intro__title h1 { font-size: 24px; }
+}
+/* Several specs on a narrow width: the switcher and the search take a second row. */
+@container oa-reference (max-width: 560px) {
+  .oa-header--multi,
+  .oa-header--multi ~ .oa-body { --oa-header-h: 96px; }
+  .oa-header--multi { flex-wrap: wrap; align-content: center; row-gap: 8px; padding: 8px 4px; }
+  .oa-header--multi .oa-header__title { flex: 1 1 0; }
+  .oa-header--multi .oa-header__find { display: flex; flex: 1 1 100%; order: 1; gap: 6px; min-width: 0; }
+  .oa-header--multi .oa-header__specs { flex: 1 1 0; min-width: 0; }
+  .oa-header--multi .oa-header__search { flex: 1 1 0; min-width: 0; max-width: none; margin-left: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .oa-op,
@@ -585,7 +636,7 @@
 .oa-locale-passthrough { display: contents; }
 
 /* --------------------------------- editor -------------------------------- */
-.oa-editor { display: flex; flex-direction: column; gap: 12px; }
+.oa-editor { container: oa-editor / inline-size; display: flex; flex-direction: column; gap: 12px; }
 .oa-editor__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .oa-segmented { display: inline-flex; padding: 2px; border: 1px solid var(--uid-border-default); border-radius: 8px; background: var(--uid-color-bg-subtle); }
 .oa-segmented__item {
@@ -788,7 +839,7 @@
 .oa-source__issue.is-warning { color: var(--uid-warning); }
 .oa-source__where { flex: none; min-width: 64px; font-family: var(--oa-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); color: var(--uid-text-tertiary); }
 
-@media (max-width: 860px) {
+@container oa-editor (max-width: 860px) {
   .oa-editor__visual { grid-template-columns: minmax(0, 1fr); }
   .oa-editor__tree { position: static; max-height: 40vh; }
 }
@@ -857,7 +908,7 @@
   z-index: 20;
   top: calc(100% + 4px);
   left: 0;
-  width: min(440px, calc(100vw - 32px));
+  width: min(440px, calc(100cqw - 16px));
   max-height: min(60vh, 520px);
   overflow-y: auto;
   padding: 4px;

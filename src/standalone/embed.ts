@@ -27,7 +27,7 @@ import OpenApiOperation from '../vue/OpenApiOperation.vue'
 import { isPageTheme, resolveLocale, type PageTheme } from '../vue/page'
 import type { SnippetTarget } from '../snippets'
 import { urlLoader, type StandaloneSource } from './options'
-import { proxySend } from './proxy'
+import { proxySend } from '../request/proxy'
 
 export interface OperationEmbedOptions {
   /** The spec: its URL, or a source as in `createApiReference` (`content` wins over `url`). */

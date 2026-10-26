@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponse } from '../core/types'
-import type { SendFn } from '../request'
+import type { SendFn } from './send'
 
 /**
  * A try-it transport through the host's proxy endpoint.

@@ -107,7 +107,9 @@ DskOpenApi.createApiReference(target, options) // → { app, unmount, setTheme, 
 - "Cancel" 会中止对代理的调用。
 
 这个端点需要由你来保护：只放行你打算放行的主机，并要求与后台其他部分相同的登录，
-否则它就是一个开放中继。该代理传输方式也以 `DskOpenApi.proxySend(url)` 导出。
+否则它就是一个开放中继。该代理传输方式也以 `DskOpenApi.proxySend(url)` 导出；对有构建步骤的
+应用，则以 `proxySend` 从 `@dskripchenko/openapi` 和 `@dskripchenko/openapi/vue` 导出（见
+[通过你的服务器发送](reference.md#通过你的服务器发送)）。
 
 ## 从 Scalar 迁移
 

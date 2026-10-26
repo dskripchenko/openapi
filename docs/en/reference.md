@@ -34,18 +34,31 @@ the link to it, and "PDF". On the left: the description, parameters, request
 body, responses and callbacks; responses start folded, and one with only a
 description is a plain row. On the right, three tabs: "Try it", "Request
 samples" and [Types](types.md). Code blocks wrap long lines and fold long
-blocks behind "Show all". Cards fade in as they come into view (not with
-reduced motion).
+blocks behind "Show all". A spec of up to 40 operations renders every card
+at once. In a larger one a card builds its forms and samples as it comes near
+the viewport, fading in (not with reduced motion), and cards far from the
+viewport skip rendering.
 
 Links from the spec — the contact, license and terms-of-service URLs of
 `info`, an operation's `externalDocs`, an example's `externalValue` — are
 shown only when they are `http(s)`, `mailto` or relative addresses; any other
 link is left out.
 
-Below 1240 px of width the side tabs move under the operation's description.
-Below 900 px the navigation becomes a drawer that slides in from the left,
-opened by a menu button in the header, and the header's download buttons
-move to the settings drawer.
+The layout follows the reference's own width, not the window's (container
+queries), so it fits a column or a box of a host page as well as a whole
+page. Below 1180 px the side tabs move under the operation's description and
+the header's summary is hidden. Below 860 px the navigation becomes a drawer
+that slides in from the left inside the reference, opened by a menu button in
+the header, and the header's download buttons move to the settings drawer.
+Below 600 px the version and the server address leave the header. With
+several specs, below 560 px the switcher and the search take a second row of
+the header, which is then 96 px tall. Short of room, the header's summary
+gives way first, then the search and the switcher, and the title last.
+
+The reference takes its width from its parent and never from its content: in
+a flex row give it one (`flex: 1`, `width`). A host page's rules for bare
+elements (`main { margin: 0 auto }`, `section { margin-top }`) do not reach
+its layout.
 
 For a whole page with theme and language switchers, or a page without a
 build step, see [standalone page and OpenApiPage](standalone.md). To show a
@@ -360,7 +373,19 @@ interface HttpResponse {
 }
 ```
 
-In the page, a function that posts the request to your backend as JSON:
+When your endpoint follows the contract of
+[the standalone proxy](standalone.md#the-proxy), `proxySend(url)` builds this
+function: the request as JSON, file bytes in `base64`, a binary answer back
+as a `Blob`, the `<meta name="csrf-token">` header, and "Cancel":
+
+```ts
+import { proxySend } from '@dskripchenko/openapi' // or '@dskripchenko/openapi/vue'
+
+const send = proxySend('/internal/api-proxy')
+```
+
+For a contract of your own, write the function — in the page, one that posts
+the request to your backend as JSON:
 
 ```ts
 import type { HttpResponse, SendFn } from '@dskripchenko/openapi'
@@ -429,8 +454,8 @@ headers the spec declares do reach the API.
 `send` that throws is treated like a network error. The token and discovery
 requests of the [authentication panel](#oauth2-and-openid-connect) go through
 `send` too: a proxy has to let those hosts through as well. `send` is also
-passed on by [`OpenApiEditor`](editor.md) to its preview. The standalone
-bundle has a ready-made transport of this kind, with a fixed contract: see
+passed on by [`OpenApiEditor`](editor.md) to its preview. `proxySend` is the
+transport the standalone bundle's `proxy` option uses; its contract is under
 [the proxy](standalone.md#the-proxy).
 
 ## Authentication
@@ -828,6 +853,18 @@ below it, and anchors scroll to the same offset:
 ```css
 :root {
   --oa-sticky-top: 64px;
+}
+```
+
+The navigation sticks as tall as the window. When the reference scrolls
+inside a box of its own (a fixed `height` and `overflow: auto`), set
+`--oa-viewport-h` to the box's height so the navigation fits it:
+
+```css
+.api-box {
+  height: 640px;
+  overflow: auto;
+  --oa-viewport-h: 640px;
 }
 ```
 

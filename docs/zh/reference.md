@@ -27,15 +27,24 @@ import { OpenApiReference } from '@dskripchenko/openapi/vue'
 **操作卡片**带有方法、路径和摘要，一个复制指向它的链接的按钮，以及 "PDF"。左侧是
 描述、参数、请求体、响应和回调；响应初始为折叠状态，只有描述的响应显示为普通的一行。
 右侧有三个标签页："Try it"、"Request samples" 和 [Types](types.md)。代码块会对长行
-自动换行，较长的代码块折叠在 "Show all" 后面。卡片进入视口时淡入（开启减少动态效果时
-除外）。
+自动换行，较长的代码块折叠在 "Show all" 后面。不超过 40 个操作的规范文档会一次渲染
+全部卡片。更大的规范中，卡片在接近视口时才构建表单和示例并淡入（开启减少动态效果时
+除外），远离视口的卡片跳过渲染。
 
 来自规范文档的链接——`info` 中的联系人、许可证和服务条款 URL，操作的 `externalDocs`，
 示例的 `externalValue`——只有在是 `http(s)`、`mailto` 或相对地址时才会显示；
 其他链接一律省略。
 
-宽度小于 1240 px 时，侧边标签页移到操作描述的下方。小于 900 px 时，导航变成从左侧
-滑出的抽屉，由页头中的菜单按钮打开，页头中的下载按钮移入设置抽屉。
+布局跟随参考页自身的宽度，而不是窗口宽度（容器查询），因此它既能放进宿主页面的一栏
+或一个框，也能占满整页。宽度小于 1180 px 时，侧边标签页移到操作描述的下方，页头中的
+摘要隐藏。小于 860 px 时，导航变成在参考页内部从左侧滑出的抽屉，由页头中的菜单按钮
+打开，页头中的下载按钮移入设置抽屉。小于 600 px 时，版本号和服务器地址离开页头。有多份
+规范文档时，小于 560 px 时切换器和搜索框占据页头的第二行，页头高度变为 96 px。空间不足时，
+最先收缩的是摘要，然后是搜索框和切换器，最后才是标题。
+
+参考页的宽度取自父元素，而不是内容：在 flex 行中请为它指定宽度（`flex: 1`、`width`）。
+宿主页面针对裸元素的规则（`main { margin: 0 auto }`、`section { margin-top }`）不会
+影响它的布局。
 
 如果需要带主题和语言切换器的整页，或者不经过构建步骤的页面，请参阅
 [独立页面与 OpenApiPage](standalone.md)。要在其他文档中展示单个操作，请参阅
@@ -309,7 +318,18 @@ interface HttpResponse {
 }
 ```
 
-在页面中，一个把请求以 JSON 形式 POST 到你的后端的函数：
+如果你的端点遵循[独立包代理](standalone.md#代理)的契约，`proxySend(url)` 会为你构建
+这个函数：请求以 JSON 发送，文件字节为 `base64`，二进制响应还原为 `Blob`，带上
+`<meta name="csrf-token">` 的请求头，并支持 "Cancel"：
+
+```ts
+import { proxySend } from '@dskripchenko/openapi' // 或 '@dskripchenko/openapi/vue'
+
+const send = proxySend('/internal/api-proxy')
+```
+
+如果契约是你自己的，就自己写这个函数——在页面中，一个把请求以 JSON 形式 POST 到你的
+后端的函数：
 
 ```ts
 import type { HttpResponse, SendFn } from '@dskripchenko/openapi'
@@ -373,7 +393,7 @@ export async function proxy(request: HttpRequest): Promise<HttpResponse> {
 
 抛出异常的 `send` 会被当作网络错误处理。[认证面板](#oauth2-与-openid-connect) 的令牌请求和
 discovery 请求同样经过 `send`：代理也必须放行这些主机。[`OpenApiEditor`](editor.md)
-也会把 `send` 传给它的预览。独立包自带一个此类传输方式，契约固定：见
+也会把 `send` 传给它的预览。`proxySend` 就是独立包 `proxy` 选项所用的传输方式；其契约见
 [代理](standalone.md#代理)。
 
 ## 认证
@@ -728,6 +748,17 @@ onMounted(async () => {
 ```css
 :root {
   --oa-sticky-top: 64px;
+}
+```
+
+导航按窗口高度吸附。如果参考页在自己的框内滚动（固定 `height` 加 `overflow: auto`），
+请把 `--oa-viewport-h` 设为该框的高度，让导航放得下：
+
+```css
+.api-box {
+  height: 640px;
+  overflow: auto;
+  --oa-viewport-h: 640px;
 }
 ```
 

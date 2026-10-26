@@ -1,5 +1,13 @@
 # @dskripchenko/openapi
 
+## 1.1.1
+
+### Patch Changes
+
+- **Layout by the reference's own width.** The reference's breakpoints are container queries on `.oa-reference` (and the editor's on `.oa-editor`) instead of window media queries, so a reference in a column or a box of a host page lays out by that width: the side tabs fold under 1180 px, the drawer takes over under 860 px, and with several specs under 560 px the switcher and the search take a second header row. The spec switcher and the search are flexible (no more 200 px + 320 px minimum), the summary gives way before the title, and the search hits open under the whole header on a narrow width. A two-spec reference in a 358 px phone column was 666 px wide; it now fits. The navigation drawer opens inside the reference, under its header. New `--oa-viewport-h` sizes the sticky navigation for a reference that scrolls inside a box.
+- **No more empty reference in a host page.** A spec of up to 40 operations renders every card at once; only larger specs build cards as they come near the viewport and skip rendering far ones (`content-visibility: auto`). Before, a small spec opened while off-screen — a lazily loaded reference, a spec switched from code, a full-page capture, a box scrolling on its own — showed blank cards under its tag heading. A host page's rules for bare `main`, `section`, `header`, `nav`, `footer` (`main { max-width; margin: 0 auto }`) no longer squeeze or shift the reference's columns.
+- **`proxySend` is exported** from `@dskripchenko/openapi` and `@dskripchenko/openapi/vue`, not only from the standalone bundle: an app builds `send` for a proxy endpoint with the standalone's contract with `proxySend('/api-proxy')`.
+
 ## 1.1.0
 
 ### Minor Changes

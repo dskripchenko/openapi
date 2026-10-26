@@ -33,6 +33,7 @@ import OaIntro from './OaIntro.vue'
 import OaServers from './OaServers.vue'
 import OaOperation from './OaOperation.vue'
 import OaSchema from './OaSchema.vue'
+import { isLargeSpec } from './lazy'
 import { buildSearchIndex, fold, type SearchHit, type SearchIndex } from './search'
 import { useReferenceContext } from './useReferenceContext'
 
@@ -369,7 +370,7 @@ defineExpose({ go, open, spec: loaded, active: activeId })
 
 <template>
   <component :is="kitLocale ? UidLocaleProvider : 'div'" v-bind="kitLocale ? { locale: kitLocale } : { class: 'oa-locale-passthrough' }">
-  <div ref="root" class="oa-reference">
+  <div ref="root" class="oa-reference" :class="{ 'oa-reference--large': loaded && isLargeSpec(loaded) }">
     <!-- Shown here only while the navigation is not: loading or a failed spec. -->
     <div v-if="multi && (loading || loadError)" class="oa-switcher">
       <UidSelect size="sm" :options="switcher" :model-value="activeId" @update:model-value="(v: unknown) => open(String(v))" />
@@ -377,7 +378,7 @@ defineExpose({ go, open, spec: loaded, active: activeId })
     <div v-if="loading" class="oa-loading"><UidSpinner /></div>
     <UidAlert v-else-if="loadError" variant="danger" :title="labels.loadError">{{ loadError }}</UidAlert>
     <template v-else-if="loaded">
-      <header class="oa-header">
+      <header class="oa-header" :class="{ 'oa-header--multi': multi }">
         <button type="button" class="oa-header__icon oa-header__menu" :aria-label="labels.operations" :aria-expanded="navOpen" @click="navOpen = !navOpen">
           <Menu :size="18" aria-hidden="true" />
         </button>
@@ -386,63 +387,65 @@ defineExpose({ go, open, spec: loaded, active: activeId })
           <span class="oa-chip-static">{{ loaded.document.info.version }}</span>
           <span v-if="headerSummary" class="oa-header__summary">{{ headerSummary }}</span>
         </div>
-        <UidSelect
-          v-if="multi"
-          class="oa-header__specs oa-nav__specs"
-          size="sm"
-          searchable
-          :options="switcher"
-          :model-value="activeId"
-          :aria-label="labels.specs"
-          @update:model-value="(v: unknown) => open(String(v))"
-        />
-        <div class="oa-search oa-header__search">
-          <UidInput
-            :model-value="query"
+        <div class="oa-header__find">
+          <UidSelect
+            v-if="multi"
+            class="oa-header__specs oa-nav__specs"
             size="sm"
-            type="search"
-            :placeholder="searchPlaceholder"
-            class="oa-header__search-input oa-nav__search"
-            role="combobox"
-            autocomplete="off"
-            :aria-label="labels.search"
-            aria-autocomplete="list"
-            :aria-expanded="resultsOpen && !!query.trim()"
-            :aria-controls="`${searchId}-list`"
-            :aria-activedescendant="resultsOpen && hits.length ? `${searchId}-${cursor}` : undefined"
-            @update:model-value="onQuery"
-            @keydown="onSearchKey"
-            @focus="resultsOpen = true"
-            @blur="resultsOpen = false"
+            searchable
+            :options="switcher"
+            :model-value="activeId"
+            :aria-label="labels.specs"
+            @update:model-value="(v: unknown) => open(String(v))"
           />
-          <div
-            v-if="resultsOpen && query.trim()"
-            :id="`${searchId}-list`"
-            class="oa-search__results"
-            role="listbox"
-            :aria-label="labels.searchResults"
-            @mousedown.prevent
-          >
+          <div class="oa-search oa-header__search">
+            <UidInput
+              :model-value="query"
+              size="sm"
+              type="search"
+              :placeholder="searchPlaceholder"
+              class="oa-header__search-input oa-nav__search"
+              role="combobox"
+              autocomplete="off"
+              :aria-label="labels.search"
+              aria-autocomplete="list"
+              :aria-expanded="resultsOpen && !!query.trim()"
+              :aria-controls="`${searchId}-list`"
+              :aria-activedescendant="resultsOpen && hits.length ? `${searchId}-${cursor}` : undefined"
+              @update:model-value="onQuery"
+              @keydown="onSearchKey"
+              @focus="resultsOpen = true"
+              @blur="resultsOpen = false"
+            />
             <div
-              v-for="(h, i) in hits"
-              :id="`${searchId}-${i}`"
-              :key="h.entry.key"
-              role="option"
-              class="oa-search__hit"
-              :class="{ 'is-cursor': i === cursor }"
-              :aria-selected="i === cursor"
-              @mouseenter="cursor = i"
-              @click="pick(h)"
+              v-if="resultsOpen && query.trim()"
+              :id="`${searchId}-list`"
+              class="oa-search__results"
+              role="listbox"
+              :aria-label="labels.searchResults"
+              @mousedown.prevent
             >
-              <div class="oa-search__line">
-                <span v-if="h.entry.method" class="oa-method oa-method--small" :class="`oa-method--${h.entry.method}`">{{ h.entry.method === 'delete' ? 'DEL' : h.entry.method.toUpperCase() }}</span>
-                <span v-else class="oa-search__kind">{{ kindLabel(h) }}</span>
-                <span class="oa-search__title"><template v-for="(s, j) in h.title" :key="j"><mark v-if="s.mark">{{ s.text }}</mark><template v-else>{{ s.text }}</template></template></span>
+              <div
+                v-for="(h, i) in hits"
+                :id="`${searchId}-${i}`"
+                :key="h.entry.key"
+                role="option"
+                class="oa-search__hit"
+                :class="{ 'is-cursor': i === cursor }"
+                :aria-selected="i === cursor"
+                @mouseenter="cursor = i"
+                @click="pick(h)"
+              >
+                <div class="oa-search__line">
+                  <span v-if="h.entry.method" class="oa-method oa-method--small" :class="`oa-method--${h.entry.method}`">{{ h.entry.method === 'delete' ? 'DEL' : h.entry.method.toUpperCase() }}</span>
+                  <span v-else class="oa-search__kind">{{ kindLabel(h) }}</span>
+                  <span class="oa-search__title"><template v-for="(s, j) in h.title" :key="j"><mark v-if="s.mark">{{ s.text }}</mark><template v-else>{{ s.text }}</template></template></span>
+                </div>
+                <code v-if="h.entry.path && h.entry.path !== h.entry.title" class="oa-search__path">{{ h.entry.path }}</code>
+                <div v-if="h.snippet" class="oa-search__snippet"><template v-for="(s, j) in h.snippet" :key="j"><mark v-if="s.mark">{{ s.text }}</mark><template v-else>{{ s.text }}</template></template></div>
               </div>
-              <code v-if="h.entry.path && h.entry.path !== h.entry.title" class="oa-search__path">{{ h.entry.path }}</code>
-              <div v-if="h.snippet" class="oa-search__snippet"><template v-for="(s, j) in h.snippet" :key="j"><mark v-if="s.mark">{{ s.text }}</mark><template v-else>{{ s.text }}</template></template></div>
+              <p v-if="!hits.length" class="oa-nav__empty">{{ labels.noResults }}</p>
             </div>
-            <p v-if="!hits.length" class="oa-nav__empty">{{ labels.noResults }}</p>
           </div>
         </div>
         <div class="oa-header__actions">
