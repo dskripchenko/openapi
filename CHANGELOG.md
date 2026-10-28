@@ -1,5 +1,11 @@
 # @dskripchenko/openapi
 
+## 1.1.3
+
+### Patch Changes
+
+- b7f42ec: **An embedded reference no longer pulls the page while it scrolls.** The navigation followed the section in view with `scrollIntoView`, which scrolls every scrolling ancestor, the host page among them: in a box on a longer page (a wiki macro, an article) whose top had scrolled past the window, each new section pulled the page back to show its link, and scrolling jerked back and forth. The navigation and the search hits now scroll only their own list.
+
 ## 1.1.2
 
 ### Patch Changes
@@ -21,7 +27,7 @@
 
 ### Minor Changes
 
-- API blocks: a fenced ```` ```openapi ```` block in rich content — a few hand-written lines of YAML or JSON describing one or more requests — rendered as live API cards and edited through Preview / Source / Constructor tabs. See [docs/en/blocks.md](docs/en/blocks.md).
+- API blocks: a fenced ` ```openapi ` block in rich content — a few hand-written lines of YAML or JSON describing one or more requests — rendered as live API cards and edited through Preview / Source / Constructor tabs. See [docs/en/blocks.md](docs/en/blocks.md).
 
   - **Core:** the compact block format (one request, `requests: [...]` with a shared title, base URL and auth, or a whole OpenAPI / Swagger document as is); laravel-api's type shorthand (`string(email)!`, `integer[]`, `file`, `name!` properties); `parseBlock` with errors by line and column, `blockToDocument` (OpenAPI 3.1 with readable operationIds, servers from absolute URLs, security schemes from `auth`), `stringifyBlock` (YAML ⇄ JSON), `inferSchema` (a schema from an example), and the constructor's model `blockToModel` / `modelToBlock` that patches the data and keeps what the form cannot express.
   - **Vue:** `OpenApiBlock` (read-only cards, or editable tabs with a YAML / JSON switch and a constructor of method, URL, parameters, auth, body and responses on kit controls), `mountOpenApiBlock`, and `openApiBlockRenderer` — a block renderer with a live-island `mount` for host editors and markdown views. `blockEn` / `blockRu` strings.
