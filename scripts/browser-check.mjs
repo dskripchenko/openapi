@@ -1187,6 +1187,34 @@ try {
   await cq.waitForTimeout(300)
   check('container: picking an item closes the drawer', (await cq.locator('.oa-nav.is-open').count()) === 0)
 
+  // Embedded in a longer page (a wiki macro): scrolling the reference moves its
+  // navigation, never the page around it.
+  const host = await browser.newPage({ viewport: { width: 1440, height: 800 } })
+  await host.goto(`${base}?spec=kitchen&box=1300&boxHeight=640`)
+  await host.waitForSelector('.oa-op__doc')
+  await host.evaluate(() => {
+    const pad = () => Object.assign(document.createElement('div'), { style: 'height: 1200px' })
+    const box = document.querySelector('.playground-box')
+    // As the embed sets it: the sticky navigation fills the box.
+    box.style.setProperty('--oa-viewport-h', '640px')
+    box.before(pad())
+    box.after(pad())
+    // The box's top above the window, as when the reader scrolls past it.
+    window.scrollTo(0, 1500)
+  })
+  const hostY = await host.evaluate(() => window.scrollY)
+  const moved = []
+  for (let i = 1; i <= 12; i += 1) {
+    await host.evaluate((y) => (document.querySelector('.playground-box').scrollTop = y), i * 400)
+    await host.waitForTimeout(120)
+    const y = await host.evaluate(() => window.scrollY)
+    if (y !== hostY) moved.push(y)
+  }
+  const followed = await host.evaluate(() => document.querySelector('.oa-nav .is-active')?.textContent?.trim())
+  check('embedded: scrolling the reference keeps the page in place', moved.length === 0, `page at ${hostY}, moved to ${moved.join(', ')}`)
+  check('embedded: the navigation still follows the section in view', !!followed && !/List orders/.test(followed), followed)
+  await host.close()
+
   // A small spec renders whole, even opened while off-screen (the embed's lazy two-spec reference).
   await cq.goto(`${base}?multi=1&box=1100&spacer=3000`)
   await cq.waitForFunction(() => !!window.__reference)

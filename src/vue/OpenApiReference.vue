@@ -196,7 +196,22 @@ async function moveCursor(step: number): Promise<void> {
   resultsOpen.value = true
   cursor.value = (cursor.value + step + hits.value.length) % hits.value.length
   await nextTick()
-  root.value?.querySelector(`#${searchId}-${cursor.value}`)?.scrollIntoView({ block: 'nearest' })
+  const item = root.value?.querySelector<HTMLElement>(`#${searchId}-${cursor.value}`)
+  revealIn(item, item?.closest<HTMLElement>('.oa-search__results'))
+}
+
+/**
+ * Brings an item into view inside its own scrolling list. Not
+ * scrollIntoView(): that scrolls every scrolling ancestor too, the page
+ * among them, and a reference embedded in a longer page would pull the
+ * page back to its navigation while the reader scrolls.
+ */
+function revealIn(item: HTMLElement | null | undefined, list: HTMLElement | null | undefined): void {
+  if (!item || !list) return
+  const i = item.getBoundingClientRect()
+  const l = list.getBoundingClientRect()
+  if (i.top < l.top) list.scrollTop -= l.top - i.top
+  else if (i.bottom > l.bottom) list.scrollTop += i.bottom - l.bottom
 }
 
 function onSearchKey(ev: KeyboardEvent): void {
@@ -355,7 +370,7 @@ function watchSections(): void {
       if (!top || top === active.value) return
       active.value = top
       const link = root.value?.querySelector<HTMLElement>(`.oa-nav [href="#${CSS.escape(top)}"]`)
-      link?.scrollIntoView({ block: 'nearest' })
+      revealIn(link, link?.closest<HTMLElement>('.oa-nav__scroll'))
     },
     { rootMargin: '-15% 0px -70% 0px' },
   )
