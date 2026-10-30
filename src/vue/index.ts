@@ -27,3 +27,5 @@ export {
   type BlockMountHandle,
 } from './blocks/mount'
 export { proxySend } from '../request/proxy'
+export { default as AsyncApiReference } from './asyncapi/AsyncApiReference.vue'
+export { asyncEn, asyncRu, ASYNC_LOCALES, type AsyncApiLabels } from './asyncapi/labels'

@@ -6,7 +6,8 @@
 
 Swagger 2.0, OpenAPI 3.0 and OpenAPI 3.1 specs in YAML or JSON: read them,
 validate them, show them as an API reference with "Try it" and code samples,
-and edit them in a visual editor. The core has **no runtime dependencies**;
+and edit them in a visual editor. AsyncAPI 2.x and 3.0 documents of
+event-driven APIs are read and shown too. The core has **no runtime dependencies**;
 the Vue components are built on
 [`@dskripchenko/ui`](https://github.com/dskripchenko/ui).
 
@@ -132,6 +133,7 @@ English and Russian.
 | Embedding an operation | [en](docs/en/embed.md) | [ru](docs/ru/embed.md) | [de](docs/de/embed.md) | [zh](docs/zh/embed.md) |
 | API blocks | [en](docs/en/blocks.md) | [ru](docs/ru/blocks.md) | [de](docs/de/blocks.md) | [zh](docs/zh/blocks.md) |
 | TypeScript types | [en](docs/en/types.md) | [ru](docs/ru/types.md) | [de](docs/de/types.md) | [zh](docs/zh/types.md) |
+| AsyncAPI | [en](docs/en/asyncapi.md) | [ru](docs/ru/asyncapi.md) | [de](docs/de/asyncapi.md) | [zh](docs/zh/asyncapi.md) |
 | OpenApiEditor | [en](docs/en/editor.md) | [ru](docs/ru/editor.md) | [de](docs/de/editor.md) | [zh](docs/zh/editor.md) |
 | Core API | [en](docs/en/core.md) | [ru](docs/ru/core.md) | [de](docs/de/core.md) | [zh](docs/zh/core.md) |
 | Code samples | [en](docs/en/snippets.md) | [ru](docs/ru/snippets.md) | [de](docs/de/snippets.md) | [zh](docs/zh/snippets.md) |

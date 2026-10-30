@@ -1,11 +1,13 @@
 import { createApp, h, ref } from 'vue'
 import '@dskripchenko/ui/styles/all.css'
-import { OpenApiBlock, OpenApiEditor, OpenApiOperation, OpenApiReference } from '../src/vue'
+import { AsyncApiReference, OpenApiBlock, OpenApiEditor, OpenApiOperation, OpenApiReference } from '../src/vue'
 import '../src/vue/openapi.css'
 import petstore from '../tests/fixtures/specs/petstore-30.yaml?raw'
 import kitchen from '../tests/fixtures/specs/kitchen-sink-31.json?raw'
 import swagger from '../tests/fixtures/specs/petstore-swagger2.json?raw'
 import oauth from '../tests/fixtures/specs/oauth-31.json?raw'
+import asyncOrders3 from '../tests/fixtures/asyncapi/orders-3.yaml?raw'
+import asyncOrders2 from '../tests/fixtures/asyncapi/orders-2.yaml?raw'
 
 const specs: Record<string, string> = { petstore, kitchen, swagger, oauth, empty: '' }
 
@@ -78,7 +80,10 @@ createApp({
         spacer ? h('div', { class: 'playground-spacer', style: `height: ${spacer}px` }) : null,
         h('div', { class: 'playground-box', style: boxStyle }, [
         // ?mode=embed&op=createOrder: one operation in an article, as OpenApiOperation.
-        mode === 'block'
+        // ?mode=asyncapi&spec=orders2: an AsyncAPI document (3.0 by default).
+        mode === 'asyncapi'
+          ? h(AsyncApiReference, { spec: params.get('spec') === 'orders2' ? asyncOrders2 : asyncOrders3, locale })
+          : mode === 'block'
           ? h('article', { class: 'playground-article', style: 'max-width: 980px; margin: 0 auto' }, [
               h('h1', { style: 'font: 600 22px/1.3 var(--uid-font-family-sans); color: var(--uid-text-primary)' }, 'A page with an API block'),
               h(OpenApiBlock, {

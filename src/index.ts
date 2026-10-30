@@ -87,3 +87,4 @@ export {
   type OperationTypesOptions,
 } from './typescript'
 export * from './blocks'
+export * from './asyncapi'

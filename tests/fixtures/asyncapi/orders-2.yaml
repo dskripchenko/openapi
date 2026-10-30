@@ -1,0 +1,61 @@
+asyncapi: 2.6.0
+info:
+  title: Order events
+  version: 1.1.0
+servers:
+  production:
+    url: broker.example.com:9092
+    protocol: kafka
+channels:
+  orders/{region}/placed:
+    description: Orders placed in a region
+    parameters:
+      region:
+        description: Region code
+        schema:
+          type: string
+          enum: [eu, us]
+    subscribe:
+      operationId: publishOrderPlaced
+      summary: An order was placed
+      tags:
+        - name: orders
+      message:
+        $ref: '#/components/messages/OrderPlaced'
+  payments/commands:
+    publish:
+      summary: Commands for the order service
+      tags:
+        - name: payments
+      message:
+        oneOf:
+          - $ref: '#/components/messages/CancelOrder'
+          - name: RetryPayment
+            payload:
+              type: object
+              properties:
+                orderId:
+                  type: integer
+components:
+  messages:
+    OrderPlaced:
+      name: OrderPlaced
+      payload:
+        type: object
+        properties:
+          id:
+            type: integer
+    CancelOrder:
+      name: CancelOrder
+      traits:
+        - $ref: '#/components/messageTraits/json'
+      payload:
+        type: object
+        properties:
+          orderId:
+            type: integer
+          reason:
+            type: string
+  messageTraits:
+    json:
+      contentType: application/json
