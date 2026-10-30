@@ -983,6 +983,31 @@ try {
   check('embed (Vue) and print: no page errors', evErrors.length === 0, evErrors.join('; '))
   await ev.close()
 
+  // AsyncAPI: operations with their channels, messages, reply and schemas; both versions.
+  const aa = await browser.newPage({ viewport: { width: 1440, height: 1200 } })
+  const aaErrors = []
+  aa.on('pageerror', (e) => aaErrors.push(String(e)))
+  await aa.goto(`${base}?mode=asyncapi`)
+  await aa.locator('.oa-async-op').first().waitFor()
+  check('asyncapi 3.0: every operation, send and receive', (await aa.locator('.oa-async-op').count()) === 3 && (await aa.locator('.oa-async-op .oa-action--receive').count()) === 1)
+  check('asyncapi 3.0: channel parameters marked in the address', (await aa.locator('[data-operation="publishOrderPlaced"] .oa-async__param').innerText()) === '{region}')
+  check('asyncapi 3.0: payload schema resolved through $ref', (await aa.locator('[data-operation="publishOrderPlaced"] .oa-async-message').first().innerText()).includes('items'))
+  check('asyncapi 3.0: reply with its messages', (await aa.locator('[data-operation="requestPayment"] .oa-async-reply [data-message="PaymentResult"]').count()) === 1)
+  check('asyncapi 3.0: Avro payload shown as written', (await aa.locator('[id="message/PaymentResult"]').innerText()).toLowerCase().includes('vnd.apache.avro'))
+  await aa.locator('.oa-nav__op', { hasText: 'Item' }).click()
+  // Smooth scrolling takes a moment.
+  await aa.waitForTimeout(1200)
+  check('asyncapi: navigation scrolls to a schema', await aa.locator('[id="schema/Item"]').evaluate((el) => el.getBoundingClientRect().top < window.innerHeight))
+  await aa.screenshot({ path: resolve(out, 'asyncapi-3--light.png') })
+  await aa.goto(`${base}?mode=asyncapi&spec=orders2&theme=dark&locale=ru`)
+  await aa.locator('.oa-async-op').first().waitFor()
+  check('asyncapi 2.6: publish and subscribe as receive and send', (await aa.locator('.oa-async-op .oa-action--send').count()) === 1 && (await aa.locator('.oa-async-op .oa-action--receive').count()) === 1)
+  check('asyncapi 2.6: oneOf messages', (await aa.locator('[data-operation="payments/commands.publish"] .oa-async-message').count()) === 2)
+  await aa.screenshot({ path: resolve(out, 'asyncapi-2--dark.png') })
+  check('asyncapi: labels in the page language', (await aa.locator('.oa-async-op').first().innerText()).toLowerCase().includes('отправка'))
+  check('asyncapi: no page errors', aaErrors.length === 0, aaErrors.join('; '))
+  await aa.close()
+
   // The editor: visual edits land in the text, the source view reports problems.
   const ed = await browser.newPage({ viewport: { width: 1440, height: 1200 } })
   const edErrors = []
