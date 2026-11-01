@@ -23,7 +23,7 @@ import type { OpenApiLabels } from './labels'
 import OaAuth from './OaAuth.vue'
 import OaOperation from './OaOperation.vue'
 import OaServers from './OaServers.vue'
-import { printOperation } from './print'
+import { operationPrintView, printOperation, type PrintView } from './print'
 import { useReferenceContext } from './useReferenceContext'
 
 const props = withDefaults(
@@ -111,7 +111,14 @@ function print(): void {
   void printOperation(entry.value, ctx, url ? { url } : {})
 }
 
-defineExpose({ spec: loaded, entry, print })
+/** The operation as a static print view, for a host printing its own page; null before it loads. */
+async function printView(): Promise<PrintView | null> {
+  if (!entry.value) return null
+  const url = referenceLink.value ? new URL(referenceLink.value, window.location.href).href : undefined
+  return operationPrintView(entry.value, ctx, url ? { url } : {})
+}
+
+defineExpose({ spec: loaded, entry, print, printView })
 </script>
 
 <template>

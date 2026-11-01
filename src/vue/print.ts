@@ -167,19 +167,42 @@ export function operationUrl(entry: OperationEntry, ctx: ReferenceContext, base 
   return `${base}#${ctx.anchorPrefix.value}operation/${entry.id}`
 }
 
-/** Opens the print dialog for one operation (paper, or "Save as PDF"). */
-export async function printOperation(entry: OperationEntry, ctx: ReferenceContext, options: PrintOptions = {}): Promise<HTMLElement> {
+/**
+ * A print view as static markup, for a host that prints its page itself:
+ * the HTML, the stylesheet for a shadow root it is put in (`shadowPrintCss`),
+ * and the title a PDF of it is named by.
+ */
+export interface PrintView {
+  html: string
+  css: string
+  title: string
+}
+
+/** The whole spec's print view (what `printDocument` prints), without opening a dialog. */
+export async function documentPrintView(ctx: ReferenceContext, options: { base?: string } = {}): Promise<PrintView> {
+  const base = options.base ?? window.location.href.split('#')[0]!
+  const html = await renderStatic(OaPrintDocument, { base }, ctx)
+  const info = ctx.spec.value.document.info
+  return { html, css: shadowPrintCss(), title: [info.title, info.version].filter(Boolean).join(' — ') || 'OpenAPI' }
+}
+
+/** One operation's print view (what `printOperation` prints), without opening a dialog. */
+export async function operationPrintView(entry: OperationEntry, ctx: ReferenceContext, options: { url?: string } = {}): Promise<PrintView> {
   const url = options.url ?? operationUrl(entry, ctx)
   const html = await renderStatic(OaPrintOperation, { entry, url }, ctx)
   const api = ctx.spec.value.document.info.title
   const name = entry.operation.summary || `${entry.method.toUpperCase()} ${entry.path}`
-  return printHtml(html, api ? `${api} — ${name}` : name, undefined, options.mode)
+  return { html, css: shadowPrintCss(), title: api ? `${api} — ${name}` : name }
+}
+
+/** Opens the print dialog for one operation (paper, or "Save as PDF"). */
+export async function printOperation(entry: OperationEntry, ctx: ReferenceContext, options: PrintOptions = {}): Promise<HTMLElement> {
+  const view = await operationPrintView(entry, ctx, { url: options.url })
+  return printHtml(view.html, view.title, undefined, options.mode)
 }
 
 /** Opens the print dialog for the whole spec: the introduction, every operation, the schemas. */
 export async function printDocument(ctx: ReferenceContext, options: PrintDocumentOptions = {}): Promise<HTMLElement> {
-  const base = options.base ?? window.location.href.split('#')[0]!
-  const html = await renderStatic(OaPrintDocument, { base }, ctx)
-  const info = ctx.spec.value.document.info
-  return printHtml(html, [info.title, info.version].filter(Boolean).join(' — ') || 'OpenAPI', undefined, options.mode)
+  const view = await documentPrintView(ctx, { base: options.base })
+  return printHtml(view.html, view.title, undefined, options.mode)
 }
