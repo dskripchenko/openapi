@@ -514,6 +514,12 @@ OpenID Connect 访问令牌及其有效期（过期的不会恢复），以及 b
 `printDocument(ctx, { base?, mode? })` 在代码中完成同样的事；它们接收参考页的上下文
 （见 [上下文](#上下文)）。`url` 是随操作一起打印的地址，`base` 是操作锚点所追加到的页面。
 
+自行打印整个页面（页面中包含参考文档）的宿主程序，可以不经对话框获得同样的视图：通过模板 ref 调用
+`<OpenApiReference>`（整个规范）或 `<OpenApiOperation>`（其操作）上的 `printView()`，返回
+`{ html, css, title }`——静态标记、放置它的 shadow root 所用的样式表以及标题；规范尚未加载时返回 null。
+在代码中可使用 `documentPrintView(ctx, { base? })` 和 `operationPrintView(entry, ctx, { url? })`。
+参考文档的 ref 也提供 `print()`。
+
 ## 请求示例
 
 示例选择器按给定顺序提供 `snippetTargets` 中的语言；`defaultSnippet`

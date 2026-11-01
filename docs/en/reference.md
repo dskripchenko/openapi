@@ -607,6 +607,14 @@ reference context (see [the context](#the-context)). `url` is the address
 printed with the operation, `base` the page the operation anchors are
 appended to.
 
+A host that prints its own page — with the reference in it — takes the same
+view without a dialog: `printView()` on `<OpenApiReference>` (the whole spec)
+and on `<OpenApiOperation>` (its operation), through a template ref, resolves
+with `{ html, css, title }` — static markup, a stylesheet for a shadow root to
+put it in, and the title — or null before the spec is loaded.
+`documentPrintView(ctx, { base? })` and `operationPrintView(entry, ctx, { url? })`
+do it from code. The reference's ref also has `print()`.
+
 ## Request samples
 
 The samples select offers the languages of `snippetTargets`, in the order

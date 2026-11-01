@@ -648,6 +648,15 @@ Kontext der Referenz entgegen (siehe [den Kontext](#der-kontext)). `url` ist
 die mit der Operation gedruckte Adresse, `base` die Seite, an die die Anker
 der Operationen angehängt werden.
 
+Eine Anwendung, die ihre eigene Seite druckt — mit der Referenz darin —,
+bekommt dieselbe Ansicht ohne Dialog: `printView()` an `<OpenApiReference>`
+(die ganze Spezifikation) und an `<OpenApiOperation>` (seine Operation), über
+eine Template-Ref, liefert `{ html, css, title }` — statisches Markup, ein
+Stylesheet für die Shadow Root, in die es kommt, und den Titel — oder null,
+solange die Spezifikation nicht geladen ist. Aus Code:
+`documentPrintView(ctx, { base? })` und `operationPrintView(entry, ctx, { url? })`.
+Die Ref der Referenz hat auch `print()`.
+
 ## Anfragebeispiele
 
 Die Auswahl der Beispiele bietet die Sprachen aus `snippetTargets` in der

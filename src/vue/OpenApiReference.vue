@@ -26,7 +26,7 @@ import { SNIPPET_TARGETS, type SnippetTarget } from '../snippets'
 import type { SpecInput, SpecSource } from './context'
 import type { OpenApiLabels } from './labels'
 import { downloadSpec, downloadTypes } from './download'
-import { printDocument } from './print'
+import { documentPrintView, printDocument, type PrintView } from './print'
 import { currentServer } from './draft'
 import OaAuth from './OaAuth.vue'
 import OaIntro from './OaIntro.vue'
@@ -380,7 +380,12 @@ watch(loaded, () => void nextTick(watchSections), { flush: 'post' })
 onMounted(() => void nextTick(watchSections))
 onBeforeUnmount(() => spy?.disconnect())
 
-defineExpose({ go, open, spec: loaded, active: activeId })
+/** The whole spec as a static print view, for a host printing its own page; null before it loads. */
+async function printView(): Promise<PrintView | null> {
+  return loaded.value ? documentPrintView(ctx) : null
+}
+
+defineExpose({ go, open, spec: loaded, active: activeId, print: () => printDocument(ctx), printView })
 </script>
 
 <template>
