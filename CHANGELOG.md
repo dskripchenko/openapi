@@ -1,5 +1,11 @@
 # @dskripchenko/openapi
 
+## 1.3.0
+
+### Minor Changes
+
+- 9163ecf: Print views for a host printing its own page: `printView()` on `<OpenApiReference>` and `<OpenApiOperation>` (through a template ref), and `documentPrintView(ctx)` / `operationPrintView(entry, ctx)`, resolve with `{ html, css, title }` — the static markup `printDocument` / `printOperation` print, a stylesheet for a shadow root, and the title — without opening a dialog. The reference's ref also exposes `print()`.
+
 ## 1.2.0
 
 ### Minor Changes
