@@ -23,6 +23,7 @@
     "tests/**/*.ts"
   ],
   "exclude": [
+    "tests/**/*.vue.spec.ts",
     "src/vue/**",
     "src/standalone/**"
   ]
