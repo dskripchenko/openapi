@@ -86,7 +86,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
-    "@dskripchenko/ui": "^1.13.0",
+    "@dskripchenko/ui": "^1.24.0",
     "@eslint/js": "^10.0.1",
     "@microsoft/api-extractor": "^7.59.4",
     "@types/node": "^22.20.5",

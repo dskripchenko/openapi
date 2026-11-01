@@ -767,6 +767,11 @@
   --uid-code-tok-attr: var(--uid-warning);
   --uid-code-tok-property: var(--uid-info);
   --uid-code-tok-punctuation: var(--uid-text-secondary);
+  --uid-code-tok-type: var(--uid-info);
+  --uid-code-tok-regex: var(--uid-success);
+  --uid-code-tok-meta: var(--uid-text-secondary);
+  --uid-code-tok-inserted: var(--uid-success);
+  --uid-code-tok-deleted: var(--uid-danger);
   display: flex;
   flex-direction: column;
   gap: 8px;
